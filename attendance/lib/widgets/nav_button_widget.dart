@@ -21,15 +21,13 @@ class NavButton extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 11),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               icon,
-              color: isActive
-                  ? AppTheme.primaryNavy
-                  : AppTheme.textSecondary,
+              color: isActive ? AppTheme.primaryNavy : AppTheme.textSecondary,
               size: 24,
             ),
             const SizedBox(height: 4),
@@ -38,9 +36,7 @@ class NavButton extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                color: isActive
-                    ? AppTheme.primaryNavy
-                    : AppTheme.textSecondary,
+                color: isActive ? AppTheme.primaryNavy : AppTheme.textSecondary,
               ),
             ),
           ],

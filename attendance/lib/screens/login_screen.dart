@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../config/app_theme.dart';
-import 'attendance_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -12,15 +11,13 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
   final TextEditingController _employeeIdController = TextEditingController();
-  final FocusNode _focusNode = FocusNode();
-  bool _isLoading = false;
+  final bool _isLoading = false; // Toggle this to show the loading spinner
   late AnimationController _animController;
   late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
-    _employeeIdController.text = 'e.g. EMP001';
 
     // Fade-in animation
     _animController = AnimationController(
@@ -32,58 +29,18 @@ class _LoginScreenState extends State<LoginScreen>
       curve: Curves.easeOut,
     );
     _animController.forward();
-
-    // Clear placeholder on focus
-    _focusNode.addListener(() {
-      if (_focusNode.hasFocus && _employeeIdController.text == 'e.g. EMP001') {
-        _employeeIdController.clear();
-      }
-    });
   }
 
-  void _handleSignIn() async {
-    if (_employeeIdController.text.isEmpty ||
-        _employeeIdController.text == 'e.g. EMP001') {
-      _showError('Please enter your Employee ID');
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 2));
-
-    setState(() => _isLoading = false);
-
-    // Navigate to Attendance screen
-    if (!mounted) return;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => AttendanceScreen(
-          employeeName: 'Alice Johnson',
-          employeeId: _employeeIdController.text,
-          department: 'Engineering',
-        ),
-      ),
-    );
-  }
-
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppTheme.errorRed,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+  void _handleSignIn() {
+    // TODO: Implement your sign-in logic here
+    // 1. Validate the input
+    // 2. Call your AuthProvider
+    // 3. Navigate to AttendanceScreen on success
   }
 
   @override
   void dispose() {
     _employeeIdController.dispose();
-    _focusNode.dispose();
     _animController.dispose();
     super.dispose();
   }
@@ -117,18 +74,6 @@ class _LoginScreenState extends State<LoginScreen>
               ),
             ),
           ),
-          Positioned(
-            bottom: -150,
-            left: -150,
-            child: Container(
-              width: 400,
-              height: 400,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.03),
-              ),
-            ),
-          ),
 
           // Main Content
           SafeArea(
@@ -147,7 +92,7 @@ class _LoginScreenState extends State<LoginScreen>
                         Container(
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.15),
+                            color: Colors.white.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: const Icon(
@@ -235,7 +180,6 @@ class _LoginScreenState extends State<LoginScreen>
                           const SizedBox(height: 12),
                           TextField(
                             controller: _employeeIdController,
-                            focusNode: _focusNode,
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w600,
@@ -243,6 +187,7 @@ class _LoginScreenState extends State<LoginScreen>
                               letterSpacing: 1.2,
                             ),
                             decoration: InputDecoration(
+                              hintText: 'EMP001',
                               prefixIcon: Container(
                                 margin: const EdgeInsets.only(right: 12),
                                 decoration: BoxDecoration(
@@ -292,8 +237,7 @@ class _LoginScreenState extends State<LoginScreen>
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
                                 ),
-                                disabledBackgroundColor: AppTheme
-                                    .primaryNavy
+                                disabledBackgroundColor: AppTheme.primaryNavy
                                     .withOpacity(0.6),
                               ),
                               child: _isLoading
@@ -330,55 +274,7 @@ class _LoginScreenState extends State<LoginScreen>
                       ),
                     ),
 
-                    const SizedBox(height: 24),
-
-                    // Info Card
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.2),
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.info_outline,
-                            color: Colors.white.withOpacity(0.8),
-                            size: 20,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Available IDs: EMP001 – EMP008 • Admin: EMP001',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.8),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 40),
-
-                    // Footer
-                    Center(
-                      child: Text(
-                        'Contact your administrator if you don\'t have one.',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.5),
-                          fontSize: 13,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 60),
                   ],
                 ),
               ),
