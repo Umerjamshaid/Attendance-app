@@ -36,6 +36,10 @@ dependencies:
   cupertino_icons: ^1.0.8
   # State management
   provider: ^6.1.5+1
+  # Networking
+  http: ^1.2.2
+  # Location
+  geolocator: ^13.0.2
   # Firebase dependencies
 
 dev_dependencies:
