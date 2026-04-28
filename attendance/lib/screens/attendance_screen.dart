@@ -280,8 +280,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                               child: Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.successGreen
-                                      .withOpacity(0.1),
+                                  color: AppTheme.successGreen.withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(16),
                                   border: Border.all(
                                     color: AppTheme.successGreen,
@@ -305,8 +304,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                                             'Checked in today at',
                                             style: TextStyle(
                                               fontSize: 13,
-                                              color:
-                                                  AppTheme.textSecondary,
+                                              color: AppTheme.textSecondary,
                                               fontWeight: FontWeight.w500,
                                             ),
                                           ),
@@ -314,8 +312,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                                             _checkInTime,
                                             style: const TextStyle(
                                               fontSize: 18,
-                                              color:
-                                                  AppTheme.successGreen,
+                                              color: AppTheme.successGreen,
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
@@ -344,8 +341,9 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                                   colors: _isCheckedIn
                                       ? [
                                           AppTheme.successGreen,
-                                          AppTheme.successGreen
-                                              .withOpacity(0.8),
+                                          AppTheme.successGreen.withOpacity(
+                                            0.8,
+                                          ),
                                         ]
                                       : [
                                           AppTheme.primaryNavy,
@@ -442,55 +440,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
             ),
           ),
 
-          // Bottom Navigation
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 2,
-                    offset: const Offset(0, -5),
-                  ),
-                ],
-              ),
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      NavButton(
-                        icon: Icons.home,
-                        label: 'Home',
-                        isActive: true,
-                        onTap: () {},
-                      ),
-                      NavButton(
-                        icon: Icons.history,
-                        label: 'History',
-                        onTap: () {},
-                      ),
-                      NavButton(
-                        icon: Icons.admin_panel_settings,
-                        label: 'Admin',
-                        onTap: () {},
-                      ),
-                      NavButton(
-                        icon: Icons.person,
-                        label: 'Profile',
-                        onTap: () {},
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
+          // Bottom Navigation is now provided by a shared AppShell.
         ],
       ),
     );

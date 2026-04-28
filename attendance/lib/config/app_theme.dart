@@ -21,3 +21,15 @@ class AppTheme {
     ),
   );
 }
+
+// ─────────────────────────── THEME ───────────────────────────
+class AppColors {
+  static const bg = Color(0xFFF5F5F5);
+  static const dark = Color(0xFF0F0F0F);
+  static const card = Color(0xFFFFFFFF);
+  static const present = Color(0xFF00C853);
+  static const absent = Color(0xFFFF3B30);
+  static const muted = Color(0xFF9E9E9E);
+  static const surface = Color(0xFF1C1C1C);
+  static const divider = Color(0xFFEEEEEE);
+}

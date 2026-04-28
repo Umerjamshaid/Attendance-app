@@ -39,8 +39,9 @@ dependencies:
   # Networking
   http: ^1.2.2
   # Location
-  geolocator: ^13.0.2
-  # Firebase dependencies
+  geolocator: ^14.0.2
+  # Local storage
+  shared_preferences: ^2.5.5
 
 dev_dependencies:
   flutter_test:
