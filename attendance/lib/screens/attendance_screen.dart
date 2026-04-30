@@ -1,8 +1,10 @@
+import 'package:attendance/providers/attendance_provider.dart';
+import 'package:attendance/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../config/app_theme.dart';
+import 'package:provider/provider.dart';
+import '../../config/wc_tokens.dart';
 import '../widgets/option_card_widget.dart';
-import '../widgets/nav_button_widget.dart';
 
 class AttendanceScreen extends StatefulWidget {
   final String employeeName;
@@ -33,6 +35,10 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   void initState() {
     super.initState();
 
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AttendanceProvider>().initialize();
+    });
+
     // Pulse animation for fingerprint
     _pulseController = AnimationController(
       vsync: this,
@@ -55,35 +61,52 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   }
 
   void _handleCheckIn() async {
-    setState(() => _isCheckedIn = true);
-    _pulseController.stop();
-    _successController.forward();
-
-    // Haptic feedback
-    HapticFeedback.mediumImpact();
-
-    final now = DateTime.now();
-    setState(() {
-      _checkInTime =
-          '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')} ${now.hour >= 12 ? 'PM' : 'AM'}';
-    });
-
-    // Show success message
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: const [
-            Icon(Icons.check_circle, color: Colors.white),
-            SizedBox(width: 12),
-            Text('Successfully checked in!'),
-          ],
-        ),
-        backgroundColor: AppTheme.successGreen,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
+    final attendanceProvider = context.read<AttendanceProvider>();
+    
+    final success = await attendanceProvider.submitAttendance(
+      userId: widget.employeeId,
+      isPresent: true,
+      device: attendanceProvider.deviceModel,
     );
+
+    if (success) {
+      setState(() => _isCheckedIn = true);
+      _pulseController.stop();
+      _successController.forward();
+
+      // Haptic feedback
+      HapticFeedback.mediumImpact();
+
+      final now = DateTime.now();
+      setState(() {
+        _checkInTime =
+            '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')} ${now.hour >= 12 ? 'PM' : 'AM'}';
+      });
+
+      // Show success message
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: const [
+              Icon(Icons.check_circle, color: WC.white),
+              SizedBox(width: 12),
+              Text('Successfully checked in!'),
+            ],
+          ),
+          backgroundColor: WC.present,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: WC.r12),
+        ),
+      );
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(attendanceProvider.error ?? 'Failed to check in'),
+          backgroundColor: WC.absent,
+        ),
+      );
+    }
   }
 
   @override
@@ -95,23 +118,27 @@ class _AttendanceScreenState extends State<AttendanceScreen>
 
   @override
   Widget build(BuildContext context) {
+    final attendanceProvider = context.watch<AttendanceProvider>();
+    final isLoading = attendanceProvider.isLoading;
+    
     final now = DateTime.now();
     final dateStr =
         '${_getWeekday(now.weekday)}, ${_getMonth(now.month)} ${now.day}, ${now.year}';
     final timeStr =
         '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')} ${now.hour >= 12 ? 'PM' : 'AM'}';
 
+    final avatarUrl = 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(widget.employeeName)}&background=000&color=fff&size=200';
+
     return Scaffold(
+      backgroundColor: WC.bg,
       body: Stack(
         children: [
-          // Gradient Background
+          // Header Background
           Container(
+            height: 320,
+            width: double.infinity,
             decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [AppTheme.primaryNavy, AppTheme.darkNavy],
-              ),
+              color: WC.black,
             ),
           ),
 
@@ -121,38 +148,29 @@ class _AttendanceScreenState extends State<AttendanceScreen>
               children: [
                 // Header
                 Padding(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   child: Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(12),
+                          color: WC.white.withOpacity(0.15),
+                          borderRadius: WC.r12,
                         ),
                         child: const Icon(
-                          Icons.business_center,
-                          color: Colors.white,
-                          size: 24,
+                          Icons.location_city_rounded,
+                          color: WC.white,
+                          size: 20,
                         ),
                       ),
                       const SizedBox(width: 12),
                       const Text(
-                        'Attendance',
+                        'WorkCheck',
                         style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
+                          color: WC.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
                         ),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(Icons.share, color: Colors.white),
-                        onPressed: () {},
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.more_vert, color: Colors.white),
-                        onPressed: () {},
                       ),
                     ],
                   ),
@@ -160,23 +178,21 @@ class _AttendanceScreenState extends State<AttendanceScreen>
 
                 // Profile Section
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   child: Column(
                     children: [
                       // Avatar
                       Container(
-                        width: 90,
-                        height: 90,
+                        width: 84,
+                        height: 84,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: AppTheme.accentGreen,
-                            width: 3,
+                            color: WC.present,
+                            width: 2.5,
                           ),
-                          image: const DecorationImage(
-                            image: NetworkImage(
-                              'https://ui-avatars.com/api/?name=Alice+Johnson&background=00D9A3&color=fff&size=200',
-                            ),
+                          image: DecorationImage(
+                            image: NetworkImage(avatarUrl),
                             fit: BoxFit.cover,
                           ),
                         ),
@@ -185,29 +201,27 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                       Text(
                         widget.employeeName,
                         style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
+                          color: WC.white,
+                          fontSize: 26,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.5,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
+                          horizontal: 14,
+                          vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: AppTheme.accentGreen.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: AppTheme.accentGreen.withOpacity(0.5),
-                          ),
+                          color: WC.white.withOpacity(0.1),
+                          borderRadius: WC.rFull,
                         ),
                         child: Text(
                           widget.department,
                           style: const TextStyle(
-                            color: AppTheme.accentGreen,
-                            fontSize: 14,
+                            color: WC.muted,
+                            fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -216,13 +230,13 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                   ),
                 ),
 
-                const SizedBox(height: 32),
+                const SizedBox(height: 16),
 
                 // White Card Section
                 Expanded(
                   child: Container(
                     decoration: const BoxDecoration(
-                      color: Colors.white,
+                      color: WC.white,
                       borderRadius: BorderRadius.vertical(
                         top: Radius.circular(32),
                       ),
@@ -235,16 +249,16 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                           Row(
                             children: [
                               const Icon(
-                                Icons.calendar_today,
-                                size: 18,
-                                color: AppTheme.textSecondary,
+                                Icons.calendar_today_rounded,
+                                size: 16,
+                                color: WC.muted,
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 10),
                               Text(
                                 dateStr,
                                 style: const TextStyle(
                                   fontSize: 14,
-                                  color: AppTheme.textSecondary,
+                                  color: WC.muted,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -254,18 +268,18 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                           Row(
                             children: [
                               const Icon(
-                                Icons.access_time,
+                                Icons.access_time_filled_rounded,
                                 size: 18,
-                                color: AppTheme.accentGreen,
+                                color: WC.black,
                               ),
                               const SizedBox(width: 8),
                               Text(
                                 timeStr,
                                 style: const TextStyle(
-                                  fontSize: 20,
-                                  color: AppTheme.accentGreen,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1,
+                                  fontSize: 22,
+                                  color: WC.black,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.5,
                                 ),
                               ),
                             ],
@@ -280,18 +294,18 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                               child: Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.successGreen.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(16),
+                                  color: WC.present.withOpacity(0.08),
+                                  borderRadius: WC.r16,
                                   border: Border.all(
-                                    color: AppTheme.successGreen,
-                                    width: 2,
+                                    color: WC.present.withOpacity(0.3),
+                                    width: 1.5,
                                   ),
                                 ),
                                 child: Row(
                                   children: [
                                     const Icon(
-                                      Icons.check_circle,
-                                      color: AppTheme.successGreen,
+                                      Icons.check_circle_rounded,
+                                      color: WC.present,
                                       size: 24,
                                     ),
                                     const SizedBox(width: 12),
@@ -303,17 +317,17 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                                           const Text(
                                             'Checked in today at',
                                             style: TextStyle(
-                                              fontSize: 13,
-                                              color: AppTheme.textSecondary,
-                                              fontWeight: FontWeight.w500,
+                                              fontSize: 12,
+                                              color: WC.muted,
+                                              fontWeight: FontWeight.w600,
                                             ),
                                           ),
                                           Text(
                                             _checkInTime,
                                             style: const TextStyle(
                                               fontSize: 18,
-                                              color: AppTheme.successGreen,
-                                              fontWeight: FontWeight.bold,
+                                              color: WC.present,
+                                              fontWeight: FontWeight.w800,
                                             ),
                                           ),
                                         ],
@@ -328,37 +342,19 @@ class _AttendanceScreenState extends State<AttendanceScreen>
 
                           // Fingerprint Button
                           GestureDetector(
-                            onTap: _isCheckedIn ? null : _handleCheckIn,
+                            onTap: (_isCheckedIn || isLoading) ? null : _handleCheckIn,
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 300),
-                              width: 220,
-                              height: 220,
+                              width: 180,
+                              height: 180,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                gradient: LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: _isCheckedIn
-                                      ? [
-                                          AppTheme.successGreen,
-                                          AppTheme.successGreen.withOpacity(
-                                            0.8,
-                                          ),
-                                        ]
-                                      : [
-                                          AppTheme.primaryNavy,
-                                          AppTheme.darkNavy,
-                                        ],
-                                ),
+                                color: _isCheckedIn ? WC.present : WC.black,
                                 boxShadow: [
                                   BoxShadow(
-                                    color:
-                                        (_isCheckedIn
-                                                ? AppTheme.successGreen
-                                                : AppTheme.primaryNavy)
-                                            .withOpacity(0.3),
-                                    blurRadius: 30,
-                                    offset: const Offset(0, 10),
+                                    color: (_isCheckedIn ? WC.present : WC.black).withOpacity(0.2),
+                                    blurRadius: 24,
+                                    offset: const Offset(0, 8),
                                   ),
                                 ],
                               ),
@@ -369,63 +365,67 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(
-                                      _isCheckedIn
-                                          ? Icons.check_circle
-                                          : Icons.fingerprint,
-                                      size: 80,
-                                      color: Colors.white,
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      _isCheckedIn
-                                          ? 'Checked In'
-                                          : 'Mark\nAttendance',
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        height: 1.3,
+                                    if (isLoading)
+                                      const CircularProgressIndicator(color: WC.white)
+                                    else ...[
+                                      Icon(
+                                        _isCheckedIn
+                                            ? Icons.check_circle_rounded
+                                            : Icons.fingerprint_rounded,
+                                        size: 64,
+                                        color: WC.white,
                                       ),
-                                    ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        _isCheckedIn
+                                            ? 'Checked In'
+                                            : 'Mark\nAttendance',
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          color: WC.white,
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w800,
+                                          height: 1.2,
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),
                             ),
                           ),
 
-                          const SizedBox(height: 40),
+                          const SizedBox(height: 48),
 
                           // Options Row
                           Row(
                             children: [
                               Expanded(
                                 child: OptionCard(
-                                  icon: Icons.location_on,
+                                  icon: Icons.location_on_rounded,
                                   label: 'GPS',
-                                  subtitle: 'Tap to allow',
-                                  color: AppTheme.primaryNavy,
+                                  subtitle: 'Enabled',
+                                  color: WC.accentBlue,
                                   onTap: () {},
                                 ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: OptionCard(
-                                  icon: Icons.location_city,
-                                  label: 'Osquare',
-                                  subtitle: '100 m',
-                                  color: AppTheme.accentGreen,
+                                  icon: Icons.business_rounded,
+                                  label: attendanceProvider.officeLocation?.name ?? 'Office',
+                                  subtitle: '${attendanceProvider.officeLocation?.radiusInMeters.toInt() ?? 0} m',
+                                  color: WC.present,
                                   onTap: () {},
                                 ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: OptionCard(
-                                  icon: Icons.devices,
+                                  icon: Icons.devices_rounded,
                                   label: 'Device',
-                                  subtitle: 'Browser',
-                                  color: Colors.deepPurple,
+                                  subtitle: attendanceProvider.deviceModel,
+                                  color: WC.black,
                                   onTap: () {},
                                 ),
                               ),
@@ -439,8 +439,6 @@ class _AttendanceScreenState extends State<AttendanceScreen>
               ],
             ),
           ),
-
-          // Bottom Navigation is now provided by a shared AppShell.
         ],
       ),
     );

@@ -1,8 +1,9 @@
+import 'package:attendance/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
 import '../../config/wc_tokens.dart';
-import '../admin/admin_dashboard_screen.dart';
 
 class UpperCaseTextFormatter extends TextInputFormatter {
   @override
@@ -15,9 +16,9 @@ class UpperCaseTextFormatter extends TextInputFormatter {
 }
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key, required this.onLoginSuccess});
+  const LoginScreen({super.key, this.onLoginSuccess});
 
-  final VoidCallback onLoginSuccess;
+  final VoidCallback? onLoginSuccess;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -26,7 +27,6 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
   final _controller = TextEditingController();
-  bool _loading = false;
   late AnimationController _animCtrl;
   late Animation<double> _fadeIn;
   late Animation<Offset> _slideUp;
@@ -56,15 +56,27 @@ class _LoginScreenState extends State<LoginScreen>
   void _signIn() async {
     final id = _controller.text.trim();
     if (id.isEmpty) return;
-    setState(() => _loading = true);
-    await Future.delayed(const Duration(milliseconds: 900));
-    if (!mounted) return;
-    setState(() => _loading = false);
-    widget.onLoginSuccess();
+    
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.login(id);
+    
+    if (success) {
+      widget.onLoginSuccess?.call();
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authProvider.error ?? 'Login failed'),
+          backgroundColor: WC.absent,
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final authStatus = context.watch<AuthProvider>().status;
+    final isLoading = authStatus == AuthStatus.authenticating;
+
     return Scaffold(
       backgroundColor: WC.bg,
       resizeToAvoidBottomInset: true,
@@ -98,7 +110,7 @@ class _LoginScreenState extends State<LoginScreen>
                           const SizedBox(height: 10),
                           _IdInputField(controller: _controller),
                           const SizedBox(height: 28),
-                          _SignInButton(loading: _loading, onTap: _signIn),
+                          _SignInButton(loading: isLoading, onTap: _signIn),
                           const SizedBox(height: 24),
                           const Center(
                             child: Text(

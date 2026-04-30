@@ -1,26 +1,54 @@
+import 'package:attendance/providers/attendance_history_provider.dart';
+import 'package:attendance/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../config/wc_tokens.dart';
 import '../../models/attendance_model.dart';
 
-class HistoryScreen extends StatelessWidget {
+class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
 
   @override
+  State<HistoryScreen> createState() => _HistoryScreenState();
+}
+
+class _HistoryScreenState extends State<HistoryScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final userId = context.read<AuthProvider>().currentUser?.id;
+      if (userId != null) {
+        context.read<AttendanceHistoryProvider>().loadHistory(userId);
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // Mock data based on your requirements
-    final groups = [AttendanceGroup(date: 'Wed, Apr 22', records: [
-        ],
-      )];
+    final historyProvider = context.watch<AttendanceHistoryProvider>();
+    final groups = historyProvider.groups;
 
     return Column(
       children: [
-        _HistoryHeader(),
+        _HistoryHeader(
+          present: historyProvider.presentCount,
+          absent: historyProvider.absentCount,
+        ),
         Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            itemCount: groups.length,
-            itemBuilder: (_, i) => _AttendanceGroup(group: groups[i]),
-          ),
+          child: historyProvider.isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : historyProvider.error != null
+                  ? Center(child: Text(historyProvider.error!))
+                  : groups.isEmpty
+                      ? const Center(child: Text('No history found'))
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 16),
+                          itemCount: groups.length,
+                          itemBuilder: (_, i) =>
+                              _AttendanceGroup(group: groups[i]),
+                        ),
         ),
       ],
     );
@@ -28,6 +56,11 @@ class HistoryScreen extends StatelessWidget {
 }
 
 class _HistoryHeader extends StatelessWidget {
+  final int present;
+  final int absent;
+
+  const _HistoryHeader({required this.present, required this.absent});
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -66,9 +99,9 @@ class _HistoryHeader extends StatelessWidget {
               const SizedBox(height: 24),
               Row(
                 children: [
-                  _StatChip(label: '3 Present', color: WC.present),
+                  _StatChip(label: '$present Present', color: WC.present),
                   const SizedBox(width: 10),
-                  _StatChip(label: '5 Absent', color: WC.absent),
+                  _StatChip(label: '$absent Absent', color: WC.absent),
                 ],
               ),
             ],
