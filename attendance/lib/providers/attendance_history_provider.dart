@@ -34,14 +34,16 @@ class AttendanceHistoryProvider extends ChangeNotifier {
   int get totalCount => _records.length;
 
   // ── Records grouped by date, ready for the UI to display
-  //    Returns: { 'Wed, Apr 22': [record1, record2], 'Tue, Apr 21': [...] }
-  Map<String, List<AttendanceRecord>> get groupedByDate {
+  //    Returns: [ AttendanceGroup(date: 'Wed, Apr 22', records: [...]), ... ]
+  List<AttendanceGroup> get groups {
     final Map<String, List<AttendanceRecord>> grouped = {};
     for (final record in _records) {
       final dateKey = _formatDateKey(record.timestamp);
       grouped.putIfAbsent(dateKey, () => []).add(record);
     }
-    return grouped;
+    return grouped.entries
+        .map((e) => AttendanceGroup(date: e.key, records: e.value))
+        .toList();
   }
 
   String _formatDateKey(DateTime date) {

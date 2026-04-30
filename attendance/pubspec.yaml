@@ -42,6 +42,12 @@ dependencies:
   geolocator: ^14.0.2
   # Local storage
   shared_preferences: ^2.5.5
+  # Date and time handling
+  intl: ^0.20.2
+  timeline_tile: ^2.0.0
+  # fonts and icons
+  google_fonts: ^8.1.0
+  
 
 dev_dependencies:
   flutter_test:
