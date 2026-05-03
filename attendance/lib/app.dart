@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 import 'config/app_theme.dart';
 
 class AttendanceApp extends StatelessWidget {
-  const AttendanceApp({Key? key}) : super(key: key);
+  const AttendanceApp({super.key});
 
   @override
   Widget build(BuildContext context) {

@@ -2,7 +2,6 @@ import 'package:attendance/models/office_location_model.dart';
 import 'package:attendance/services/device_service.dart';
 import 'package:attendance/services/office_service.dart';
 import 'package:flutter/material.dart';
-import '../models/attendance_model.dart';
 import '../services/attendance_service.dart';
 
 class AttendanceProvider extends ChangeNotifier {
@@ -14,9 +13,9 @@ class AttendanceProvider extends ChangeNotifier {
     AttendanceService? service,
     DeviceService? deviceService,
     OfficeService? officeService,
-  })  : _service = service ?? AttendanceService(),
-        _deviceService = deviceService ?? DeviceService(),
-        _officeService = officeService ?? OfficeService();
+  }) : _service = service ?? AttendanceService(),
+       _deviceService = deviceService ?? DeviceService(),
+       _officeService = officeService ?? OfficeService();
 
   bool _isLoading = false;
   String? _error;

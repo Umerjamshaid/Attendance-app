@@ -8,12 +8,12 @@ class NavButton extends StatelessWidget {
   final VoidCallback onTap;
 
   const NavButton({
-    Key? key,
+    super.key,
     required this.icon,
     required this.label,
     this.isActive = false,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

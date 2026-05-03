@@ -13,9 +13,27 @@ class EmployeeService {
 
     await Future.delayed(const Duration(seconds: 1));
     return [
-      Employee(id: 'EMP001', name: 'Alice Johnson', department: 'Engineering'),
-      Employee(id: 'EMP002', name: 'Eva Martinez', department: 'Design'),
-      Employee(id: 'EMP003', name: 'James Wilson', department: 'Marketing'),
+      Employee(
+        id: 'EMP001',
+        name: 'Alice Johnson',
+        department: 'Engineering',
+        email: '',
+        role: '',
+      ),
+      Employee(
+        id: 'EMP002',
+        name: 'Eva Martinez',
+        department: 'Design',
+        email: '',
+        role: '',
+      ),
+      Employee(
+        id: 'EMP003',
+        name: 'James Wilson',
+        department: 'Marketing',
+        email: '',
+        role: '',
+      ),
     ];
   }
 }
