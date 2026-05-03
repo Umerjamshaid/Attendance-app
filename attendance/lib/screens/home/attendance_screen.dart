@@ -3,8 +3,8 @@ import 'package:attendance/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import '../../config/wc_tokens.dart';
-import '../widgets/option_card_widget.dart';
+import '../../../config/wc_tokens.dart';
+import '../../widgets/option_card_widget.dart';
 
 class AttendanceScreen extends StatefulWidget {
   final String employeeName;
@@ -12,11 +12,11 @@ class AttendanceScreen extends StatefulWidget {
   final String department;
 
   const AttendanceScreen({
-    Key? key,
+    super.key,
     required this.employeeName,
     required this.employeeId,
     required this.department,
-  }) : super(key: key);
+  });
 
   @override
   State<AttendanceScreen> createState() => _AttendanceScreenState();
@@ -62,7 +62,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
 
   void _handleCheckIn() async {
     final attendanceProvider = context.read<AttendanceProvider>();
-    
+
     final success = await attendanceProvider.submitAttendance(
       userId: widget.employeeId,
       isPresent: true,
@@ -120,14 +120,15 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   Widget build(BuildContext context) {
     final attendanceProvider = context.watch<AttendanceProvider>();
     final isLoading = attendanceProvider.isLoading;
-    
+
     final now = DateTime.now();
     final dateStr =
         '${_getWeekday(now.weekday)}, ${_getMonth(now.month)} ${now.day}, ${now.year}';
     final timeStr =
         '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')} ${now.hour >= 12 ? 'PM' : 'AM'}';
 
-    final avatarUrl = 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(widget.employeeName)}&background=000&color=fff&size=200';
+    final avatarUrl =
+        'https://ui-avatars.com/api/?name=${Uri.encodeComponent(widget.employeeName)}&background=000&color=fff&size=200';
 
     return Scaffold(
       backgroundColor: WC.bg,
@@ -137,9 +138,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           Container(
             height: 320,
             width: double.infinity,
-            decoration: const BoxDecoration(
-              color: WC.black,
-            ),
+            decoration: const BoxDecoration(color: WC.black),
           ),
 
           // Content
@@ -148,7 +147,10 @@ class _AttendanceScreenState extends State<AttendanceScreen>
               children: [
                 // Header
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
                   child: Row(
                     children: [
                       Container(
@@ -178,7 +180,10 @@ class _AttendanceScreenState extends State<AttendanceScreen>
 
                 // Profile Section
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
                   child: Column(
                     children: [
                       // Avatar
@@ -187,10 +192,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                         height: 84,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(
-                            color: WC.present,
-                            width: 2.5,
-                          ),
+                          border: Border.all(color: WC.present, width: 2.5),
                           image: DecorationImage(
                             image: NetworkImage(avatarUrl),
                             fit: BoxFit.cover,
@@ -342,7 +344,9 @@ class _AttendanceScreenState extends State<AttendanceScreen>
 
                           // Fingerprint Button
                           GestureDetector(
-                            onTap: (_isCheckedIn || isLoading) ? null : _handleCheckIn,
+                            onTap: (_isCheckedIn || isLoading)
+                                ? null
+                                : _handleCheckIn,
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 300),
                               width: 180,
@@ -352,7 +356,9 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                                 color: _isCheckedIn ? WC.present : WC.black,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: (_isCheckedIn ? WC.present : WC.black).withOpacity(0.2),
+                                    color:
+                                        (_isCheckedIn ? WC.present : WC.black)
+                                            .withOpacity(0.2),
                                     blurRadius: 24,
                                     offset: const Offset(0, 8),
                                   ),
@@ -366,7 +372,9 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     if (isLoading)
-                                      const CircularProgressIndicator(color: WC.white)
+                                      const CircularProgressIndicator(
+                                        color: WC.white,
+                                      )
                                     else ...[
                                       Icon(
                                         _isCheckedIn
@@ -413,8 +421,11 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                               Expanded(
                                 child: OptionCard(
                                   icon: Icons.business_rounded,
-                                  label: attendanceProvider.officeLocation?.name ?? 'Office',
-                                  subtitle: '${attendanceProvider.officeLocation?.radiusInMeters.toInt() ?? 0} m',
+                                  label:
+                                      attendanceProvider.officeLocation?.name ??
+                                      'Office',
+                                  subtitle:
+                                      '${attendanceProvider.officeLocation?.radiusInMeters.toInt() ?? 0} m',
                                   color: WC.present,
                                   onTap: () {},
                                 ),
