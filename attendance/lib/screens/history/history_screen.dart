@@ -39,16 +39,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
           child: historyProvider.isLoading
               ? const Center(child: CircularProgressIndicator())
               : historyProvider.error != null
-                  ? Center(child: Text(historyProvider.error!))
-                  : groups.isEmpty
-                      ? const Center(child: Text('No history found'))
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 16),
-                          itemCount: groups.length,
-                          itemBuilder: (_, i) =>
-                              _AttendanceGroup(group: groups[i]),
-                        ),
+              ? Center(child: Text(historyProvider.error!))
+              : groups.isEmpty
+              ? const Center(child: Text('No history found'))
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
+                  ),
+                  itemCount: groups.length,
+                  itemBuilder: (_, i) => _AttendanceGroup(group: groups[i]),
+                ),
         ),
       ],
     );
