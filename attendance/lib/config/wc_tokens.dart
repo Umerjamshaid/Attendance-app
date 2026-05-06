@@ -13,6 +13,8 @@ class WC {
   static const present = Color(0xFF018A45);
   static const absent = Color(0xFFD63031);
   static const accentBlue = Color(0xFF276EF1);
+  static const accentGreen = Color(0xFF2ECC71);
+  static const accent = Color(0xFFF1C40F);
 
   static BorderRadius get r8 => BorderRadius.circular(8);
   static BorderRadius get r12 => BorderRadius.circular(12);

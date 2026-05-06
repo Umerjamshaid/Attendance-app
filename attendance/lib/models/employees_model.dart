@@ -26,12 +26,15 @@ class Employee {
     this.totalLeaves = 0,
   });
 
+  bool get isAdmin => role == 'admin';
+  bool get isEmployee => role == 'employee';
+
   factory Employee.fromMap(Map<String, dynamic> map) {
     return Employee(
       id: map['id'] ?? '',
       name: map['name'] ?? '',
       email: map['email'] ?? '',
-      role: map['role'] ?? '',
+      role: map['role'] ?? 'employee',
       department: map['department'] ?? '',
       avatarUrl: map['avatarUrl'],
       totalAbsents: map['totalAbsents'] ?? 0,
@@ -39,4 +42,18 @@ class Employee {
       totalLeaves: map['totalLeaves'] ?? 0,
     );
   }
+}
+
+Map<String, dynamic> employeeToMap(Employee employee) {
+  return {
+    'id': employee.id,
+    'name': employee.name,
+    'email': employee.email,
+    'role': employee.role,
+    'department': employee.department,
+    'avatarUrl': employee.avatarUrl,
+    'totalAbsents': employee.totalAbsents,
+    'totalPresents': employee.totalPresents,
+    'totalLeaves': employee.totalLeaves,
+  };
 }
