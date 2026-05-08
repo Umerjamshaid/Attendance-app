@@ -1,0 +1,5 @@
+# Ignore planning folder
+PLANNING/
+
+# Ignore specific screen
+attendance/lib/screens/home/attendance_screen.dart
