@@ -1,21 +1,23 @@
+import 'package:attendance/models/employees_model.dart';
 import 'package:attendance/providers/attendance_provider.dart';
-import 'package:attendance/providers/auth_provider.dart';
-import 'package:flutter/material.dart';
+import 'package:attendance/widgets/home/attendance_button.dart';
+import 'package:attendance/widgets/home/attendance_profile_header.dart';
+import 'package:attendance/widgets/home/check_in_status_card.dart';
+
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
 import '../../../config/wc_tokens.dart';
 import '../../widgets/option_card_widget.dart';
 
+import 'package:flutter/material.dart';
+
 class AttendanceScreen extends StatefulWidget {
-  final String employeeName;
-  final String employeeId;
-  final String department;
+  final Employee employee;
 
   const AttendanceScreen({
     super.key,
-    required this.employeeName,
-    required this.employeeId,
-    required this.department,
+    required this.employee,
   });
 
   @override
@@ -35,6 +37,9 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   void initState() {
     super.initState();
 
+    _isCheckedIn = widget.employee.isPresentToday;
+    _checkInTime = widget.employee.checkInTime ?? '';
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AttendanceProvider>().initialize();
     });
@@ -52,19 +57,24 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     // Success animation
     _successController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 1000),
     );
 
     _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
       CurvedAnimation(parent: _successController, curve: Curves.elasticOut),
     );
+
+    if (_isCheckedIn) {
+      _pulseController.stop();
+      _successController.forward();
+    }
   }
 
   void _handleCheckIn() async {
     final attendanceProvider = context.read<AttendanceProvider>();
 
     final success = await attendanceProvider.submitAttendance(
-      userId: widget.employeeId,
+      userId: widget.employee.id,
       isPresent: true,
       device: attendanceProvider.deviceModel,
     );
@@ -127,9 +137,6 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     final timeStr =
         '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')} ${now.hour >= 12 ? 'PM' : 'AM'}';
 
-    final avatarUrl =
-        'https://ui-avatars.com/api/?name=${Uri.encodeComponent(widget.employeeName)}&background=000&color=fff&size=200';
-
     return Scaffold(
       backgroundColor: WC.bg,
       body: Stack(
@@ -167,7 +174,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                       ),
                       const SizedBox(width: 12),
                       const Text(
-                        'WorkCheck',
+                        'Attendance',
                         style: TextStyle(
                           color: WC.white,
                           fontSize: 18,
@@ -178,59 +185,8 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                   ),
                 ),
 
-                // Profile Section
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
-                  ),
-                  child: Column(
-                    children: [
-                      // Avatar
-                      Container(
-                        width: 84,
-                        height: 84,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: WC.present, width: 2.5),
-                          image: DecorationImage(
-                            image: NetworkImage(avatarUrl),
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        widget.employeeName,
-                        style: const TextStyle(
-                          color: WC.white,
-                          fontSize: 26,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: WC.white.withOpacity(0.1),
-                          borderRadius: WC.rFull,
-                        ),
-                        child: Text(
-                          widget.department,
-                          style: const TextStyle(
-                            color: WC.muted,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                // Profile Section (EXTRACTED)
+                AttendanceProfileHeader(employee: widget.employee),
 
                 const SizedBox(height: 16),
 
@@ -289,118 +245,21 @@ class _AttendanceScreenState extends State<AttendanceScreen>
 
                           const SizedBox(height: 24),
 
-                          // Check-in Status
-                          if (_isCheckedIn)
-                            ScaleTransition(
-                              scale: _scaleAnimation,
-                              child: Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: WC.present.withOpacity(0.08),
-                                  borderRadius: WC.r16,
-                                  border: Border.all(
-                                    color: WC.present.withOpacity(0.3),
-                                    width: 1.5,
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.check_circle_rounded,
-                                      color: WC.present,
-                                      size: 24,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const Text(
-                                            'Checked in today at',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: WC.muted,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                          Text(
-                                            _checkInTime,
-                                            style: const TextStyle(
-                                              fontSize: 18,
-                                              color: WC.present,
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
+                          // Check-in Status (EXTRACTED)
+                          CheckInStatusCard(
+                            isCheckedIn: _isCheckedIn,
+                            checkInTime: _checkInTime,
+                            scaleAnimation: _scaleAnimation,
+                          ),
 
                           const SizedBox(height: 32),
 
-                          // Fingerprint Button
-                          GestureDetector(
-                            onTap: (_isCheckedIn || isLoading)
-                                ? null
-                                : _handleCheckIn,
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 300),
-                              width: 180,
-                              height: 180,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: _isCheckedIn ? WC.present : WC.black,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color:
-                                        (_isCheckedIn ? WC.present : WC.black)
-                                            .withOpacity(0.2),
-                                    blurRadius: 24,
-                                    offset: const Offset(0, 8),
-                                  ),
-                                ],
-                              ),
-                              child: ScaleTransition(
-                                scale: _isCheckedIn
-                                    ? const AlwaysStoppedAnimation(1.0)
-                                    : _pulseAnimation,
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    if (isLoading)
-                                      const CircularProgressIndicator(
-                                        color: WC.white,
-                                      )
-                                    else ...[
-                                      Icon(
-                                        _isCheckedIn
-                                            ? Icons.check_circle_rounded
-                                            : Icons.fingerprint_rounded,
-                                        size: 64,
-                                        color: WC.white,
-                                      ),
-                                      const SizedBox(height: 12),
-                                      Text(
-                                        _isCheckedIn
-                                            ? 'Checked In'
-                                            : 'Mark\nAttendance',
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          color: WC.white,
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w800,
-                                          height: 1.2,
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                            ),
+                          // Fingerprint Button (EXTRACTED)
+                          AttendanceButton(
+                            isCheckedIn: _isCheckedIn,
+                            isLoading: isLoading,
+                            pulseAnimation: _pulseAnimation,
+                            onTap: _handleCheckIn,
                           ),
 
                           const SizedBox(height: 48),

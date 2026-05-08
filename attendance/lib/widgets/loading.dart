@@ -1,28 +1,25 @@
 import 'package:flutter/material.dart';
 
-class LoadingScreen extends StatelessWidget {
-  const LoadingScreen({super.key});
+class LoadingWidget extends StatelessWidget {
+  final String message;
+  const LoadingWidget({super.key, this.message = 'Loading...'});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min, // ← Don't stretch full height
-          children: [
-            CircularProgressIndicator(
-              color: Colors.black,
-              backgroundColor: Colors.white,
-              strokeWidth: 3,
-              valueColor: AlwaysStoppedAnimation(Colors.black),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Loading...',
-              style: TextStyle(fontSize: 16, color: Colors.black54),
-            ),
-          ],
-        ),
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const CircularProgressIndicator(
+            color: Colors.black,
+            strokeWidth: 3,
+          ),
+          const SizedBox(height: 20),
+          Text(
+            message,
+            style: const TextStyle(fontSize: 16, color: Colors.black54),
+          ),
+        ],
       ),
     );
   }

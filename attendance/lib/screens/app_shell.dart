@@ -4,6 +4,7 @@ import 'package:attendance/screens/history/history_screen.dart';
 import 'package:attendance/screens/admin/admin_dashboard_screen.dart';
 import 'package:attendance/screens/profile/profile_screen.dart';
 import 'package:attendance/widgets/bottom_nav.dart';
+import 'package:attendance/widgets/loading.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -11,22 +12,24 @@ class AppShell extends StatefulWidget {
   const AppShell({super.key});
 
   @override
-  _AppShellState createState() => _AppShellState();
+  AppShellState createState() => AppShellState();
 }
 
-class _AppShellState extends State<AppShell> {
+class AppShellState extends State<AppShell> {
   int _currentIndex = 0;
 
   @override
   Widget build(BuildContext context) {
-    final user = context.watch<AuthProvider>().currentUser;
+    final authProvider = context.watch<AuthProvider>();
+    final user = authProvider.currentUser;
+
+    // Handle null user case (e.g., during logout or initial load)
+    if (user == null) {
+      return Scaffold(body: LoadingWidget(message: 'Loading session...'));
+    }
 
     final pages = [
-      AttendanceScreen(
-        employeeName: user?.name ?? 'Unknown',
-        employeeId: user?.id ?? '',
-        department: user?.department ?? 'General',
-      ),
+      AttendanceScreen(employee: user),
       const HistoryScreen(),
       const AdminDashboardScreen(),
       const ProfileScreen(),

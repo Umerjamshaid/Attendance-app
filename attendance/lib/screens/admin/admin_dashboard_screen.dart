@@ -1,3 +1,5 @@
+import 'package:attendance/models/employees_model.dart';
+import 'package:attendance/services/employees_service.dart';
 import 'package:attendance/widgets/admin/dashboard_header.dart';
 import 'package:attendance/widgets/admin/employee_card.dart';
 import 'package:attendance/widgets/admin/office_location_card.dart';
@@ -10,41 +12,62 @@ class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
 
   @override
-  State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
+  State<AdminDashboardScreen> createState() => AdminDashboardScreenState();
 }
 
-class _AdminDashboardScreenState extends State<AdminDashboardScreen>
+class AdminDashboardScreenState extends State<AdminDashboardScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tab;
   int _activeTab = 1;
 
-  final _employees = const [
-    EmployeeData(
-      'Alice Johnson',
-      'Engineering',
-      'EMP001',
-      'Apr 22  03:15 PM',
-      true,
+  // ✅ Use EmployeeModel instead of EmployeeData
+  final employees = [
+    Employee(
+      id: 'E001',
+      name: 'Alice Johnson',
+      email: 'alice.johnson@example.com',
+      department: 'Engineering',
+      time: 'Apr 22  03:15 PM',
+      isPresentToday: true,
+      role: 'admin', // Example of an admin user
     ),
-    EmployeeData('Eva Martinez', 'Design', 'EMP002', 'Apr 22  02:48 PM', true),
-    EmployeeData(
-      'James Wilson',
-      'Marketing',
-      'EMP003',
-      'Apr 22  09:01 AM',
-      true,
+    Employee(
+      id: 'E002',
+      name: 'Eva Martinez',
+      email: 'eva.martinez@example.com',
+      department: 'Design',
+      time: 'Apr 22  02:48 PM',
+      isPresentToday: true,
+      role: 'employee', // Example of a regular employee
     ),
-    EmployeeData('Priya Sharma', 'Product', 'EMP004', '—', false),
-    EmployeeData('David Kim', 'Engineering', 'EMP005', '—', false),
-    EmployeeData('Sara Perez', 'HR', 'EMP006', '—', false),
-    EmployeeData('Tom Nguyen', 'Sales', 'EMP007', '—', false),
-    EmployeeData('Lena Brooks', 'Finance', 'EMP008', '—', false),
+    Employee(
+      id: 'E003',
+      name: 'James Wilson',
+      email: 'james.wilson@example.com',
+      department: 'Marketing',
+      time: 'Apr 22  09:01 AM',
+      isPresentToday: false,
+      role: 'employee',
+    ),
+    Employee(
+      id: 'E004',
+      name: 'Priya Sharma',
+      email: 'priya.sharma@example.com',
+      department: 'Product',
+      time: '—',
+      isPresentToday: true,
+      role: 'employee',
+    ),
   ];
 
-  List<EmployeeData> get _filtered {
-    if (_activeTab == 1) return _employees.where((e) => e.isPresent).toList();
-    if (_activeTab == 2) return _employees.where((e) => !e.isPresent).toList();
-    return _employees;
+  List<Employee> get _filtered {
+    if (_activeTab == 1) {
+      return employees.where((e) => e.isPresentToday).toList();
+    }
+    if (_activeTab == 2) {
+      return employees.where((e) => !e.isPresentToday).toList();
+    }
+    return employees;
   }
 
   @override
@@ -70,15 +93,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   @override
   Widget build(BuildContext context) {
-    final present = _employees.where((e) => e.isPresent).length;
-    final absent = _employees.length - present;
+    final present = employees.where((e) => e.isPresentToday).length;
+    final absent = employees.length - present;
 
     return Scaffold(
       backgroundColor: WC.bg,
       body: Column(
         children: [
           DashboardHeader(
-            totalEmployees: _employees.length,
+            totalEmployees: employees.length,
             presentToday: present,
             absentToday: absent,
             tab: _tab,
@@ -120,16 +143,4 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       ),
     );
   }
-}
-
-class EmployeeData {
-  final String name, department, id, time;
-  final bool isPresent;
-  const EmployeeData(
-    this.name,
-    this.department,
-    this.id,
-    this.time,
-    this.isPresent,
-  );
 }

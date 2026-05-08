@@ -8,7 +8,7 @@
 // ── 3A. AttendanceHistoryProvider  →  powers the History Screen
 import 'package:flutter/material.dart';
 
-import '../models/attendance_model.dart';
+import '../models/attendance_record_model.dart';
 import '../services/attendance_service.dart';
 
 class AttendanceHistoryProvider extends ChangeNotifier {
