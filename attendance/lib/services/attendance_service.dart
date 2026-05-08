@@ -7,7 +7,7 @@
 
 // ── 2A. AttendanceService
 //    Responsible for: fetching attendance records
-import 'package:attendance/models/attendance_model.dart';
+import 'package:attendance/models/attendance_record_model.dart';
 
 class AttendanceService {
   // Replace these methods' internals with your Firebase/API calls.

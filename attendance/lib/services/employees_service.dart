@@ -19,6 +19,8 @@ class EmployeeService {
         department: 'Engineering',
         email: '',
         role: '',
+        isPresentToday: true,
+        time: 'Apr 22  03:15 PM',
       ),
       Employee(
         id: 'EMP002',
@@ -26,6 +28,8 @@ class EmployeeService {
         department: 'Design',
         email: '',
         role: '',
+        isPresentToday: true,
+        time: 'Apr 22  02:48 PM',
       ),
       Employee(
         id: 'EMP003',
@@ -33,6 +37,8 @@ class EmployeeService {
         department: 'Marketing',
         email: '',
         role: '',
+        isPresentToday: false,
+        time: '—',
       ),
     ];
   }

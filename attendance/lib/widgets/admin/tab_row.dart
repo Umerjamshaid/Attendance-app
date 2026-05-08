@@ -6,6 +6,7 @@ class TabItem extends StatelessWidget {
   final int index, activeTab;
   final ValueChanged<int> onTap;
   const TabItem({
+    super.key,
     required this.label,
     required this.index,
     required this.activeTab,
@@ -45,7 +46,7 @@ class TabItem extends StatelessWidget {
 class TabRow extends StatelessWidget {
   final int activeTab;
   final ValueChanged<int> onTap;
-  const TabRow({required this.activeTab, required this.onTap});
+  const TabRow({super.key, required this.activeTab, required this.onTap});
 
   @override
   Widget build(BuildContext context) {

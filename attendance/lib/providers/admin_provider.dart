@@ -1,7 +1,7 @@
 // ── 3B. AdminProvider  →  powers the Admin Screen
 import 'package:flutter/material.dart';
 
-import '../models/attendance_model.dart';
+import '../models/attendance_record_model.dart';
 import '../models/employees_model.dart';
 import '../models/office_location_model.dart';
 

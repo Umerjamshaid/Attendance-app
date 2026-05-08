@@ -190,7 +190,7 @@ class _EditButton extends StatelessWidget {
     return OutlinedButton(
       onPressed: () => Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const LoadingScreen()),
+        MaterialPageRoute(builder: (context) => const LoadingWidget()),
       ),
       style: OutlinedButton.styleFrom(
         foregroundColor: const Color(0xFF1B3A5C),
