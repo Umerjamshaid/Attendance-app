@@ -13,6 +13,8 @@ class Employee {
   final int totalPresents;
   final int totalLeaves;
   final bool isPresentToday;
+  final double? lastLatitude;
+  final double? lastLongitude;
 
   Employee({
     required this.id,
@@ -29,6 +31,8 @@ class Employee {
     this.totalPresents = 0,
     this.totalLeaves = 0,
     this.isPresentToday = false,
+    this.lastLatitude,
+    this.lastLongitude,
   });
 
   // ✅ Helper getters
@@ -63,6 +67,8 @@ class Employee {
       totalPresents: map['totalPresents'] ?? 0,
       totalLeaves: map['totalLeaves'] ?? 0,
       isPresentToday: map['isPresentToday'] ?? false,
+      lastLatitude: (map['lastLatitude'] as num?)?.toDouble(),
+      lastLongitude: (map['lastLongitude'] as num?)?.toDouble(),
     );
   }
 
@@ -83,10 +89,12 @@ class Employee {
       'totalPresents': totalPresents,
       'totalLeaves': totalLeaves,
       'isPresentToday': isPresentToday,
+      'lastLatitude': lastLatitude,
+      'lastLongitude': lastLongitude,
     };
   }
 
-  // ✅ Copy with
+  // ✅ Copy with (useful for updating specific fields)
   Employee copyWith({
     String? id,
     String? name,
@@ -102,6 +110,8 @@ class Employee {
     int? totalPresents,
     int? totalLeaves,
     bool? isPresentToday,
+    double? lastLatitude,
+    double? lastLongitude,
   }) {
     return Employee(
       id: id ?? this.id,
@@ -118,6 +128,8 @@ class Employee {
       totalPresents: totalPresents ?? this.totalPresents,
       totalLeaves: totalLeaves ?? this.totalLeaves,
       isPresentToday: isPresentToday ?? this.isPresentToday,
+      lastLatitude: lastLatitude ?? this.lastLatitude,
+      lastLongitude: lastLongitude ?? this.lastLongitude,
     );
   }
 

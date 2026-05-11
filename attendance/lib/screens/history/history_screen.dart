@@ -19,8 +19,11 @@ class HistoryScreenState extends State<HistoryScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final userId = context.read<AuthProvider>().currentUser?.id;
-      if (userId != null) {
-        context.read<AttendanceHistoryProvider>().loadHistory(userId);
+      final historyProvider = context.read<AttendanceHistoryProvider>();
+      
+      // Only load if we don't have records yet
+      if (userId != null && historyProvider.records.isEmpty) {
+        historyProvider.loadHistory(userId);
       }
     });
   }
@@ -30,29 +33,33 @@ class HistoryScreenState extends State<HistoryScreen> {
     final historyProvider = context.watch<AttendanceHistoryProvider>();
     final groups = historyProvider.groups;
 
-    return Column(
-      children: [
-        HistoryHeader(
-          present: historyProvider.presentCount,
-          absent: historyProvider.absentCount,
-        ),
-        Expanded(
-          child: historyProvider.isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : historyProvider.error != null
-              ? Center(child: Text(historyProvider.error!))
-              : groups.isEmpty
-              ? const Center(child: Text('No history found'))
-              : ListView.builder(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 16,
+    return Container(
+      color: const Color(0xFFF8FAFC), // The Immersive BG color
+      child: Column(
+        children: [
+          HistoryHeader(
+            present: historyProvider.presentCount,
+            absent: historyProvider.absentCount,
+          ),
+          Expanded(
+            child: historyProvider.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : historyProvider.error != null
+                ? Center(child: Text(historyProvider.error!))
+                : groups.isEmpty
+                ? const Center(child: Text('No history found'))
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 16,
+                    ),
+                    itemCount: groups.length,
+                    itemBuilder: (_, i) =>
+                        AttendanceGroupCard(group: groups[i]),
                   ),
-                  itemCount: groups.length,
-                  itemBuilder: (_, i) => AttendanceGroupCard(group: groups[i]),
-                ),
-        ),
-      ],
+          ),
+        ],
+      ),
     );
   }
 }

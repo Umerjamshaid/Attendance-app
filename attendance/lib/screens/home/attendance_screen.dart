@@ -1,24 +1,19 @@
+import 'package:attendance/config/wc_tokens.dart';
+import 'package:attendance/models/attendance_record_model.dart';
 import 'package:attendance/models/employees_model.dart';
+import 'package:attendance/providers/attendance_history_provider.dart';
 import 'package:attendance/providers/attendance_provider.dart';
 import 'package:attendance/widgets/home/attendance_button.dart';
 import 'package:attendance/widgets/home/attendance_profile_header.dart';
 import 'package:attendance/widgets/home/check_in_status_card.dart';
-
-import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
-
-import '../../../config/wc_tokens.dart';
-import '../../widgets/option_card_widget.dart';
-
+import 'package:attendance/widgets/option_card_widget.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class AttendanceScreen extends StatefulWidget {
   final Employee employee;
 
-  const AttendanceScreen({
-    super.key,
-    required this.employee,
-  });
+  const AttendanceScreen({super.key, required this.employee});
 
   @override
   State<AttendanceScreen> createState() => _AttendanceScreenState();
@@ -42,6 +37,8 @@ class _AttendanceScreenState extends State<AttendanceScreen>
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AttendanceProvider>().initialize();
+      // Load history so we know if we are already checked in
+      context.read<AttendanceHistoryProvider>().loadHistory(widget.employee.id);
     });
 
     // Pulse animation for fingerprint
@@ -72,92 +69,111 @@ class _AttendanceScreenState extends State<AttendanceScreen>
 
   void _handleCheckIn() async {
     final attendanceProvider = context.read<AttendanceProvider>();
+    final historyProvider = context.read<AttendanceHistoryProvider>();
 
-    final success = await attendanceProvider.submitAttendance(
+    // 1. Instant UI Feedback (Local Screen State)
+    setState(() {
+      _isCheckedIn = true;
+      final now = DateTime.now();
+      _checkInTime = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    });
+    _pulseController.stop();
+    _successController.forward();
+
+    // 2. Trigger Optimistic Update in Provider (for History Screen)
+    final success = await historyProvider.markAttendanceNow(
       userId: widget.employee.id,
       isPresent: true,
       device: attendanceProvider.deviceModel,
     );
 
+    if (!mounted) return; // Exit if the widget is no longer in the tree
+
     if (success) {
-      setState(() => _isCheckedIn = true);
-      _pulseController.stop();
-      _successController.forward();
-
-      // Haptic feedback
-      HapticFeedback.mediumImpact();
-
-      final now = DateTime.now();
-      setState(() {
-        _checkInTime =
-            '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')} ${now.hour >= 12 ? 'PM' : 'AM'}';
-      });
-
-      // Show success message
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: const [
-              Icon(Icons.check_circle, color: WC.white),
-              SizedBox(width: 12),
-              Text('Successfully checked in!'),
-            ],
-          ),
-          backgroundColor: WC.present,
+        const SnackBar(
+          content: Text('✓ Attendance marked instantly!'),
+          duration: Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: WC.r12),
         ),
       );
-    } else if (mounted) {
+    } else {
+      // Revert if failed
+      setState(() {
+        _isCheckedIn = false;
+        _checkInTime = '';
+      });
+      _pulseController.repeat(reverse: true);
+      _successController.reverse();
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(attendanceProvider.error ?? 'Failed to check in'),
-          backgroundColor: WC.absent,
+        const SnackBar(
+          content: Text('✗ Failed to mark attendance. Reverting...'),
+          duration: Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red,
         ),
       );
     }
   }
 
   @override
-  void dispose() {
-    _pulseController.dispose();
-    _successController.dispose();
-    super.dispose();
+  void didUpdateWidget(covariant AttendanceScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // If the logged in user changed, reset the local optimistic state
+    if (oldWidget.employee.id != widget.employee.id) {
+      setState(() {
+        _isCheckedIn = widget.employee.isPresentToday;
+        _checkInTime = widget.employee.checkInTime ?? '';
+      });
+      if (_isCheckedIn) {
+        _pulseController.stop();
+        _successController.forward();
+      } else {
+        _pulseController.repeat(reverse: true);
+        _successController.reverse();
+      }
+      // Reload history for the new user
+      context.read<AttendanceHistoryProvider>().loadHistory(widget.employee.id);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final attendanceProvider = context.watch<AttendanceProvider>();
-    final isLoading = attendanceProvider.isLoading;
+    final historyProvider = context.watch<AttendanceHistoryProvider>();
+    
+    // The "Single Source of Truth" strategy:
+    // 1. If history is already loaded, trust its 'isPresentToday' getter completely.
+    // 2. If history is still loading or empty, fallback to the initial employee state OR our local optimistic state.
+    
+    bool isCheckedIn;
+    if (historyProvider.records.isNotEmpty) {
+      isCheckedIn = historyProvider.isPresentToday || _isCheckedIn;
+    } else {
+      isCheckedIn = _isCheckedIn;
+    }
+    
+    final isLoading = attendanceProvider.isLoading || historyProvider.isLoading;
 
     final now = DateTime.now();
-    final dateStr =
-        '${_getWeekday(now.weekday)}, ${_getMonth(now.month)} ${now.day}, ${now.year}';
-    final timeStr =
-        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')} ${now.hour >= 12 ? 'PM' : 'AM'}';
+    final dateStr = '${_getWeekday(now.weekday)}, ${_getMonth(now.month)} ${now.day}, ${now.year}';
+    final timeStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')} ${now.hour >= 12 ? 'PM' : 'AM'}';
 
     return Scaffold(
       backgroundColor: WC.bg,
       body: Stack(
         children: [
-          // Header Background
           Container(
             height: 320,
             width: double.infinity,
             decoration: const BoxDecoration(color: WC.black),
           ),
-
-          // Content
           SafeArea(
             child: Column(
               children: [
-                // Header
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 10,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   child: Row(
                     children: [
                       Container(
@@ -166,105 +182,57 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                           color: WC.white.withOpacity(0.15),
                           borderRadius: WC.r12,
                         ),
-                        child: const Icon(
-                          Icons.location_city_rounded,
-                          color: WC.white,
-                          size: 20,
-                        ),
+                        child: const Icon(Icons.location_city_rounded, color: WC.white, size: 20),
                       ),
                       const SizedBox(width: 12),
                       const Text(
                         'Attendance',
-                        style: TextStyle(
-                          color: WC.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                        ),
+                        style: TextStyle(color: WC.white, fontSize: 18, fontWeight: FontWeight.w800),
                       ),
                     ],
                   ),
                 ),
-
-                // Profile Section (EXTRACTED)
                 AttendanceProfileHeader(employee: widget.employee),
-
                 const SizedBox(height: 16),
-
-                // White Card Section
                 Expanded(
                   child: Container(
                     decoration: const BoxDecoration(
                       color: WC.white,
-                      borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(32),
-                      ),
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
                     ),
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.all(24),
                       child: Column(
                         children: [
-                          // Date & Time
                           Row(
                             children: [
-                              const Icon(
-                                Icons.calendar_today_rounded,
-                                size: 16,
-                                color: WC.muted,
-                              ),
+                              const Icon(Icons.calendar_today_rounded, size: 16, color: WC.muted),
                               const SizedBox(width: 10),
-                              Text(
-                                dateStr,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: WC.muted,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
+                              Text(dateStr, style: const TextStyle(fontSize: 14, color: WC.muted, fontWeight: FontWeight.w500)),
                             ],
                           ),
                           const SizedBox(height: 8),
                           Row(
                             children: [
-                              const Icon(
-                                Icons.access_time_filled_rounded,
-                                size: 18,
-                                color: WC.black,
-                              ),
+                              const Icon(Icons.access_time_filled_rounded, size: 18, color: WC.black),
                               const SizedBox(width: 8),
-                              Text(
-                                timeStr,
-                                style: const TextStyle(
-                                  fontSize: 22,
-                                  color: WC.black,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
+                              Text(timeStr, style: const TextStyle(fontSize: 22, color: WC.black, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
                             ],
                           ),
-
                           const SizedBox(height: 24),
-
-                          // Check-in Status (EXTRACTED)
                           CheckInStatusCard(
-                            isCheckedIn: _isCheckedIn,
+                            isCheckedIn: isCheckedIn,
                             checkInTime: _checkInTime,
                             scaleAnimation: _scaleAnimation,
                           ),
-
                           const SizedBox(height: 32),
-
-                          // Fingerprint Button (EXTRACTED)
                           AttendanceButton(
-                            isCheckedIn: _isCheckedIn,
+                            isCheckedIn: isCheckedIn,
                             isLoading: isLoading,
                             pulseAnimation: _pulseAnimation,
                             onTap: _handleCheckIn,
                           ),
-
                           const SizedBox(height: 48),
-
-                          // Options Row
                           Row(
                             children: [
                               Expanded(
@@ -280,11 +248,8 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                               Expanded(
                                 child: OptionCard(
                                   icon: Icons.business_rounded,
-                                  label:
-                                      attendanceProvider.officeLocation?.name ??
-                                      'Office',
-                                  subtitle:
-                                      '${attendanceProvider.officeLocation?.radiusInMeters.toInt() ?? 0} m',
+                                  label: attendanceProvider.officeLocation?.name ?? 'Office',
+                                  subtitle: '${attendanceProvider.officeLocation?.radiusInMeters.toInt() ?? 0} m',
                                   color: WC.present,
                                   onTap: () {},
                                 ),
@@ -320,20 +285,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   }
 
   String _getMonth(int month) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return months[month - 1];
   }
 }

@@ -28,10 +28,12 @@ class AppShellState extends State<AppShell> {
       return Scaffold(body: LoadingWidget(message: 'Loading session...'));
     }
 
+    final isAdmin = user.role == 'admin';
+
     final pages = [
       AttendanceScreen(employee: user),
       const HistoryScreen(),
-      const AdminDashboardScreen(),
+      if (isAdmin) const AdminDashboardScreen(),
       const ProfileScreen(),
     ];
 
@@ -42,6 +44,8 @@ class AppShellState extends State<AppShell> {
         onTap: (idx) => setState(() {
           _currentIndex = idx;
         }),
+        // Ensure the BottomNav knows which items to show
+        isAdmin: isAdmin, 
       ),
     );
   }
