@@ -9,94 +9,105 @@ class AttendanceStatsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        border: Border.all(color: const Color(0xFF2A2A2A)),
-        borderRadius: BorderRadius.circular(20),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
+        border: Border.all(color: Colors.grey[100]!),
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
-        child: IntrinsicHeight(
-          child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'ATTENDANCE OVERVIEW',
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: Colors.grey[400],
+              letterSpacing: 1.5,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _StatColumn(
+              _StatItem(
                 value: '${employee.totalPresents}',
                 label: 'Presents',
-                valueColor: Colors.greenAccent,
+                color: Colors.green,
+                icon: Icons.check_circle_outline_rounded,
               ),
-              VerticalDivider(
-                width: 1,
-                thickness: 1,
-                color: Colors.white.withValues(alpha: 0.1),
-              ),
-              _StatColumn(
+              _StatItem(
                 value: '${employee.totalAbsents}',
                 label: 'Absents',
-                valueColor: Colors.redAccent,
+                color: Colors.red,
+                icon: Icons.highlight_off_rounded,
               ),
-              VerticalDivider(
-                width: 1,
-                thickness: 1,
-                color: Colors.white.withValues(alpha: 0.1),
-              ),
-              _StatColumn(
+              _StatItem(
                 value: '${employee.totalLeaves}',
                 label: 'Leaves',
-                valueColor: Colors.amber,
+                color: Colors.orange,
+                icon: Icons.calendar_today_rounded,
               ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }
 }
 
-class _StatColumn extends StatelessWidget {
+class _StatItem extends StatelessWidget {
   final String value;
   final String label;
-  final Color valueColor;
+  final Color color;
+  final IconData icon;
 
-  const _StatColumn({
+  const _StatItem({
     required this.value,
     required this.label,
-    required this.valueColor,
+    required this.color,
+    required this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            value,
-            style: GoogleFonts.inter(
-              fontWeight: FontWeight.bold,
-              fontSize: 22,
-              color: valueColor,
-            ),
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.08),
+            shape: BoxShape.circle,
           ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              fontWeight: FontWeight.w300,
-              color: Colors.grey[400],
-              fontSize: 11,
-              letterSpacing: 0.4,
-            ),
+          child: Icon(icon, color: color, size: 20),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          value,
+          style: GoogleFonts.dmSans(
+            fontSize: 20,
+            fontWeight: FontWeight.w900,
+            color: const Color(0xFF1B1D1F),
           ),
-        ],
-      ),
+        ),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: Colors.grey[500],
+          ),
+        ),
+      ],
     );
   }
 }

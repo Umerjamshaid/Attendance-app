@@ -5,11 +5,25 @@ import 'package:flutter/material.dart';
 class BottomNav extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
+  final bool isAdmin;
 
-  const BottomNav({super.key, required this.currentIndex, required this.onTap});
+  const BottomNav({
+    super.key,
+    required this.currentIndex,
+    required this.onTap,
+    this.isAdmin = false,
+  });
 
   @override
   Widget build(BuildContext context) {
+    // Define the navigation items based on the role
+    final List<_NavData> items = [
+      _NavData(icon: Icons.home_rounded, label: 'Home'),
+      _NavData(icon: Icons.access_time_rounded, label: 'History'),
+      if (isAdmin) _NavData(icon: Icons.shield_rounded, label: 'Admin'),
+      _NavData(icon: Icons.person_rounded, label: 'Profile'),
+    ];
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.card,
@@ -27,41 +41,26 @@ class BottomNav extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _NavItem(
-                icon: Icons.home_rounded,
-                label: 'Home',
-                index: 0,
+            children: List.generate(items.length, (index) {
+              return _NavItem(
+                icon: items[index].icon,
+                label: items[index].label,
+                index: index,
                 currentIndex: currentIndex,
                 onTap: onTap,
-              ),
-              _NavItem(
-                icon: Icons.access_time_rounded,
-                label: 'History',
-                index: 1,
-                currentIndex: currentIndex,
-                onTap: onTap,
-              ),
-              _NavItem(
-                icon: Icons.shield_rounded,
-                label: 'Admin',
-                index: 2,
-                currentIndex: currentIndex,
-                onTap: onTap,
-              ),
-              _NavItem(
-                icon: Icons.person_rounded,
-                label: 'Profile',
-                index: 3,
-                currentIndex: currentIndex,
-                onTap: onTap,
-              ),
-            ],
+              );
+            }),
           ),
         ),
       ),
     );
   }
+}
+
+class _NavData {
+  final IconData icon;
+  final String label;
+  _NavData({required this.icon, required this.label});
 }
 
 class _NavItem extends StatelessWidget {

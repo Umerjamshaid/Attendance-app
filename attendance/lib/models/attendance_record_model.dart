@@ -11,6 +11,9 @@ class AttendanceRecord {
   final bool isPresent;
   final DateTime timestamp;
   final String device;
+  final double? latitude;
+  final double? longitude;
+  final double? accuracy;
 
   AttendanceRecord({
     required this.id,
@@ -18,6 +21,9 @@ class AttendanceRecord {
     required this.isPresent,
     required this.timestamp,
     required this.device,
+    this.latitude,
+    this.longitude,
+    this.accuracy,
   });
 
   // Converts raw map (from Firestore/API) → AttendanceRecord
@@ -28,7 +34,24 @@ class AttendanceRecord {
       isPresent: map['isPresent'] ?? false,
       timestamp: DateTime.parse(map['timestamp']),
       device: map['device'] ?? 'unknown',
+      latitude: (map['latitude'] as num?)?.toDouble(),
+      longitude: (map['longitude'] as num?)?.toDouble(),
+      accuracy: (map['accuracy'] as num?)?.toDouble(),
     );
+  }
+
+  // Converts AttendanceRecord → Map
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'userId': userId,
+      'isPresent': isPresent,
+      'timestamp': timestamp.toIso8601String(),
+      'device': device,
+      'latitude': latitude,
+      'longitude': longitude,
+      'accuracy': accuracy,
+    };
   }
 }
 

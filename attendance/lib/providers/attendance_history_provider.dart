@@ -6,6 +6,8 @@
 // ─────────────────────────────────────────────────────────────
 
 // ── 3A. AttendanceHistoryProvider  →  powers the History Screen
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import '../models/attendance_record_model.dart';
@@ -64,20 +66,89 @@ class AttendanceHistoryProvider extends ChangeNotifier {
     return '${days[date.weekday - 1]}, ${months[date.month - 1]} ${date.day}';
   }
 
+  // Add this inside AttendanceHistoryProvider
+  Future<bool> markAttendanceNow({
+    required String userId,
+    required bool isPresent,
+    required String device,
+  }) async {
+    // 1. Create the new record locally (The "Optimistic" part)
+    final newRecord = AttendanceRecord(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      userId: userId,
+      isPresent: isPresent,
+      timestamp: DateTime.now(),
+      device: device,
+    );
+
+    // 2. Inject it at the TOP of the list so it shows first
+    _records.insert(0, newRecord);
+
+    // 3. Tell the UI to rebuild instantly with the new stat counts and list
+    notifyListeners();
+
+    // 4. Send it to the backend silently
+    try {
+      await _service.submitAttendance(
+        userId: userId,
+        isPresent: isPresent,
+        device: device,
+      );
+      return true;
+    } catch (e) {
+      // If the internet fails, you would handle offline storage here.
+      // For now, if it fails, we remove the fake record and notify UI.
+
+      _records.removeWhere((r) => r.id == newRecord.id);
+      _error = 'Failed to submit attendance. Connection lost.';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // Inside AttendanceHistoryProvider class
+Future<void> addRecordOptimistically(AttendanceRecord record) async {
+  // 1. Insert at the beginning of the list (index 0)
+  _records.insert(0, record);
+  
+  // 2. Notify all listeners (like the HistoryScreen) to rebuild
+  notifyListeners();
+}
+
   // ── Actions (UI calls these)
-  Future<void> loadHistory(String userId) async {
+  Future<void> loadHistory(String userId, {bool force = false}) async {
+    // Optimization: Don't reload if we already have data for THIS user, unless forced
+    if (_records.isNotEmpty && 
+        _records.every((r) => r.userId == userId) && 
+        !force && 
+        !_isLoading) return;
+
     _isLoading = true;
     _error = null;
-    notifyListeners(); // tells UI: "start showing loading spinner"
+    // Clear old records so they don't show briefly for the new user
+    _records = []; 
+    notifyListeners(); 
 
     try {
-      _records = await _service.getUserAttendance(userId);
+      final remoteRecords = await _service.getUserAttendance(userId);
+      _records = remoteRecords;
     } catch (e) {
       _error = 'Failed to load attendance. Try again.';
     } finally {
       _isLoading = false;
-      notifyListeners(); // tells UI: "done, rebuild with new data"
+      notifyListeners();
     }
+  }
+
+  // Check if the user has already checked in today
+  bool get isPresentToday {
+    if (_records.isEmpty) return false;
+    final now = DateTime.now();
+    return _records.any((r) =>
+        r.isPresent &&
+        r.timestamp.year == now.year &&
+        r.timestamp.month == now.month &&
+        r.timestamp.day == now.day);
   }
 
   void clearError() {
