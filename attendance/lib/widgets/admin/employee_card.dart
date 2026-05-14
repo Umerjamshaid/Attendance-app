@@ -1,5 +1,6 @@
 import 'package:attendance/config/wc_tokens.dart';
 import 'package:attendance/models/employees_model.dart';
+import 'package:attendance/widgets/admin/state_cell.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -15,14 +16,14 @@ class EmployeeCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: WC.white,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.grey[100]!),
+        border: Border.all(color: const Color(0xFFF0F0F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -43,7 +44,7 @@ class EmployeeCard extends StatelessWidget {
                   child: Padding(
                     padding: const EdgeInsets.all(2),
                     child: CircleAvatar(
-                      backgroundColor: color.withOpacity(0.1),
+                      backgroundColor: color.withOpacity(0.08),
                       child: Text(
                         initials,
                         style: GoogleFonts.dmSans(
@@ -111,35 +112,144 @@ class EmployeeCard extends StatelessWidget {
           ),
           
           // Secondary Info Strip (Balanced details)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.grey[50],
-              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
-            ),
-            child: Row(
-              children: [
-                if (data.isPresentToday)
-                  _InfoItem(
-                    icon: Icons.access_time_filled_rounded,
-                    label: 'IN: ${data.checkInTime ?? '—'}',
-                    color: Colors.blue[700]!,
-                  )
-                else
-                  _InfoItem(
-                    icon: Icons.event_busy_rounded,
-                    label: 'LAST: ${data.time}',
-                    color: Colors.grey[600]!,
-                  ),
-                const SizedBox(width: 16),
-                _InfoItem(
-                  icon: Icons.analytics_outlined,
-                  label: '${data.totalPresents}P / ${data.totalAbsents}A',
-                  color: Colors.grey[600]!,
+          InkWell(
+            onTap: () => _showEmployeeStats(context),
+            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+            splashColor: Colors.black.withOpacity(0.02),
+            highlightColor: Colors.black.withOpacity(0.01),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFAFAFA),
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+                border: const Border(
+                  top: BorderSide(color: Color(0xFFF5F5F5)),
                 ),
-                const Spacer(),
-                const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: Colors.black26),
-              ],
+              ),
+              child: Row(
+                children: [
+                  if (data.isPresentToday)
+                    _InfoItem(
+                      icon: Icons.access_time_filled_rounded,
+                      label: 'IN: ${data.checkInTime ?? '—'}',
+                      color: Colors.blue[700]!,
+                    )
+                  else
+                    _InfoItem(
+                      icon: Icons.event_busy_rounded,
+                      label: 'LAST: ${data.time}',
+                      color: Colors.grey[600]!,
+                    ),
+                  const SizedBox(width: 16),
+                  _InfoItem(
+                    icon: Icons.analytics_outlined,
+                    label: '${data.totalPresents}P / ${data.totalAbsents}A',
+                    color: const Color(0xFF666666),
+                  ),
+                  const Spacer(),
+                  const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: Color(0xFFCCCCCC)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEmployeeStats(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: WC.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(28),
+          side: const BorderSide(color: Color(0xFFEEEEEE)),
+        ),
+        title: Column(
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEEEEEE),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Detailed Analytics',
+              style: GoogleFonts.dmSans(
+                fontWeight: FontWeight.w900,
+                color: const Color(0xFF1B1D1F),
+                fontSize: 20,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _DetailRow(label: 'Total Presents', value: '${data.totalPresents}', color: WC.present),
+            const Divider(color: Color(0xFFF5F5F5)),
+            _DetailRow(label: 'Total Absents', value: '${data.totalAbsents}', color: WC.absent),
+            const Divider(color: Color(0xFFF5F5F5)),
+            _DetailRow(
+              label: 'Attendance Rate', 
+              value: '${((data.totalPresents / (data.totalPresents + data.totalAbsents)) * 100).toStringAsFixed(1)}%', 
+              color: Colors.blue[700]!,
+            ),
+          ],
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8, right: 8),
+            child: TextButton(
+              onPressed: () => Navigator.pop(context),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+              child: Text(
+                'Close',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF1B1D1F),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  final String label, value;
+  final Color color;
+  const _DetailRow({required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label, 
+            style: GoogleFonts.inter(
+              color: const Color(0xFF666666), 
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
+          ),
+          Text(
+            value, 
+            style: GoogleFonts.dmSans(
+              color: color, 
+              fontWeight: FontWeight.w900, 
+              fontSize: 18,
             ),
           ),
         ],
@@ -159,7 +269,7 @@ class _InfoItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 14, color: color.withOpacity(0.5)),
+        Icon(icon, size: 14, color: color.withOpacity(0.6)),
         const SizedBox(width: 6),
         Text(
           label,
@@ -173,3 +283,4 @@ class _InfoItem extends StatelessWidget {
     );
   }
 }
+

@@ -1,6 +1,7 @@
+import 'package:attendance/config/wc_tokens.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import '../../config/wc_tokens.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../config/app_theme.dart';
 
 class AttendanceButton extends StatelessWidget {
   final bool isCheckedIn;
@@ -18,73 +19,92 @@ class AttendanceButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final baseColor = isCheckedIn ? WC.present : const Color(0xFF1B1D1F);
+
     return GestureDetector(
       onTap: (isCheckedIn || isLoading) ? null : onTap,
-      child: MouseRegion(
-        cursor: (isCheckedIn || isLoading)
-            ? SystemMouseCursors.forbidden
-            : SystemMouseCursors.click,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          width: 180,
-          height: 180,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: isCheckedIn ? WC.present : WC.black,
-            boxShadow: [
-              BoxShadow(
-                color: (isCheckedIn ? WC.present : WC.black).withOpacity(0.3),
-                blurRadius: 24,
-                offset: const Offset(0, 8),
-              ),
-              if (!isCheckedIn && !isLoading)
-                BoxShadow(
-                  color: WC.black.withOpacity(0.2),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Outer decorative ring
+          if (!isCheckedIn && !isLoading)
+            ScaleTransition(
+              scale: pulseAnimation,
+              child: Container(
+                width: 210,
+                height: 210,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: baseColor.withOpacity(0.05),
+                    width: 1,
+                  ),
                 ),
-            ],
-          ),
-          child: ScaleTransition(
-            scale: isCheckedIn
-                ? const AlwaysStoppedAnimation(1.0)
-                : pulseAnimation,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (isLoading)
-                  const SizedBox(
-                    width: 50,
-                    height: 50,
-                    child: CircularProgressIndicator(
-                      color: WC.white,
-                      strokeWidth: 3,
-                    ),
-                  )
-                else ...[
-                  Icon(
-                    isCheckedIn
-                        ? Icons.check_circle_rounded
-                        : Icons.fingerprint_rounded,
-                    size: 64,
-                    color: WC.white,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    isCheckedIn ? 'Checked In' : 'Mark\nAttendance',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: WC.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      height: 1.2,
-                    ),
-                  ),
-                ],
+              ),
+            ),
+          
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 400),
+            width: 180,
+            height: 180,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: baseColor,
+              boxShadow: [
+                BoxShadow(
+                  color: baseColor.withOpacity(0.25),
+                  blurRadius: 30,
+                  offset: const Offset(0, 15),
+                ),
+                BoxShadow(
+                  color: WC.white.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, -5),
+                ),
               ],
             ),
+            child: ScaleTransition(
+              scale: isCheckedIn
+                  ? const AlwaysStoppedAnimation(1.0)
+                  : pulseAnimation,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (isLoading)
+                    const SizedBox(
+                      width: 50,
+                      height: 50,
+                      child: CircularProgressIndicator(
+                        color: WC.white,
+                        strokeWidth: 4,
+                      ),
+                    )
+                  else ...[
+                    Icon(
+                      isCheckedIn
+                          ? Icons.verified_rounded
+                          : Icons.fingerprint_rounded,
+                      size: 72,
+                      color: WC.white,
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      isCheckedIn ? 'VERIFIED' : 'TAP TO\nCHECK IN',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.dmSans(
+                        color: WC.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                        height: 1.2,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

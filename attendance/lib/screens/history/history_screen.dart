@@ -1,3 +1,4 @@
+import 'package:attendance/config/wc_tokens.dart';
 import 'package:attendance/providers/attendance_history_provider.dart';
 import 'package:attendance/providers/auth_provider.dart';
 import 'package:attendance/widgets/history/attendance_card.dart';
@@ -34,7 +35,7 @@ class HistoryScreenState extends State<HistoryScreen> {
     final groups = historyProvider.groups;
 
     return Container(
-      color: const Color(0xFFF8FAFC), // The Immersive BG color
+      color: WC.bg,
       child: Column(
         children: [
           HistoryHeader(
@@ -43,11 +44,11 @@ class HistoryScreenState extends State<HistoryScreen> {
           ),
           Expanded(
             child: historyProvider.isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: CircularProgressIndicator(color: Color(0xFF1B1D1F)))
                 : historyProvider.error != null
-                ? Center(child: Text(historyProvider.error!))
+                ? Center(child: Text(historyProvider.error!, style: const TextStyle(color: Color(0xFF999999))))
                 : groups.isEmpty
-                ? const Center(child: Text('No history found'))
+                ? const Center(child: Text('No history found', style: TextStyle(color: Color(0xFF999999))))
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 20,
