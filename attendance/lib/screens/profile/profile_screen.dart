@@ -3,6 +3,7 @@ import 'package:attendance/models/employees_model.dart';
 import 'package:attendance/providers/profile_provider.dart';
 import 'package:attendance/screens/admin/admin_notification_screen.dart';
 import 'package:attendance/screens/profile/privacy_screen.dart';
+import 'package:attendance/screens/profile/settings_screen.dart';
 import 'package:attendance/widgets/user-profile/attendance_stats_card.dart';
 import 'package:attendance/widgets/user-profile/profile_header.dart';
 import 'package:attendance/widgets/user-profile/profile_menu_item.dart';
@@ -137,7 +138,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       actions: [
         IconButton(
           icon: const Icon(Icons.settings_outlined, color: Color(0xFF1B1D1F)),
-          onPressed: () {},
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const SettingsScreen()),
+          ),
         ),
       ],
     );

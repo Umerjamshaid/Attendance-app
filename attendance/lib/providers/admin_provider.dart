@@ -24,7 +24,7 @@ class AdminProvider extends ChangeNotifier {
 
   // ── State
   List<EmployeeAttendance> _allEmployeeAttendance = [];
-  OfficeLocation? _officeLocation;
+  OfficeLocationModel? _officeLocation;
   bool _isLoading = false;
   String? _error;
 
@@ -35,7 +35,7 @@ class AdminProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   String get filter => _filter;
-  OfficeLocation? get officeLocation => _officeLocation;
+  OfficeLocationModel? get officeLocation => _officeLocation;
 
   int get totalEmployees => _allEmployeeAttendance.length;
   int get presentToday =>
@@ -76,7 +76,7 @@ class AdminProvider extends ChangeNotifier {
 
       final employees = results[0] as List<Employee>;
       final todayRecords = results[1] as List<AttendanceRecord>;
-      _officeLocation = results[2] as OfficeLocation?;
+      _officeLocation = results[2] as OfficeLocationModel?;
 
       // Match each employee to their latest attendance record
       _allEmployeeAttendance = employees.map((emp) {
@@ -96,7 +96,7 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> updateOfficeLocation(OfficeLocation newLocation) async {
+  Future<void> updateOfficeLocation(OfficeLocationModel newLocation) async {
     try {
       await _officeService.updateOfficeLocation(newLocation);
       _officeLocation = newLocation;

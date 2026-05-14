@@ -3,21 +3,21 @@
 //  Plain Dart classes. No logic. Just data shapes.
 // ─────────────────────────────────────────────────────────────
 
-class OfficeLocation {
+class OfficeLocationModel {
   final String name;
   final double latitude;
   final double longitude;
   final double radiusInMeters;
 
-  OfficeLocation({
+  OfficeLocationModel({
     required this.name,
     required this.latitude,
     required this.longitude,
     required this.radiusInMeters,
   });
 
-  factory OfficeLocation.fromMap(Map<String, dynamic> map) {
-    return OfficeLocation(
+  factory OfficeLocationModel.fromMap(Map<String, dynamic> map) {
+    return OfficeLocationModel(
       name: map['name'] ?? '',
       latitude: (map['latitude'] ?? 0).toDouble(),
       longitude: (map['longitude'] ?? 0).toDouble(),

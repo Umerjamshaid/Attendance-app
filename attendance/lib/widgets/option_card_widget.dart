@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../config/app_theme.dart';
 
 class OptionCard extends StatelessWidget {
@@ -23,36 +24,39 @@ class OptionCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
         decoration: BoxDecoration(
-          color: AppTheme.softGray,
+          color: const Color(0xFFF8F9FA),
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey[100]!, width: 1),
         ),
         child: Column(
           children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: color, size: 24),
+              child: Icon(icon, color: color, size: 22),
             ),
             const SizedBox(height: 12),
             Text(
               label,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF1B1D1F),
               ),
             ),
             const SizedBox(height: 4),
             Text(
               subtitle,
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppTheme.textSecondary,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: 10,
+                color: Colors.grey[500],
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],

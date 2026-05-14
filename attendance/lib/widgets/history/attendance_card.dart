@@ -12,35 +12,28 @@ class AttendanceGroupCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Date header - softer style
         Padding(
-          padding: const EdgeInsets.only(top: 16, bottom: 12, left: 4),
+          padding: const EdgeInsets.fromLTRB(8, 24, 8, 12),
           child: Text(
-            group.date,
-            style: const TextStyle(
-              color: WC.muted,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.3,
+            group.date.toUpperCase(),
+            style: GoogleFonts.inter(
+              color: const Color(0xFF555555),
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.5,
             ),
           ),
         ),
-
-        // Timeline items
-        ...group.records.asMap().entries.map((e) {
-          final isLast = e.key == group.records.length - 1;
-          return TimelineItem(record: e.value, isLast: isLast);
-        }),
+        ...group.records.map((record) => CompactAttendanceCard(record: record)),
       ],
     );
   }
 }
 
-class TimelineItem extends StatelessWidget {
+class CompactAttendanceCard extends StatelessWidget {
   final AttendanceRecord record;
-  final bool isLast;
 
-  const TimelineItem({Key? key, required this.record, required this.isLast})
+  const CompactAttendanceCard({Key? key, required this.record})
     : super(key: key);
 
   String _formatTime(DateTime dt) {
@@ -53,171 +46,89 @@ class TimelineItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = record.isPresent ? WC.present : WC.absent;
     final time = _formatTime(record.timestamp);
-    final hasLocation = record.latitude != null && record.longitude != null;
 
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Timeline - simpler, cleaner
-          SizedBox(
-            width: 28,
-            child: Column(
-              children: [
-                // Dot - smaller, softer shadow
-                Container(
-                  width: 10,
-                  height: 10,
-                  margin: const EdgeInsets.only(top: 6),
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-
-                // Line - thinner, more subtle
-                if (!isLast)
-                  Expanded(
-                    child: Container(
-                      width: 1.5,
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      color: Colors.grey[300],
-                    ),
-                  ),
-              ],
-            ),
-          ),
-
-          // Card - more padding, softer
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: WC.card,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey[200]!, width: 1),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header - status + time
-                    Row(
-                      children: [
-                        // Status badge - smaller, softer
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: color.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                record.isPresent
-                                    ? Icons.check_circle_rounded
-                                    : Icons.cancel_rounded,
-                                color: color,
-                                size: 14,
-                              ),
-                              const SizedBox(width: 5),
-                              Text(
-                                record.isPresent ? 'Present' : 'Absent',
-                                style: TextStyle(
-                                  color: color,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const Spacer(),
-
-                        // Time - less bold, more readable
-                        Text(
-                          time,
-                          style: const TextStyle(
-                            color: WC.black,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // Details - only show if needed
-                    if (hasLocation || record.device.isNotEmpty) ...[
-                      // Device
-                      if (record.device.isNotEmpty)
-                        _InfoRow(
-                          icon: Icons.smartphone_rounded,
-                          value: record.device,
-                        ),
-
-                      // Location (only if available)
-                      if (hasLocation) ...[
-                        const SizedBox(height: 8),
-                        _InfoRow(
-                          icon: Icons.location_on_rounded,
-                          value:
-                              '${record.latitude?.toStringAsFixed(4)}, ${record.longitude?.toStringAsFixed(4)}',
-                        ),
-                      ],
-
-                      // Accuracy (only if available)
-                      if (record.accuracy != null) ...[
-                        const SizedBox(height: 8),
-                        _InfoRow(
-                          icon: Icons.my_location_rounded,
-                          value:
-                              '${record.accuracy?.toStringAsFixed(0)}m accuracy',
-                        ),
-                      ],
-                    ],
-                  ],
-                ),
-              ),
-            ),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: WC.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFF0F0F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-    );
-  }
-}
-
-// Simple info row - icon + text only
-class _InfoRow extends StatelessWidget {
-  final IconData icon;
-  final String value;
-
-  const _InfoRow({required this.icon, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 14, color: Colors.grey[500]),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            value,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[700],
-              fontWeight: FontWeight.w500,
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(
+              record.isPresent
+                  ? Icons.verified_rounded
+                  : Icons.cancel_rounded,
+              color: color,
+              size: 24,
             ),
           ),
-        ),
-      ],
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  record.isPresent ? 'Present' : 'Absent',
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF1B1D1F),
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  record.device.isNotEmpty ? record.device : 'Mobile App',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: const Color(0xFF999999),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                time,
+                style: GoogleFonts.dmSans(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                  color: const Color(0xFF1B1D1F),
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                'VERIFIED',
+                style: GoogleFonts.inter(
+                  fontSize: 9,
+                  color: WC.present,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
