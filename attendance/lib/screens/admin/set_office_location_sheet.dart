@@ -135,7 +135,7 @@ class _SetOfficeLocationSheetState extends State<SetOfficeLocationSheet> {
             ),
           ),
           const Text(
-            'Set Office Location',
+            'Set Office Locations',
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w900,
