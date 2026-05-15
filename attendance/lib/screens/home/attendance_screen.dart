@@ -70,7 +70,9 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     final historyProvider = context.read<AttendanceHistoryProvider>();
 
     // 1. Perform Secure Geofence Check
-    final canCheckIn = await attendanceProvider.attemptCheckIn(widget.employee.id);
+    final canCheckIn = await attendanceProvider.attemptCheckIn(
+      widget.employee.id,
+    );
 
     if (!canCheckIn) {
       if (!mounted) return;
@@ -306,14 +308,18 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                           ),
                           const SizedBox(height: 32),
                           CheckInStatusCard(
-                            isCheckedIn: isCheckedIn,
-                            checkInTime: _checkInTime,
+                            isCheckedIn:
+                                attendanceProvider.isCheckedIn, // ✅ Provider
+                            checkInTime:
+                                attendanceProvider.checkInTime, // ✅ Provider
                             scaleAnimation: _scaleAnimation,
                           ),
                           const SizedBox(height: 36),
                           AttendanceButton(
-                            isCheckedIn: isCheckedIn,
-                            isLoading: isLoading,
+                            isCheckedIn:
+                                attendanceProvider.isCheckedIn, // ✅ Provider
+                            isLoading:
+                                attendanceProvider.isLoading, // ✅ Provider
                             pulseAnimation: _pulseAnimation,
                             onTap: _handleCheckIn,
                           ),
@@ -334,9 +340,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                                 child: OptionCard(
                                   icon: Icons.business_rounded,
                                   label:
-                                      attendanceProvider
-                                          .officeLocation
-                                          ?.name ??
+                                      attendanceProvider.officeLocation?.name ??
                                       'Office',
                                   subtitle:
                                       '${attendanceProvider.officeLocation?.radiusInMeters.toInt() ?? 0}m',

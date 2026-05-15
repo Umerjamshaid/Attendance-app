@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -58,6 +59,23 @@ class SettingsScreen extends StatelessWidget {
               icon: Icons.mail_outline_rounded,
               title: 'Email Notifications',
               onTap: () {},
+            ),
+          ]),
+
+          const SizedBox(height: 24),
+          _buildSectionHeader('PERMISSIONS'),
+          _buildSettingsGroup([
+            _buildSettingsItem(
+              icon: Icons.location_on_outlined,
+              title: 'Location Permissions',
+              subtitle: 'Manage in Settings',
+              onTap: () => openAppSettings(),
+            ),
+            _buildDivider(),
+            _buildSettingsItem(
+              icon: Icons.settings_applications_outlined,
+              title: 'App Settings',
+              onTap: () => openAppSettings(),
             ),
           ]),
 

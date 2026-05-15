@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:attendance/models/employees_model.dart';
+import 'package:attendance/providers/auth_provider.dart';
 import 'package:attendance/providers/profile_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -75,11 +76,11 @@ class ProfileHeader extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const _EditProfileButton(),
+                  _EditProfileButton(employee: employee),
                 ],
               ),
               const SizedBox(height: 16),
-              
+
               // Bio / Role section
               Text(
                 '${employee.role} at ${employee.department}',
@@ -90,7 +91,7 @@ class ProfileHeader extends StatelessWidget {
                   height: 1.5,
                 ),
               ),
-              
+
               const SizedBox(height: 16),
 
               // Info chips
@@ -138,7 +139,11 @@ class ProfileHeader extends StatelessWidget {
               : null,
           gradient: path == null
               ? const LinearGradient(
-                  colors: [Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364)],
+                  colors: [
+                    Color(0xFF0F2027),
+                    Color(0xFF203A43),
+                    Color(0xFF2C5364),
+                  ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 )
@@ -158,7 +163,8 @@ class ProfileHeader extends StatelessWidget {
               right: 15,
               child: _CircularIconButton(
                 icon: Icons.camera_alt_rounded,
-                onTap: () => context.read<ProfileProvider>().pickBanner(employee.id),
+                onTap: () =>
+                    context.read<ProfileProvider>().pickBanner(employee.id),
               ),
             ),
           ],
@@ -193,9 +199,15 @@ class ProfileHeader extends StatelessWidget {
                 backgroundColor: const Color(0xFFE1E8ED),
                 backgroundImage: path != null
                     ? FileImage(File(path))
-                    : (employee.avatarUrl != null ? NetworkImage(employee.avatarUrl!) as ImageProvider : null),
+                    : (employee.avatarUrl != null
+                          ? NetworkImage(employee.avatarUrl!) as ImageProvider
+                          : null),
                 child: (path == null && employee.avatarUrl == null)
-                    ? const Icon(Icons.person_rounded, size: 50, color: Color(0xFF657786))
+                    ? const Icon(
+                        Icons.person_rounded,
+                        size: 50,
+                        color: Color(0xFF657786),
+                      )
                     : null,
               ),
             ),
@@ -210,7 +222,11 @@ class ProfileHeader extends StatelessWidget {
                 shape: BoxShape.circle,
                 boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4)],
               ),
-              child: const Icon(Icons.add_a_photo_rounded, size: 16, color: Colors.white),
+              child: const Icon(
+                Icons.add_a_photo_rounded,
+                size: 16,
+                color: Colors.white,
+              ),
             ),
           ),
         ],
@@ -242,12 +258,201 @@ class _CircularIconButton extends StatelessWidget {
 }
 
 class _EditProfileButton extends StatelessWidget {
-  const _EditProfileButton();
+  final Employee employee;
+  const _EditProfileButton({required this.employee});
+
+  void _showEditSheet(BuildContext context) {
+    final nameController = TextEditingController(text: employee.name);
+    final emailController = TextEditingController(text: employee.email);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(30),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 25),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.person_outline_rounded, color: Colors.blue),
+                    ),
+                    const SizedBox(width: 15),
+                    Text(
+                      'Edit Profile',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF1B1D1F),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Update your personal information below.',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 30),
+                _buildFieldLabel('FULL NAME'),
+                const SizedBox(height: 8),
+                _buildTextField(
+                  controller: nameController,
+                  hint: 'Enter your full name',
+                  icon: Icons.badge_outlined,
+                ),
+                const SizedBox(height: 20),
+                _buildFieldLabel('EMAIL ADDRESS'),
+                const SizedBox(height: 8),
+                _buildTextField(
+                  controller: emailController,
+                  hint: 'Enter your email',
+                  icon: Icons.email_outlined,
+                  keyboardType: TextInputType.emailAddress,
+                ),
+                const SizedBox(height: 35),
+                SizedBox(
+                  width: double.infinity,
+                  height: 55,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      context.read<AuthProvider>().updateProfile(
+                            name: nameController.text,
+                            email: emailController.text,
+                          );
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text('Profile updated successfully!'),
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          backgroundColor: Colors.green[700],
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1B1D1F),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                    ),
+                    child: Text(
+                      'Save Changes',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 15),
+                Center(
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(
+                      'Cancel',
+                      style: GoogleFonts.inter(
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFieldLabel(String label) {
+    return Text(
+      label,
+      style: GoogleFonts.inter(
+        fontSize: 11,
+        fontWeight: FontWeight.w800,
+        color: Colors.grey[500],
+        letterSpacing: 1.1,
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    TextInputType? keyboardType,
+  }) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      style: GoogleFonts.inter(
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+        color: const Color(0xFF1B1D1F),
+      ),
+      decoration: InputDecoration(
+        hintText: hint,
+        prefixIcon: Icon(icon, size: 20, color: Colors.grey[400]),
+        filled: true,
+        fillColor: const Color(0xFFF8F9FA),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: const BorderSide(color: Color(0xFFF0F0F0)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: const BorderSide(color: Colors.blue, width: 2),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return ElevatedButton(
-      onPressed: () {},
+      onPressed: () => _showEditSheet(context),
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF1B1D1F),
@@ -263,7 +468,6 @@ class _EditProfileButton extends StatelessWidget {
     );
   }
 }
-
 class _InfoChip extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -310,7 +514,7 @@ class _PatternPainter extends CustomPainter {
     final paint = Paint()
       ..color = Colors.white
       ..strokeWidth = 1;
-    
+
     for (var i = 0; i < size.width; i += 20) {
       for (var j = 0; j < size.height; j += 20) {
         canvas.drawCircle(Offset(i.toDouble(), j.toDouble()), 1, paint);

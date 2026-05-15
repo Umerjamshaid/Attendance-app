@@ -1,6 +1,6 @@
 import 'package:attendance/config/wc_tokens.dart';
 import 'package:attendance/models/employees_model.dart';
-import 'package:attendance/widgets/admin/state_cell.dart';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -11,7 +11,12 @@ class EmployeeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = data.isPresentToday ? WC.present : WC.absent;
-    final initials = data.name.split(' ').map((e) => e[0]).take(2).join().toUpperCase();
+    final initials = data.name
+        .split(' ')
+        .map((e) => e[0])
+        .take(2)
+        .join()
+        .toUpperCase();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -57,7 +62,7 @@ class EmployeeCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 16),
-                
+
                 // Name & Role
                 Expanded(
                   child: Column(
@@ -74,7 +79,11 @@ class EmployeeCard extends StatelessWidget {
                       const SizedBox(height: 2),
                       Row(
                         children: [
-                          Icon(Icons.work_outline_rounded, size: 12, color: Colors.grey[400]),
+                          Icon(
+                            Icons.work_outline_rounded,
+                            size: 12,
+                            color: Colors.grey[400],
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             '${data.role} · ${data.department}',
@@ -92,7 +101,10 @@ class EmployeeCard extends StatelessWidget {
 
                 // Compact Status Badge
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: color.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(10),
@@ -110,21 +122,23 @@ class EmployeeCard extends StatelessWidget {
               ],
             ),
           ),
-          
+
           // Secondary Info Strip (Balanced details)
           InkWell(
             onTap: () => _showEmployeeStats(context),
-            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+            borderRadius: const BorderRadius.vertical(
+              bottom: Radius.circular(24),
+            ),
             splashColor: Colors.black.withOpacity(0.02),
             highlightColor: Colors.black.withOpacity(0.01),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: const Color(0xFFFAFAFA),
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
-                border: const Border(
-                  top: BorderSide(color: Color(0xFFF5F5F5)),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(24),
                 ),
+                border: const Border(top: BorderSide(color: Color(0xFFF5F5F5))),
               ),
               child: Row(
                 children: [
@@ -147,7 +161,11 @@ class EmployeeCard extends StatelessWidget {
                     color: const Color(0xFF666666),
                   ),
                   const Spacer(),
-                  const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: Color(0xFFCCCCCC)),
+                  const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 12,
+                    color: Color(0xFFCCCCCC),
+                  ),
                 ],
               ),
             ),
@@ -190,13 +208,22 @@ class EmployeeCard extends StatelessWidget {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _DetailRow(label: 'Total Presents', value: '${data.totalPresents}', color: WC.present),
-            const Divider(color: Color(0xFFF5F5F5)),
-            _DetailRow(label: 'Total Absents', value: '${data.totalAbsents}', color: WC.absent),
+            _DetailRow(
+              label: 'Total Presents',
+              value: '${data.totalPresents}',
+              color: WC.present,
+            ),
             const Divider(color: Color(0xFFF5F5F5)),
             _DetailRow(
-              label: 'Attendance Rate', 
-              value: '${((data.totalPresents / (data.totalPresents + data.totalAbsents)) * 100).toStringAsFixed(1)}%', 
+              label: 'Total Absents',
+              value: '${data.totalAbsents}',
+              color: WC.absent,
+            ),
+            const Divider(color: Color(0xFFF5F5F5)),
+            _DetailRow(
+              label: 'Attendance Rate',
+              value:
+                  '${((data.totalPresents / (data.totalPresents + data.totalAbsents)) * 100).toStringAsFixed(1)}%',
               color: Colors.blue[700]!,
             ),
           ],
@@ -207,7 +234,10 @@ class EmployeeCard extends StatelessWidget {
             child: TextButton(
               onPressed: () => Navigator.pop(context),
               style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
               ),
               child: Text(
                 'Close',
@@ -227,7 +257,11 @@ class EmployeeCard extends StatelessWidget {
 class _DetailRow extends StatelessWidget {
   final String label, value;
   final Color color;
-  const _DetailRow({required this.label, required this.value, required this.color});
+  const _DetailRow({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -237,18 +271,18 @@ class _DetailRow extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            label, 
+            label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF666666), 
+              color: const Color(0xFF666666),
               fontWeight: FontWeight.w600,
               fontSize: 13,
             ),
           ),
           Text(
-            value, 
+            value,
             style: GoogleFonts.dmSans(
-              color: color, 
-              fontWeight: FontWeight.w900, 
+              color: color,
+              fontWeight: FontWeight.w900,
               fontSize: 18,
             ),
           ),
@@ -263,7 +297,11 @@ class _InfoItem extends StatelessWidget {
   final String label;
   final Color color;
 
-  const _InfoItem({required this.icon, required this.label, required this.color});
+  const _InfoItem({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -283,4 +321,3 @@ class _InfoItem extends StatelessWidget {
     );
   }
 }
-

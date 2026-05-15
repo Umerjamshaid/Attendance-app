@@ -1,3 +1,5 @@
+import 'package:attendance/services/local_storage_service.dart';
+import 'package:attendance/services/office_service.dart';
 import 'package:flutter/material.dart';
 import '../../config/wc_tokens.dart';
 
@@ -14,6 +16,86 @@ class _SetOfficeLocationSheetState extends State<SetOfficeLocationSheet> {
   final _lngCtrl = TextEditingController(text: '67');
   final _radiusCtrl = TextEditingController(text: '100');
   bool _saving = false;
+  bool _isLocating = false; // Track if GPS is searching
+
+  final _storageService = LocalStorageService();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedLocation();
+  }
+
+  // ✅ Load saved location on startup
+  Future<void> _loadSavedLocation() async {
+    final saved = await _storageService.getOfficeLocation();
+    if (saved != null) {
+      _nameCtrl.text = saved['name'];
+      _latCtrl.text = saved['latitude'].toString();
+      _lngCtrl.text = saved['longitude'].toString();
+      _radiusCtrl.text = saved['radius'].toString();
+    }
+  }
+
+  // ✅ Save location to SharedPreferences
+  Future<void> _saveLocation() async {
+    setState(() => _saving = true);
+
+    try {
+      await _storageService.saveOfficeLocation(
+        name: _nameCtrl.text,
+        latitude: double.parse(_latCtrl.text),
+        longitude: double.parse(_lngCtrl.text),
+        radius: int.parse(_radiusCtrl.text),
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✓ Office location saved!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      setState(() => _saving = false);
+    }
+  }
+
+  //Get the Button
+  void _getCurrentLocation() async {
+    setState(() => _isLocating = true);
+
+    try {
+      final officeService = OfficeService();
+      final position = await officeService.determineCurrentPosition();
+      final isInOffice = await officeService.isUserInOffice(position);
+
+      // Logic: Update controllers here
+      // text field filling
+      _latCtrl.text = position.latitude.toString();
+      _lngCtrl.text = position.longitude.toString();
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Location Captured')));
+    } catch (e) {
+      // Logic: Show a message to the user!
+      // In Flutter, you can use:
+      // ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
+    } finally {
+      setState(() => _isLocating = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -22,13 +104,6 @@ class _SetOfficeLocationSheetState extends State<SetOfficeLocationSheet> {
     _lngCtrl.dispose();
     _radiusCtrl.dispose();
     super.dispose();
-  }
-
-  void _save() async {
-    setState(() => _saving = true);
-    await Future.delayed(const Duration(milliseconds: 900));
-    if (!mounted) return;
-    Navigator.of(context).pop();
   }
 
   @override
@@ -74,7 +149,10 @@ class _SetOfficeLocationSheetState extends State<SetOfficeLocationSheet> {
             style: TextStyle(fontSize: 13, color: WC.muted, height: 1.5),
           ),
           const SizedBox(height: 20),
-          _UseLocationButton(),
+          _UseLocationButton(
+            isLoading: _isLocating,
+            onTap: _getCurrentLocation, // ← Pass your function here!
+          ),
           const SizedBox(height: 20),
           _FieldLabel(text: 'OFFICE NAME'),
           const SizedBox(height: 8),
@@ -160,7 +238,7 @@ class _SetOfficeLocationSheetState extends State<SetOfficeLocationSheet> {
               Expanded(
                 flex: 2,
                 child: GestureDetector(
-                  onTap: _saving ? null : _save,
+                  onTap: _saving ? null : _saveLocation,
                   child: Container(
                     height: 52,
                     decoration: BoxDecoration(
@@ -209,30 +287,46 @@ class _SetOfficeLocationSheetState extends State<SetOfficeLocationSheet> {
 }
 
 class _UseLocationButton extends StatelessWidget {
+  // 1. Define the callback 'onLocationFound'
+  final VoidCallback onTap;
+  final bool isLoading;
+
+  const _UseLocationButton({required this.onTap, this.isLoading = false});
+
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      child: Container(
-        height: 52,
-        decoration: BoxDecoration(
-          color: WC.bg,
-          borderRadius: WC.rFull,
-          border: Border.all(color: WC.border, width: 1.5),
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.my_location_rounded, size: 18, color: WC.black),
-            SizedBox(width: 10),
-            Text(
-              'Use My Current Location',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: WC.black,
-              ),
-            ),
-          ],
+    return Material(
+      // Added Material for InkWell support
+      color: Colors.transparent,
+      // Changed GestureDetector to InkWell for ripple effect
+      child: InkWell(
+        onTap: isLoading ? null : onTap,
+        borderRadius: WC.rFull,
+        child: Container(
+          height: 52,
+          decoration: BoxDecoration(
+            borderRadius: WC.rFull,
+            border: Border.all(color: WC.border, width: 1.5),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (isLoading)
+                const SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              else
+                const Icon(
+                  Icons.my_location_rounded,
+                  size: 18,
+                  color: WC.black,
+                ),
+              const SizedBox(width: 10),
+              const Text('Use My Current Location'),
+            ],
+          ),
         ),
       ),
     );

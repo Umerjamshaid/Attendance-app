@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'package:attendance/config/wc_tokens.dart';
+import 'package:attendance/providers/profile_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../../config/app_theme.dart';
 import '../../models/employees_model.dart';
 
@@ -14,8 +17,16 @@ class AttendanceProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final avatarUrl = employee.avatarUrl ??
-        'https://ui-avatars.com/api/?name=${Uri.encodeComponent(employee.name)}&background=1A1F71&color=fff&size=200';
+    final profileProvider = context.watch<ProfileProvider>();
+    
+    ImageProvider avatarImage;
+    if (profileProvider.pfpPath != null && File(profileProvider.pfpPath!).existsSync()) {
+      avatarImage = FileImage(File(profileProvider.pfpPath!));
+    } else {
+      final avatarUrl = employee.avatarUrl ??
+          'https://ui-avatars.com/api/?name=${Uri.encodeComponent(employee.name)}&background=1A1F71&color=fff&size=200';
+      avatarImage = NetworkImage(avatarUrl);
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -28,7 +39,7 @@ class AttendanceProfileHeader extends StatelessWidget {
               shape: BoxShape.circle,
               border: Border.all(color: WC.present.withOpacity(0.3), width: 3),
               image: DecorationImage(
-                image: NetworkImage(avatarUrl),
+                image: avatarImage,
                 fit: BoxFit.cover,
               ),
             ),

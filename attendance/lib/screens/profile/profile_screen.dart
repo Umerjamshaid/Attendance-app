@@ -1,5 +1,6 @@
 import 'package:attendance/config/wc_tokens.dart';
 import 'package:attendance/models/employees_model.dart';
+import 'package:attendance/providers/attendance_history_provider.dart';
 import 'package:attendance/providers/profile_provider.dart';
 import 'package:attendance/screens/admin/admin_notification_screen.dart';
 import 'package:attendance/screens/profile/privacy_screen.dart';
@@ -11,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:attendance/providers/auth_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -36,13 +38,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final historyProvider = context.watch<AttendanceHistoryProvider>();
     final Employee? user = auth.currentUser;
 
     if (user == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
+
+    // Create a version of the user with updated counts from history
+    final updatedUser = user.copyWith(
+      totalPresents: historyProvider.presentCount,
+      totalAbsents: historyProvider.absentCount,
+    );
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
@@ -53,11 +60,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                ProfileHeader(employee: user),
+                ProfileHeader(employee: updatedUser),
                 const SizedBox(height: 20),
-                AttendanceStatsCard(employee: user),
+                AttendanceStatsCard(employee: updatedUser),
                 const SizedBox(height: 32),
-                
+
                 _buildSectionHeader('PREFERENCES'),
                 _buildMenuContainer([
                   _buildToggleItem(
@@ -96,6 +103,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       MaterialPageRoute(builder: (_) => const PrivacyScreen()),
                     ),
                   ),
+                  _buildDivider(),
+                  ProfileMenuItem(
+                    icon: Icons.settings_applications_outlined,
+                    title: 'App Permissions',
+                    onTap: () => openAppSettings(),
+                  ),
                 ]),
 
                 const SizedBox(height: 24),
@@ -107,7 +120,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     onTap: () => _showLogoutConfirmation(context),
                   ),
                 ]),
-                
+
                 const SizedBox(height: 40),
                 _buildFooter(),
                 const SizedBox(height: 40),
@@ -236,9 +249,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('About App', style: GoogleFonts.dmSans(fontWeight: FontWeight.bold)),
+        title: Text(
+          'About App',
+          style: GoogleFonts.dmSans(fontWeight: FontWeight.bold),
+        ),
         content: const Text('Secure attendance tracking for PIPFA employees.'),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
       ),
     );
   }
@@ -248,9 +269,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Help', style: GoogleFonts.dmSans(fontWeight: FontWeight.bold)),
+        title: Text(
+          'Help',
+          style: GoogleFonts.dmSans(fontWeight: FontWeight.bold),
+        ),
         content: const Text('Contact support at support@pipfa.org.pk'),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
       ),
     );
   }
@@ -260,10 +289,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Log Out', style: GoogleFonts.dmSans(fontWeight: FontWeight.bold)),
+        title: Text(
+          'Log Out',
+          style: GoogleFonts.dmSans(fontWeight: FontWeight.bold),
+        ),
         content: const Text('Are you sure you want to exit?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);

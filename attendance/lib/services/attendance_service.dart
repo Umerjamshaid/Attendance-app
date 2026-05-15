@@ -56,7 +56,26 @@ class AttendanceService {
     //     .get();
 
     await Future.delayed(const Duration(seconds: 1));
-    return []; // replace with real data
+    
+    // Returning mock data for today to show "presents" in the Admin dashboard
+    final now = DateTime.now();
+    return [
+      AttendanceRecord(
+        id: 'rec_001',
+        userId: 'EMP001',
+        isPresent: true,
+        timestamp: now.subtract(const Duration(hours: 2)),
+        device: 'iPhone 13',
+      ),
+      AttendanceRecord(
+        id: 'rec_002',
+        userId: 'EMP002',
+        isPresent: true,
+        timestamp: now.subtract(const Duration(hours: 1)),
+        device: 'Samsung S22',
+      ),
+      // EMP003 remains absent (no record)
+    ];
   }
 
   // Mark user as present or absent (called on check-in)

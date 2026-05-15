@@ -25,14 +25,20 @@ class AuthProvider extends ChangeNotifier {
   Future<void> _checkLoginStatus() async {
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('userId');
-    
+
     if (userId != null) {
-      // In a real app, we might fetch the user profile from the server here
-      // For now, we'll assume the user is valid if the ID exists
-      // You could also mock fetching the employee details
       final employees = await _employeeService.getAllEmployees();
       try {
-        _currentUser = employees.firstWhere((e) => e.id == userId);
+        Employee user = employees.firstWhere((e) => e.id == userId);
+
+        // Load persisted name/email specific to this user
+        final savedName = prefs.getString('${userId}_userName');
+        final savedEmail = prefs.getString('${userId}_userEmail');
+        if (savedName != null || savedEmail != null) {
+          user = user.copyWith(name: savedName, email: savedEmail);
+        }
+
+        _currentUser = user;
         _status = AuthStatus.authenticated;
       } catch (e) {
         _status = AuthStatus.unauthenticated;
@@ -51,19 +57,28 @@ class AuthProvider extends ChangeNotifier {
     try {
       // Simulate API call
       await Future.delayed(const Duration(milliseconds: 900));
-      
+
       final employees = await _employeeService.getAllEmployees();
-      final employee = employees.firstWhere(
-        (e) => e.id.toUpperCase() == employeeId.toUpperCase(),
+      final idUpper = employeeId.toUpperCase();
+      Employee employee = employees.firstWhere(
+        (e) => e.id.toUpperCase() == idUpper,
         orElse: () => throw Exception('Invalid Employee ID'),
       );
 
+      final prefs = await SharedPreferences.getInstance();
+
+      // Load persisted name/email specific to this user
+      final savedName = prefs.getString('${employee.id}_userName');
+      final savedEmail = prefs.getString('${employee.id}_userEmail');
+      if (savedName != null || savedEmail != null) {
+        employee = employee.copyWith(name: savedName, email: savedEmail);
+      }
+
       _currentUser = employee;
       _status = AuthStatus.authenticated;
-      
-      final prefs = await SharedPreferences.getInstance();
+
       await prefs.setString('userId', employee.id);
-      
+
       notifyListeners();
       return true;
     } catch (e) {
@@ -72,6 +87,22 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  Future<void> updateProfile({String? name, String? email}) async {
+    if (_currentUser == null) return;
+
+    final userId = _currentUser!.id;
+    _currentUser = _currentUser!.copyWith(
+      name: name,
+      email: email,
+    );
+
+    final prefs = await SharedPreferences.getInstance();
+    if (name != null) await prefs.setString('${userId}_userName', name);
+    if (email != null) await prefs.setString('${userId}_userEmail', email);
+
+    notifyListeners();
   }
 
   Future<void> logout() async {

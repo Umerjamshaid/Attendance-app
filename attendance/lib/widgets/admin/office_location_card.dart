@@ -1,10 +1,9 @@
 import 'package:attendance/config/wc_tokens.dart';
-import 'package:attendance/widgets/admin/mini_chip.dart';
 import 'package:flutter/material.dart';
 
 class OfficeLocationCard extends StatelessWidget {
   final VoidCallback onEdit;
-  const OfficeLocationCard({required this.onEdit});
+  const OfficeLocationCard({super.key, required this.onEdit});
 
   @override
   Widget build(BuildContext context) {
