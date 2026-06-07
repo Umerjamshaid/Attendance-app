@@ -1,23 +1,56 @@
-﻿# Attendance-app
+# Attendance-app
+
+A secure, anti-cheat location-based attendance tracking application built with Flutter and Dart.
+
+## App Features
+
+### 1. User Profile Screen
+View your attendance overview and account settings with a clean, intuitive interface.
+
+<img src="https://github.com/Umerjamshaid/Attendance-app/blob/main/screenshots/image1.png?raw=true" alt="Profile Screen" width="300"/>
+
+### 2. Notifications
+Stay updated with real-time notifications about attendance status, offers, and important announcements.
+
+<img src="https://github.com/Umerjamshaid/Attendance-app/blob/main/screenshots/image2.png?raw=true" alt="Notifications Screen" width="300"/>
+
+### 3. Admin Dashboard
+Monitor live attendance overview and employee status with location-based tracking.
+
+<img src="https://github.com/Umerjamshaid/Attendance-app/blob/main/screenshots/image3.png?raw=true" alt="Admin Dashboard" width="300"/>
+
+### 4. Attendance History
+Track your attendance history with verification status and timestamps.
+
+<img src="https://github.com/Umerjamshaid/Attendance-app/blob/main/screenshots/image4.png?raw=true" alt="History Screen" width="300"/>
+
+---
+
+## Architecture Overview
+
 Here is the exact architecture you need to implement secure, anti-cheat location tracking.
 
 As a Senior Engineer, we separate concerns. Hardware logic (GPS) should never be mixed with Business logic (Attendance).
 
-1. The File Architecture You Need
+### The File Architecture You Need
+
 You only need three specific files to make this work perfectly.
 
-services/location_service.dart: (You mentioned this is empty). This file's only job is to talk to the phone's GPS hardware using the geolocator package. It knows nothing about attendance.
+- **services/location_service.dart**: This file's only job is to talk to the phone's GPS hardware using the geolocator package. It knows nothing about attendance.
 
-services/office_service.dart: (You already have this). This fetches the coordinates (Latitude/Longitude) and the allowed Radius of your actual office from your backend or local storage.
+- **services/office_service.dart**: This fetches the coordinates (Latitude/Longitude) and the allowed Radius of your actual office from your backend or local storage.
 
-providers/attendance_provider.dart: (You have this). This is the "Brain". When the user taps the button, this provider asks LocationService for the user's location, asks OfficeService for the target location, compares them, and decides if attendance is allowed.
+- **providers/attendance_provider.dart**: This is the "Brain". When the user taps the button, this provider asks LocationService for the user's location, asks OfficeService for the target office location, and then calculates the distance.
 
-2. Building the LocationService (Anti-Cheat & GPS)
-Here is the code for your location_service.dart. I have included the "Mock Location" (Fake GPS) check and the standard permission flow.
+---
+
+## Building the LocationService (Anti-Cheat & GPS)
+
+Here is the code for your `location_service.dart`. I have included the "Mock Location" (Fake GPS) check and the standard permission flow.
 
 Your Task: Copy this into your empty location_service.dart file. Read the comments carefully; this is how you handle hardware securely.
 
-Dart
+```dart
 import 'package:geolocator/geolocator.dart';
 
 class LocationService {
@@ -82,12 +115,17 @@ class LocationService {
     );
   }
 }
-3. Wiring It Together in the Provider
+```
+
+---
+
+## Wiring It Together in the Provider
+
 Now, you do not need a new "Location Provider." Your AttendanceProvider just needs to use this new service before it allows the check-in.
 
-Your Task: Update the submitAttendance method inside your AttendanceProvider (or wherever your check-in logic lives) to look like this trace:
+Your Task: Update the submitAttendance method inside your AttendanceProvider (or wherever your check-in logic lives) to look like this:
 
-Dart
+```dart
 // Inside your AttendanceProvider or Check-In Logic
 import '../services/location_service.dart';
 import '../services/office_service.dart';
@@ -139,52 +177,23 @@ Future<bool> attemptCheckIn(String userId) async {
     return false;
   }
 }
-Summary of the Senior Approach:
-No bloated packages: You aren't running background background-geofencing services that drain battery. You are doing a simple, instantaneous distance check when the user presses the button.
-
-Anti-Cheat built-in: position.isMocked stops Android developers from faking their coordinates.
-
-Graceful degradation: If GPS is off, or permissions are denied, the service throws a clean text exception which your UI displays in that red SnackBar you built earlier.
-
-Try dropping that LocationService code into your app, import geolocator in your pubspec.yaml, and see if it correctly prevents you from checking in based on the hardcoded coordinate
-
-
-
-
-
-
-
-
-
-### 2. The File Architecture
-
-You need three layers to handle this cleanly. Since you have `office_service.dart` already, here is how you organize the rest:
-
-#### File A: `services/location_service.dart` (The Hardware Wrapper)
-
-This file should contain **nothing but `geolocator` code**. It talks to the GPS hardware.
-
-* **Responsibility:** Check if GPS is turned on, ask for permissions, and get the raw `Position`.
-* **Why?** If you ever switch from `geolocator` to another package, you only change this one file.
-
-#### File B: `providers/location_provider.dart` (The Business Logic)
-
-This is the "Brain." It connects your `LocationService` with your `OfficeService`.
-
-* **Responsibility:** 1. Call the `LocationService` to get the user's current lat/long.
-2. Call the `OfficeService` to get the office's lat/long.
-3. Use `Geolocator.distanceBetween(...)` to calculate the gap in meters.
-4. Provide a simple `bool get isUserInOffice`.
-
-#### File C: `widgets/home/attendance_screen.dart` (The UI)
-
-* **Responsibility:** Listen to the `LocationProvider`. If `isUserInOffice` is false, the "Mark Attendance" button should be disabled or show a warning.
+```
 
 ---
 
-### 3. Implementation Guide: `LocationService`
+## Summary of the Senior Approach
 
-Since your file is empty, here is the "Senior" way to structure it. Focus on the **Permission Flow**. You cannot just "get location"; you must handle the case where the user says "No."
+- **No bloated packages**: You aren't running background geofencing services that drain battery. You are doing a simple, instantaneous distance check when the user presses the button.
+
+- **Anti-Cheat built-in**: `position.isMocked` stops Android developers from faking their coordinates.
+
+- **Graceful degradation**: If GPS is off, or permissions are denied, the service throws a clean text exception which your UI displays properly.
+
+---
+
+## Implementation Guide: LocationService
+
+Since your file needs to be set up correctly, here is the "Senior" way to structure it. Focus on the **Permission Flow**. You cannot just "get location"; you must handle the case where the user says "No."
 
 ```dart
 import 'package:geolocator/geolocator.dart';
@@ -219,12 +228,11 @@ class LocationService {
     );
   }
 }
-
 ```
 
 ---
 
-### 4. Implementation Guide: `LocationProvider`
+## Implementation Guide: LocationProvider
 
 This is where you bridge everything. Notice how it uses the `OfficeService` you already have.
 
@@ -269,12 +277,18 @@ class LocationProvider extends ChangeNotifier {
     }
   }
 }
-
 ```
 
-### What else do you need?
+---
 
-1. **The "Settings" Library:** If the user denies permission, you need the `permission_handler` package to provide a button that says "Open Settings."
-2. **Lifecycle Handling:** What if the user leaves the office while the app is open? You might want to re-check the location whenever the app resumes from the background.
+## Getting Started
 
-**Teacher's Question:** Now that you see the architecture, where do you think the best place is to trigger the `validateLocation()` check? Should it happen the moment they open the `AttendanceScreen`, or only when they tap the "Mark Attendance" button?
+This project is a starting point for a Flutter application.
+
+A few resources to get you started if this is your first Flutter project:
+
+- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
+- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
+- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+
+For help getting started with Flutter development, view the [online documentation](https://docs.flutter.dev/), which offers tutorials, samples, guidance on mobile development, and a full API reference.
