@@ -1,4 +1,4 @@
-﻿#Attendance-app
+﻿# Attendance-app
 Here is the exact architecture you need to implement secure, anti-cheat location tracking.
 
 As a Senior Engineer, we separate concerns. Hardware logic (GPS) should never be mixed with Business logic (Attendance).
