@@ -1,5 +1,7 @@
 import 'package:attendance/config/wc_tokens.dart';
+import 'package:attendance/providers/admin_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class OfficeLocationCard extends StatelessWidget {
   final VoidCallback onEdit;
@@ -7,6 +9,8 @@ class OfficeLocationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final office = context.watch<AdminProvider>().officeLocation;
+    
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -52,9 +56,9 @@ class OfficeLocationCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                const Text(
-                  'Osquare Headquarters',
-                  style: TextStyle(
+                Text(
+                  office?.name ?? 'Not Set',
+                  style: const TextStyle(
                     fontSize: 12,
                     color: Color(0xFF999999),
                     fontWeight: FontWeight.w500,
@@ -65,10 +69,15 @@ class OfficeLocationCard extends StatelessWidget {
                   children: [
                     _LightMiniChip(
                       icon: Icons.location_on_rounded,
-                      label: '24.00, 67.00',
+                      label: office != null 
+                        ? '${office.latitude.toStringAsFixed(2)}, ${office.longitude.toStringAsFixed(2)}'
+                        : '—',
                     ),
                     const SizedBox(width: 6),
-                    _LightMiniChip(icon: Icons.radar_rounded, label: '100 m'),
+                    _LightMiniChip(
+                      icon: Icons.radar_rounded, 
+                      label: '${office?.radiusInMeters.toInt() ?? 0} m',
+                    ),
                   ],
                 ),
               ],
