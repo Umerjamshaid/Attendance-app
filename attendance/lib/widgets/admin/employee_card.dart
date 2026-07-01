@@ -1,18 +1,22 @@
 import 'package:attendance/config/wc_tokens.dart';
+import 'package:attendance/models/attendance_record_model.dart';
 import 'package:attendance/models/employees_model.dart';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class EmployeeCard extends StatelessWidget {
-  final Employee data;
+  final EmployeeAttendance data;
   const EmployeeCard({super.key, required this.data});
 
   @override
   Widget build(BuildContext context) {
-    final color = data.isPresentToday ? WC.present : WC.absent;
-    final initials = data.name
+    final employee = data.employee;
+    final isPresent = data.isPresent;
+    final color = isPresent ? WC.present : WC.absent;
+    final initials = employee.name
         .split(' ')
+        .where((e) => e.isNotEmpty)
         .map((e) => e[0])
         .take(2)
         .join()
@@ -69,7 +73,7 @@ class EmployeeCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        data.name,
+                        employee.name,
                         style: GoogleFonts.inter(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
@@ -86,7 +90,7 @@ class EmployeeCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '${data.role} · ${data.department}',
+                            '${employee.role} · ${employee.department}',
                             style: GoogleFonts.inter(
                               fontSize: 12,
                               color: Colors.grey[500],
@@ -110,7 +114,7 @@ class EmployeeCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
-                    data.isPresentToday ? 'PRESENT' : 'ABSENT',
+                    isPresent ? 'PRESENT' : 'ABSENT',
                     style: GoogleFonts.inter(
                       color: color,
                       fontSize: 9,
@@ -142,22 +146,22 @@ class EmployeeCard extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  if (data.isPresentToday)
+                  if (isPresent)
                     _InfoItem(
                       icon: Icons.access_time_filled_rounded,
-                      label: 'IN: ${data.checkInTime ?? '—'}',
+                      label: 'IN: ${data.latestRecord?.timestamp.hour.toString().padLeft(2, '0')}:${data.latestRecord?.timestamp.minute.toString().padLeft(2, '0')}',
                       color: Colors.blue[700]!,
                     )
                   else
                     _InfoItem(
                       icon: Icons.event_busy_rounded,
-                      label: 'LAST: ${data.time}',
+                      label: 'LAST: ${employee.time}',
                       color: Colors.grey[600]!,
                     ),
                   const SizedBox(width: 16),
                   _InfoItem(
                     icon: Icons.analytics_outlined,
-                    label: '${data.totalPresents}P / ${data.totalAbsents}A',
+                    label: '${employee.totalPresents}P / ${employee.totalAbsents}A',
                     color: const Color(0xFF666666),
                   ),
                   const Spacer(),
@@ -176,6 +180,7 @@ class EmployeeCard extends StatelessWidget {
   }
 
   void _showEmployeeStats(BuildContext context) {
+    final employee = data.employee;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -210,20 +215,20 @@ class EmployeeCard extends StatelessWidget {
           children: [
             _DetailRow(
               label: 'Total Presents',
-              value: '${data.totalPresents}',
+              value: '${employee.totalPresents}',
               color: WC.present,
             ),
             const Divider(color: Color(0xFFF5F5F5)),
             _DetailRow(
               label: 'Total Absents',
-              value: '${data.totalAbsents}',
+              value: '${employee.totalAbsents}',
               color: WC.absent,
             ),
             const Divider(color: Color(0xFFF5F5F5)),
             _DetailRow(
               label: 'Attendance Rate',
               value:
-                  '${((data.totalPresents / (data.totalPresents + data.totalAbsents)) * 100).toStringAsFixed(1)}%',
+                  '${((employee.totalPresents / (employee.totalPresents + employee.totalAbsents)) * 100).toStringAsFixed(1)}%',
               color: Colors.blue[700]!,
             ),
           ],
