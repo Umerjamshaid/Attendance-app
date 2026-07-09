@@ -83,7 +83,7 @@ class ProfileHeader extends StatelessWidget {
 
               // Bio / Role section
               Text(
-                '${employee.role} at ${employee.department}',
+                employee.headline ?? '${employee.role} at ${employee.department}',
                 style: GoogleFonts.inter(
                   fontSize: 14,
                   color: const Color(0xFF2D3436),
@@ -94,36 +94,73 @@ class ProfileHeader extends StatelessWidget {
 
               const SizedBox(height: 16),
 
-              // Info chips
+              // Info chips — use custom chips if set, otherwise fall back to defaults
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: [
-                  _InfoChip(
-                    icon: Icons.business_center_rounded,
-                    label: employee.department,
-                    color: Colors.blue[50]!,
-                    textColor: Colors.blue[700]!,
-                  ),
-                  _InfoChip(
-                    icon: Icons.verified_user_rounded,
-                    label: employee.role.toUpperCase(),
-                    color: Colors.green[50]!,
-                    textColor: Colors.green[700]!,
-                  ),
-                  _InfoChip(
-                    icon: Icons.calendar_month_rounded,
-                    label: 'Joined ${employee.time.split(' ').first}',
-                    color: Colors.orange[50]!,
-                    textColor: Colors.orange[700]!,
-                  ),
-                ],
+                children: employee.chips.isNotEmpty
+                    ? _buildDynamicChips(employee.chips)
+                    : [
+                        _InfoChip(
+                          icon: Icons.business_center_rounded,
+                          label: employee.department,
+                          color: Colors.blue[50]!,
+                          textColor: Colors.blue[700]!,
+                        ),
+                        _InfoChip(
+                          icon: Icons.verified_user_rounded,
+                          label: employee.role.toUpperCase(),
+                          color: Colors.green[50]!,
+                          textColor: Colors.green[700]!,
+                        ),
+                        _InfoChip(
+                          icon: Icons.calendar_month_rounded,
+                          label: 'Joined ${employee.time.split(' ').first}',
+                          color: Colors.orange[50]!,
+                          textColor: Colors.orange[700]!,
+                        ),
+                      ],
               ),
             ],
           ),
         ),
       ],
     );
+  }
+
+  static const List<Color> _chipBgColors = [
+    Color(0xFFE3F2FD), // blue[50]
+    Color(0xFFE8F5E9), // green[50]
+    Color(0xFFFFF3E0), // orange[50]
+    Color(0xFFF3E5F5), // purple[50]
+    Color(0xFFE0F7FA), // cyan[50]
+  ];
+  static const List<Color> _chipTextColors = [
+    Color(0xFF1565C0), // blue[700]
+    Color(0xFF2E7D32), // green[700]
+    Color(0xFFE65100), // orange[700]
+    Color(0xFF7B1FA2), // purple[700]
+    Color(0xFF00838F), // cyan[700]
+  ];
+  static const List<IconData> _chipIcons = [
+    Icons.label_rounded,
+    Icons.tag_rounded,
+    Icons.star_rounded,
+    Icons.bookmark_rounded,
+    Icons.circle,
+  ];
+
+  List<Widget> _buildDynamicChips(List<String> chips) {
+    return chips.asMap().entries.map((entry) {
+      final i = entry.key;
+      final label = entry.value;
+      return _InfoChip(
+        icon: _chipIcons[i % _chipIcons.length],
+        label: label,
+        color: _chipBgColors[i % _chipBgColors.length],
+        textColor: _chipTextColors[i % _chipTextColors.length],
+      );
+    }).toList();
   }
 
   Widget _buildBanner(BuildContext context, String? path) {

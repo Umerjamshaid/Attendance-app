@@ -31,11 +31,18 @@ class AuthProvider extends ChangeNotifier {
       try {
         Employee user = employees.firstWhere((e) => e.id == userId);
 
-        // Load persisted name/email specific to this user
+        // Load persisted name/email/headline/chips specific to this user
         final savedName = prefs.getString('${userId}_userName');
         final savedEmail = prefs.getString('${userId}_userEmail');
-        if (savedName != null || savedEmail != null) {
-          user = user.copyWith(name: savedName, email: savedEmail);
+        final savedHeadline = prefs.getString('${userId}_headline');
+        final savedChips = prefs.getStringList('${userId}_chips');
+        if (savedName != null || savedEmail != null || savedHeadline != null || savedChips != null) {
+          user = user.copyWith(
+            name: savedName,
+            email: savedEmail,
+            headline: savedHeadline,
+            chips: savedChips,
+          );
         }
 
         _currentUser = user;
@@ -67,11 +74,18 @@ class AuthProvider extends ChangeNotifier {
 
       final prefs = await SharedPreferences.getInstance();
 
-      // Load persisted name/email specific to this user
+      // Load persisted name/email/headline/chips specific to this user
       final savedName = prefs.getString('${employee.id}_userName');
       final savedEmail = prefs.getString('${employee.id}_userEmail');
-      if (savedName != null || savedEmail != null) {
-        employee = employee.copyWith(name: savedName, email: savedEmail);
+      final savedHeadline = prefs.getString('${employee.id}_headline');
+      final savedChips = prefs.getStringList('${employee.id}_chips');
+      if (savedName != null || savedEmail != null || savedHeadline != null || savedChips != null) {
+        employee = employee.copyWith(
+          name: savedName,
+          email: savedEmail,
+          headline: savedHeadline,
+          chips: savedChips,
+        );
       }
 
       _currentUser = employee;
@@ -89,18 +103,22 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> updateProfile({String? name, String? email}) async {
+  Future<void> updateProfile({String? name, String? email, String? headline, List<String>? chips}) async {
     if (_currentUser == null) return;
 
     final userId = _currentUser!.id;
     _currentUser = _currentUser!.copyWith(
       name: name,
       email: email,
+      headline: headline,
+      chips: chips,
     );
 
     final prefs = await SharedPreferences.getInstance();
     if (name != null) await prefs.setString('${userId}_userName', name);
     if (email != null) await prefs.setString('${userId}_userEmail', email);
+    if (headline != null) await prefs.setString('${userId}_headline', headline);
+    if (chips != null) await prefs.setStringList('${userId}_chips', chips);
 
     notifyListeners();
   }

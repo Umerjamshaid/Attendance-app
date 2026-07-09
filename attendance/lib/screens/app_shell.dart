@@ -31,7 +31,7 @@ class AppShellState extends State<AppShell> {
     final isAdmin = user.role == 'admin';
 
     final pages = [
-      AttendanceScreen(employee: user),
+      AttendanceScreen(employee: user, isActive: _currentIndex == 0),
       const HistoryScreen(),
       if (isAdmin) const AdminDashboardScreen(),
       const ProfileScreen(),
@@ -45,7 +45,7 @@ class AppShellState extends State<AppShell> {
           _currentIndex = idx;
         }),
         // Ensure the BottomNav knows which items to show
-        isAdmin: isAdmin, 
+        isAdmin: isAdmin,
       ),
     );
   }

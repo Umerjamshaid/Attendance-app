@@ -12,28 +12,20 @@ class OfficeLocationCard extends StatelessWidget {
     final office = context.watch<AdminProvider>().officeLocation;
     
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: WC.white,
-        borderRadius: WC.r20,
-        border: Border.all(color: const Color(0xFFF0F0F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFEFEFF4)),
       ),
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: const Color(0xFFF8F8F8),
-              borderRadius: WC.r16,
-              border: Border.all(color: const Color(0xFFEEEEEE)),
+              color: const Color(0xFFF5F5F7),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: const Icon(
               Icons.business_rounded,
@@ -52,7 +44,6 @@ class OfficeLocationCard extends StatelessWidget {
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
                     color: Color(0xFF1B1D1F),
-                    letterSpacing: -0.2,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -60,7 +51,7 @@ class OfficeLocationCard extends StatelessWidget {
                   office?.name ?? 'Not Set',
                   style: const TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF999999),
+                    color: Color(0xFF8E8E93),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -90,7 +81,7 @@ class OfficeLocationCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
                 color: const Color(0xFF1B1D1F),
-                borderRadius: WC.rFull,
+                borderRadius: BorderRadius.circular(100),
               ),
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
@@ -125,20 +116,19 @@ class _LightMiniChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F5F5),
-        borderRadius: WC.r8,
-        border: Border.all(color: const Color(0xFFEEEEEE)),
+        color: const Color(0xFFF5F5F7),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
-          Icon(icon, size: 10, color: Color(0xFF888888)),
+          Icon(icon, size: 10, color: const Color(0xFF8E8E93)),
           const SizedBox(width: 5),
           Text(
             label,
             style: const TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF888888),
+              color: Color(0xFF8E8E93),
             ),
           ),
         ],
