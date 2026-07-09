@@ -15,6 +15,8 @@ class Employee {
   final bool isPresentToday;
   final double? lastLatitude;
   final double? lastLongitude;
+  final String? headline;
+  final List<String> chips;
 
   Employee({
     required this.id,
@@ -33,6 +35,8 @@ class Employee {
     this.isPresentToday = false,
     this.lastLatitude,
     this.lastLongitude,
+    this.headline,
+    this.chips = const [],
   });
 
   // ✅ Helper getters
@@ -69,6 +73,8 @@ class Employee {
       isPresentToday: map['isPresentToday'] ?? false,
       lastLatitude: (map['lastLatitude'] as num?)?.toDouble(),
       lastLongitude: (map['lastLongitude'] as num?)?.toDouble(),
+      headline: map['headline'],
+      chips: (map['chips'] as List<dynamic>?)?.cast<String>() ?? const [],
     );
   }
 
@@ -91,6 +97,8 @@ class Employee {
       'isPresentToday': isPresentToday,
       'lastLatitude': lastLatitude,
       'lastLongitude': lastLongitude,
+      'headline': headline,
+      'chips': chips,
     };
   }
 
@@ -112,6 +120,8 @@ class Employee {
     bool? isPresentToday,
     double? lastLatitude,
     double? lastLongitude,
+    String? headline,
+    List<String>? chips,
   }) {
     return Employee(
       id: id ?? this.id,
@@ -130,6 +140,8 @@ class Employee {
       isPresentToday: isPresentToday ?? this.isPresentToday,
       lastLatitude: lastLatitude ?? this.lastLatitude,
       lastLongitude: lastLongitude ?? this.lastLongitude,
+      headline: headline ?? this.headline,
+      chips: chips ?? this.chips,
     );
   }
 

@@ -8,6 +8,8 @@ class AttendanceButton extends StatelessWidget {
   final bool isLoading;
   final VoidCallback onTap;
   final Animation<double> pulseAnimation;
+  final bool isUploadEnabled;
+  final String uploadLabel;
 
   const AttendanceButton({
     super.key,
@@ -15,19 +17,23 @@ class AttendanceButton extends StatelessWidget {
     required this.isLoading,
     required this.onTap,
     required this.pulseAnimation,
+    required this.isUploadEnabled,
+    required this.uploadLabel,
   });
 
   @override
   Widget build(BuildContext context) {
-    final baseColor = isCheckedIn ? WC.present : const Color(0xFF1B1D1F);
+    final baseColor = isCheckedIn
+        ? WC.present
+        : (!isUploadEnabled ? const Color(0xFF8E8E93) : const Color(0xFF1B1D1F));
 
     return GestureDetector(
-      onTap: (isCheckedIn || isLoading) ? null : onTap,
+      onTap: (isCheckedIn || isLoading || !isUploadEnabled) ? null : onTap,
       child: Stack(
         alignment: Alignment.center,
         children: [
           // Outer decorative ring
-          if (!isCheckedIn && !isLoading)
+          if (!isCheckedIn && !isLoading && isUploadEnabled)
             ScaleTransition(
               scale: pulseAnimation,
               child: Container(
@@ -64,7 +70,7 @@ class AttendanceButton extends StatelessWidget {
               ],
             ),
             child: ScaleTransition(
-              scale: isCheckedIn
+              scale: isCheckedIn || !isUploadEnabled
                   ? const AlwaysStoppedAnimation(1.0)
                   : pulseAnimation,
               child: Column(
@@ -83,20 +89,23 @@ class AttendanceButton extends StatelessWidget {
                     Icon(
                       isCheckedIn
                           ? Icons.verified_rounded
-                          : Icons.fingerprint_rounded,
-                      size: 72,
+                          : (isUploadEnabled ? Icons.fingerprint_rounded : Icons.lock_clock_rounded),
+                      size: 64,
                       color: WC.white,
                     ),
-                    const SizedBox(height: 14),
-                    Text(
-                      isCheckedIn ? 'VERIFIED' : 'TAP TO\nCHECK IN',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.dmSans(
-                        color: WC.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w900,
-                        height: 1.2,
-                        letterSpacing: 1.5,
+                    const SizedBox(height: 12),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Text(
+                        isCheckedIn ? 'VERIFIED' : uploadLabel.toUpperCase(),
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.dmSans(
+                          color: WC.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          height: 1.2,
+                          letterSpacing: 1.2,
+                        ),
                       ),
                     ),
                   ],

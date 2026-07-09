@@ -21,7 +21,10 @@ class DashboardHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: WC.black,
+      decoration: const BoxDecoration(
+        color: WC.black,
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
+      ),
       child: SafeArea(
         bottom: false,
         child: Column(
@@ -31,25 +34,26 @@ class DashboardHeader extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
               child: Row(
                 children: [
-                  Expanded(
+                  const Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
+                      children: [
                         Text(
                           'Admin Dashboard',
                           style: TextStyle(
                             color: WC.white,
-                            fontSize: 24,
+                            fontSize: 28,
                             fontWeight: FontWeight.w900,
                             letterSpacing: -0.6,
                           ),
                         ),
-                        SizedBox(height: 3),
+                        SizedBox(height: 4),
                         Text(
                           'Live attendance overview',
                           style: TextStyle(
-                            color: Color(0xFF777777),
+                            color: Color(0xFF8E8E93),
                             fontSize: 13,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
@@ -59,15 +63,14 @@ class DashboardHeader extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 18),
                 decoration: BoxDecoration(
                   color: const Color(0xFF111111),
-                  borderRadius: WC.r16,
-                  border: Border.all(color: const Color(0xFF222222)),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
                   children: [
@@ -123,10 +126,9 @@ class HeaderIconButton extends StatelessWidget {
       child: Container(
         width: 42,
         height: 42,
-        decoration: BoxDecoration(
-          color: const Color(0xFF1A1A1A),
+        decoration: const BoxDecoration(
+          color: Color(0xFF1A1A1A),
           shape: BoxShape.circle,
-          border: Border.all(color: const Color(0xFF2A2A2A)),
         ),
         child: Icon(icon, color: WC.white, size: 20),
       ),

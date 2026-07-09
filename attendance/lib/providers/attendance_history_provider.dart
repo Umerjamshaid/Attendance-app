@@ -34,6 +34,65 @@ class AttendanceHistoryProvider extends ChangeNotifier {
   int get absentCount => _records.where((r) => !r.isPresent).length;
   int get totalCount => _records.length;
 
+  int get currentStreak {
+    if (_records.isEmpty) return 0;
+    final presentDays = _records
+        .where((r) => r.isPresent)
+        .map((r) => DateTime(r.timestamp.year, r.timestamp.month, r.timestamp.day))
+        .toSet()
+        .toList()
+      ..sort((a, b) => b.compareTo(a)); // sorted descending (newest first)
+
+    if (presentDays.isEmpty) return 0;
+
+    final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    // If neither today nor yesterday has a present record, the streak has been broken.
+    if (!presentDays.contains(today) && !presentDays.contains(yesterday)) {
+      return 0;
+    }
+
+    int streak = 0;
+    DateTime currentDay = presentDays.contains(today) ? today : yesterday;
+
+    while (presentDays.contains(currentDay)) {
+      streak++;
+      currentDay = currentDay.subtract(const Duration(days: 1));
+    }
+
+    return streak;
+  }
+
+  double get monthlyRate {
+    if (_records.isEmpty) return 0.0;
+    final now = DateTime.now();
+    final presentThisMonth = _records
+        .where((r) =>
+            r.isPresent &&
+            r.timestamp.year == now.year &&
+            r.timestamp.month == now.month)
+        .map((r) => DateTime(r.timestamp.year, r.timestamp.month, r.timestamp.day))
+        .toSet()
+        .length;
+
+    if (now.day == 0) return 0.0;
+    final rate = presentThisMonth / now.day;
+    return rate.clamp(0.0, 1.0);
+  }
+
+  int get presentThisMonthCount {
+    final now = DateTime.now();
+    return _records
+        .where((r) =>
+            r.isPresent &&
+            r.timestamp.year == now.year &&
+            r.timestamp.month == now.month)
+        .map((r) => DateTime(r.timestamp.year, r.timestamp.month, r.timestamp.day))
+        .toSet()
+        .length;
+  }
+
   // ── Records grouped by date, ready for the UI to display
   //    Returns: [ AttendanceGroup(date: 'Wed, Apr 22', records: [...]), ... ]
   List<AttendanceGroup> get groups {
