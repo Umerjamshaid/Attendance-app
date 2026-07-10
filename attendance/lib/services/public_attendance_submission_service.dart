@@ -9,6 +9,7 @@ class PublicAttendanceSubmissionService implements AttendanceSubmissionService {
 
   @override
   Future<void> submit({
+    required String employeeId,
     required double latitude,
     required double longitude,
     required String base64Image,

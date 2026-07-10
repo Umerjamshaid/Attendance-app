@@ -190,6 +190,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
 
       // 5. Submit through the configured attendance service.
       await attendanceSubmissionService.submit(
+        employeeId: widget.employee.id,
         latitude: position.latitude,
         longitude: position.longitude,
         base64Image: base64Image,
