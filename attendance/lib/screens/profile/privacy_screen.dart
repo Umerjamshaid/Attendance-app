@@ -34,19 +34,21 @@ class PrivacyScreen extends StatelessWidget {
                   '• Employee ID\n'
                   '• Device information (model, OS)\n'
                   '• Location data (GPS coordinates)\n'
+                  '• Attendance photo (captured at check-in)\n'
                   '• Attendance timestamps\n\n'
-                  'This information is used solely for attendance tracking purposes.',
+                  'This information is used solely for verification and attendance tracking purposes.',
             ),
             const SizedBox(height: 24),
             _buildSection(
               'Data Storage',
-              'Your data is securely encrypted and stored on our secure servers. Access tokens are encrypted using industry-standard encryption protocols.',
+              'Your data is securely encrypted and stored on our secure servers. Base64 encoded photos are transmitted securely via SOAP/XML endpoints using industry-standard HTTPS encryption.',
             ),
             const SizedBox(height: 24),
             _buildSection(
               'Data Usage',
               'Your attendance data will be used to:\n'
                   '• Track your attendance records\n'
+                  '• Verify identity via facial image check\n'
                   '• Generate attendance reports\n'
                   '• Prevent attendance fraud through GPS verification\n\n'
                   'We do not share your data with third parties.',
@@ -55,7 +57,8 @@ class PrivacyScreen extends StatelessWidget {
             _buildSection(
               'Device Permissions',
               'The app requests:\n'
-                  '• Location Permission - For GPS-based attendance\n'
+                  '• Location Permission - For GPS-based geofence attendance\n'
+                  '• Camera Permission - For taking verification photos at check-in\n'
                   '• Device ID - For device identification\n\n'
                   'You can revoke these permissions anytime in your device settings.',
             ),

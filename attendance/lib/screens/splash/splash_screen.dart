@@ -48,130 +48,66 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1B1D1F), // Elegant dark premium theme
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Subtle circular gradient glow behind the icon
-          Positioned(
-            top: MediaQuery.of(context).size.height * 0.3,
-            left: MediaQuery.of(context).size.width * 0.2,
-            right: MediaQuery.of(context).size.width * 0.2,
-            height: MediaQuery.of(context).size.width * 0.6,
-            child: Container(
+      backgroundColor: const Color(0xFFFCFAF7), // Warm premium background
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Spacer(flex: 4),
+            
+            // Warm rounded app logo container
+            Container(
+              width: 110,
+              height: 110,
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(28),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF7C5CFC).withOpacity(0.15),
-                    blurRadius: 100,
-                    spreadRadius: 20,
+                    color: const Color(0xFF1B1D1F).withOpacity(0.04),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8),
                   ),
                 ],
               ),
+              child: const Center(
+                child: Icon(
+                  Icons.fingerprint_rounded,
+                  color: Color(0xFF1B1D1F), // Clean contrast color
+                  size: 56,
+                ),
+              ),
             ),
-          ),
-          
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Spacer(flex: 3),
-              
-              // Animated pulsing biometric fingerprint ring
-              ScaleTransition(
-                scale: _scaleAnimation,
-                child: Container(
-                  width: 140,
-                  height: 140,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: const Color(0xFF262A2E),
-                    border: Border.all(
-                      color: const Color(0xFF7C5CFC).withOpacity(0.3),
-                      width: 2,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF7C5CFC).withOpacity(0.2),
-                        blurRadius: 30,
-                        spreadRadius: 5,
-                      ),
-                    ],
-                  ),
-                  child: const Center(
-                    child: Icon(
-                      Icons.fingerprint_rounded,
-                      color: Color(0xFF7C5CFC),
-                      size: 80,
-                    ),
-                  ),
+            
+            const Spacer(flex: 3),
+            
+            // Soft circular progress indicator
+            const SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  Color(0xFF1B1D1F),
                 ),
               ),
-              
-              const SizedBox(height: 40),
-              
-              // App Title and Subtitle with clean FadeTransition
-              FadeTransition(
-                opacity: _fadeAnimation,
-                child: Column(
-                  children: [
-                    Text(
-                      'SECURE PASS',
-                      style: GoogleFonts.dmSans(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        letterSpacing: 2.0,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Biometric Attendance & Verification',
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: const Color(0xFF8E8E93),
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ],
-                ),
+            ),
+            
+            const SizedBox(height: 32),
+            
+            Text(
+              'v1.0.0',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: const Color(0xFF8E8E93),
+                letterSpacing: 0.5,
               ),
-              
-              const Spacer(flex: 2),
-              
-              // Animated progress loading text or circular loading
-              FadeTransition(
-                opacity: _fadeAnimation,
-                child: Column(
-                  children: [
-                    SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          const Color(0xFF7C5CFC).withOpacity(0.8),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Initializing Biometrics...',
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF555555),
-                        letterSpacing: 1.0,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Spacer(flex: 1),
-            ],
-          ),
-        ],
+            ),
+            
+            const Spacer(flex: 1),
+          ],
+        ),
       ),
     );
   }

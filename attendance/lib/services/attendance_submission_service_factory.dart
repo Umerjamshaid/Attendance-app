@@ -1,8 +1,8 @@
 import 'attendance_submission_service.dart';
-import 'public_attendance_submission_service.dart';
+import 'mobile_attendance_service.dart';
 
 AttendanceSubmissionService _attendanceSubmissionService =
-    PublicAttendanceSubmissionService();
+    MobileAttendanceService.fromEnvironment();
 
 AttendanceSubmissionService get attendanceSubmissionService =>
     _attendanceSubmissionService;
