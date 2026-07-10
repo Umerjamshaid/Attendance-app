@@ -1,14 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/office_location_model.dart';
-import '../services/location_service.dart';
-import '../services/office_service.dart';
 import '../services/device_service.dart';
 import '../services/local_storage_service.dart';
 
 class AttendanceProvider extends ChangeNotifier {
-  final LocationService _locationService = LocationService();
-  final OfficeService _officeService = OfficeService();
   final DeviceService _deviceService = DeviceService();
   final LocalStorageService _storageService = LocalStorageService();
 
@@ -17,7 +12,6 @@ class AttendanceProvider extends ChangeNotifier {
   bool _isCheckedIn = false;
   String _checkInTime = '';
   String _deviceModel = 'Detecting...';
-  OfficeLocationModel? _officeLocation;
   bool _hasUploadedToday = false;
 
   // Admin-configurable upload window.
@@ -31,7 +25,6 @@ class AttendanceProvider extends ChangeNotifier {
   bool get isCheckedIn => _isCheckedIn;
   String get checkInTime => _checkInTime;
   String get deviceModel => _deviceModel;
-  OfficeLocationModel? get officeLocation => _officeLocation;
   bool get hasUploadedToday => _hasUploadedToday;
 
   String get windowMode => _windowMode;
@@ -99,7 +92,6 @@ class AttendanceProvider extends ChangeNotifier {
 
     try {
       _deviceModel = await _deviceService.getDeviceModel();
-      _officeLocation = await _officeService.getOfficeLocation();
       await loadWindowConfig();
       await checkUploadedToday();
     } catch (e) {
@@ -116,29 +108,6 @@ class AttendanceProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // 1. Get the office location data
-      final office = await _officeService.getOfficeLocation();
-
-      // 2. Get the user's real, non-faked location
-      final userPosition = await _locationService.getVerifiedLocation();
-
-      // 3. Calculate the distance
-      final distance = _locationService.calculateDistanceInMeters(
-        userPosition.latitude,
-        userPosition.longitude,
-        office.latitude,
-        office.longitude,
-      );
-
-      // 4. The Geofence Rule (Radius check)
-      if (distance > office.radiusInMeters) {
-        throw Exception(
-          'You are ${distance.toStringAsFixed(0)} meters away from the ${office.name}. Move closer.',
-        );
-      }
-
-      // 5. Successful validation - Proceed with check-in
-      // (Normally you would call an API here)
       final now = DateTime.now();
       _checkInTime =
           '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')} ${now.hour >= 12 ? 'PM' : 'AM'}';
