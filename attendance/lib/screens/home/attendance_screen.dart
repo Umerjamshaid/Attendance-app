@@ -208,9 +208,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
         throw Exception(attendanceProvider.error ?? 'Geofence check failed.');
       }
 
-      // 7. Successful geofence and submission - update local state and persist upload status.
-      await attendanceProvider.markImageUploaded();
-
+      // 7. Successful geofence and submission - update local state.
       setState(() {
         _isCheckedIn = true;
         _checkInTime = attendanceProvider.checkInTime;
@@ -506,7 +504,6 @@ class _AttendanceScreenState extends State<AttendanceScreen>
 
                 // Attendance Interaction Button
                 AttendanceButton(
-                  isCheckedIn: isCheckedIn,
                   isLoading: _isLocalLoading || attendanceProvider.isLoading,
                   pulseAnimation: _pulseAnimation,
                   onTap: _handleCheckIn,

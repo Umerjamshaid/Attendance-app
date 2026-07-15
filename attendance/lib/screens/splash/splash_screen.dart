@@ -1,6 +1,7 @@
 import 'package:attendance/config/wc_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -9,14 +10,20 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
 
+  PackageInfo? _packageInfo;
+
   @override
   void initState() {
     super.initState();
+
+    _loadPackageInfo();
+
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
@@ -39,6 +46,14 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     _controller.forward();
   }
 
+  Future<void> _loadPackageInfo() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    if (!mounted) return;
+    setState(() {
+      _packageInfo = packageInfo;
+    });
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -54,7 +69,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Spacer(flex: 4),
-            
+
             // Warm rounded app logo container
             Container(
               width: 110,
@@ -78,25 +93,23 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 ),
               ),
             ),
-            
+
             const Spacer(flex: 3),
-            
+
             // Soft circular progress indicator
             const SizedBox(
               width: 24,
               height: 24,
               child: CircularProgressIndicator(
                 strokeWidth: 2.5,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  Color(0xFF1B1D1F),
-                ),
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1B1D1F)),
               ),
             ),
-            
+
             const SizedBox(height: 32),
-            
+
             Text(
-              'v1.0.0',
+              'v${_packageInfo?.version ?? '1.0.0'}',
               style: GoogleFonts.inter(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
@@ -104,7 +117,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 letterSpacing: 0.5,
               ),
             ),
-            
+
             const Spacer(flex: 1),
           ],
         ),

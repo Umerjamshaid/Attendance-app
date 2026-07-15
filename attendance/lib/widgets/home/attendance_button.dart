@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../config/app_theme.dart';
 
 class AttendanceButton extends StatelessWidget {
-  final bool isCheckedIn;
   final bool isLoading;
   final VoidCallback onTap;
   final Animation<double> pulseAnimation;
@@ -13,7 +12,6 @@ class AttendanceButton extends StatelessWidget {
 
   const AttendanceButton({
     super.key,
-    required this.isCheckedIn,
     required this.isLoading,
     required this.onTap,
     required this.pulseAnimation,
@@ -23,17 +21,17 @@ class AttendanceButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final baseColor = isCheckedIn
-        ? WC.present
-        : (!isUploadEnabled ? const Color(0xFF8E8E93) : const Color(0xFF1B1D1F));
+    final baseColor = !isUploadEnabled
+        ? const Color(0xFF8E8E93)
+        : const Color(0xFF1B1D1F);
 
     return GestureDetector(
-      onTap: (isCheckedIn || isLoading || !isUploadEnabled) ? null : onTap,
+      onTap: (isLoading || !isUploadEnabled) ? null : onTap,
       child: Stack(
         alignment: Alignment.center,
         children: [
           // Outer decorative ring
-          if (!isCheckedIn && !isLoading && isUploadEnabled)
+          if (!isLoading && isUploadEnabled)
             ScaleTransition(
               scale: pulseAnimation,
               child: Container(
@@ -70,7 +68,7 @@ class AttendanceButton extends StatelessWidget {
               ],
             ),
             child: ScaleTransition(
-              scale: isCheckedIn || !isUploadEnabled
+              scale: !isUploadEnabled
                   ? const AlwaysStoppedAnimation(1.0)
                   : pulseAnimation,
               child: Column(
@@ -87,9 +85,9 @@ class AttendanceButton extends StatelessWidget {
                     )
                   else ...[
                     Icon(
-                      isCheckedIn
-                          ? Icons.verified_rounded
-                          : (isUploadEnabled ? Icons.fingerprint_rounded : Icons.lock_clock_rounded),
+                      isUploadEnabled
+                          ? Icons.fingerprint_rounded
+                          : Icons.lock_clock_rounded,
                       size: 64,
                       color: WC.white,
                     ),
@@ -97,7 +95,7 @@ class AttendanceButton extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       child: Text(
-                        isCheckedIn ? 'VERIFIED' : uploadLabel.toUpperCase(),
+                        uploadLabel.toUpperCase(),
                         textAlign: TextAlign.center,
                         style: GoogleFonts.dmSans(
                           color: WC.white,

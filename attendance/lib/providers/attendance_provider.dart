@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../services/device_service.dart';
 import '../services/local_storage_service.dart';
 
@@ -12,7 +11,6 @@ class AttendanceProvider extends ChangeNotifier {
   bool _isCheckedIn = false;
   String _checkInTime = '';
   String _deviceModel = 'Detecting...';
-  bool _hasUploadedToday = false;
 
   // Admin-configurable upload window.
   // mode: 'always' (no time restriction) or 'period' (start..end hour).
@@ -25,7 +23,6 @@ class AttendanceProvider extends ChangeNotifier {
   bool get isCheckedIn => _isCheckedIn;
   String get checkInTime => _checkInTime;
   String get deviceModel => _deviceModel;
-  bool get hasUploadedToday => _hasUploadedToday;
 
   String get windowMode => _windowMode;
   int get windowStartHour => _windowStartHour;
@@ -46,14 +43,13 @@ class AttendanceProvider extends ChangeNotifier {
   }
 
   String get uploadButtonLabel {
-    if (_hasUploadedToday) return "Already Uploaded Today";
     if (!isUploadWindowOpen()) {
       return "Upload open ${formatHour(_windowStartHour)} - ${formatHour(_windowEndHour)}";
     }
     return "Upload Image";
   }
 
-  bool get isUploadEnabled => !_hasUploadedToday && isUploadWindowOpen();
+  bool get isUploadEnabled => isUploadWindowOpen();
 
   Future<void> loadWindowConfig() async {
     final cfg = await _storageService.getAttendanceWindow();
@@ -65,27 +61,6 @@ class AttendanceProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> checkUploadedToday() async {
-    final prefs = await SharedPreferences.getInstance();
-    final lastUpload = prefs.getString('last_image_upload_date');
-    final todayStr = _getTodayStr();
-    _hasUploadedToday = (lastUpload == todayStr);
-    notifyListeners();
-  }
-
-  Future<void> markImageUploaded() async {
-    final prefs = await SharedPreferences.getInstance();
-    final todayStr = _getTodayStr();
-    await prefs.setString('last_image_upload_date', todayStr);
-    _hasUploadedToday = true;
-    notifyListeners();
-  }
-
-  String _getTodayStr() {
-    final now = DateTime.now();
-    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-  }
-
   Future<void> initialize() async {
     _isLoading = true;
     notifyListeners();
@@ -93,7 +68,6 @@ class AttendanceProvider extends ChangeNotifier {
     try {
       _deviceModel = await _deviceService.getDeviceModel();
       await loadWindowConfig();
-      await checkUploadedToday();
     } catch (e) {
       _error = 'Initialization failed';
     } finally {
