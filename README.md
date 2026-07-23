@@ -1,40 +1,37 @@
+<!--
+  Title: P Attendance
+  Description: A modern Flutter attendance app for teams that need location-aware check-ins, attendance history, admin visibility, profile management, and privacy-focused user flows.
+  Author: Umer Jamshaid
+  -->
+
 # P Attendance
 
-![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)
-![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?style=for-the-badge&logo=dart&logoColor=white)
-![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS-111111?style=for-the-badge)
-![Status](https://img.shields.io/badge/Status-Portfolio%20Project-2E7BEF?style=for-the-badge)
+<p align='center'>  
+ <img src='attendance/screenshots/banner.png' width='100%'/>
+</p>
 
-A modern Flutter attendance app for teams that need location-aware check-ins, attendance history, admin visibility, profile management, and privacy-focused user flows.
+[![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=flat-square&logo=flutter&logoColor=white)](https://flutter.dev)
+[![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?style=flat-square&logo=dart&logoColor=white)](https://dart.dev)
+[![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS-111111?style=flat-square)](https://flutter.dev/multi-platform)
+[![Status](https://img.shields.io/badge/Status-Portfolio%20Project-2E7BEF?style=flat-square)](https://github.com/Umerjamshaid/Attendance-app)
+<br/>
 
-This repository is prepared as a public portfolio version. Private organization-specific attendance submission code is intentionally excluded from the public build.
+### A modern Flutter attendance app for teams that need location-aware check-ins, attendance history, admin visibility, profile management, and privacy-focused user flows.
+#### This repository is prepared as a public portfolio version. Private organization-specific attendance submission code is intentionally excluded from the public build.
 
-## Preview
+<br/>
 
-<table>
-  <tr>
-    <td align="center"><img src="attendance/screenshots/Samsung%20Galaxy%20S21%20Ultra%20Screenshot%201.png" width="260" alt="Attendance home screen"></td>
-    <td align="center"><img src="attendance/screenshots/Samsung%20Galaxy%20S21%20Ultra%20Screenshot%202.png" width="260" alt="Attendance history screen"></td>
-    <td align="center"><img src="attendance/screenshots/Samsung%20Galaxy%20S21%20Ultra%20Screenshot%203.png" width="260" alt="Admin dashboard screen"></td>
-  </tr>
-  <tr>
-    <td align="center"><strong>Attendance</strong></td>
-    <td align="center"><strong>History</strong></td>
-    <td align="center"><strong>Admin</strong></td>
-  </tr>
-  <tr>
-    <td align="center"><img src="attendance/screenshots/Samsung%20Galaxy%20S21%20Ultra%20Screenshot%204.png" width="260" alt="Profile screen"></td>
-    <td align="center"><img src="attendance/screenshots/Samsung%20Galaxy%20S21%20Ultra%20Screenshot%205.png" width="260" alt="Settings screen"></td>
-    <td align="center"><img src="attendance/screenshots/Samsung%20Galaxy%20S21%20Ultra%20Screenshot%206.png" width="260" alt="Privacy policy screen"></td>
-  </tr>
-  <tr>
-    <td align="center"><strong>Profiles</strong></td>
-    <td align="center"><strong>Settings</strong></td>
-    <td align="center"><strong>Privacy</strong></td>
-  </tr>
-</table>
+<p align='left'>  
+ <img src='attendance/screenshots/Samsung%20Galaxy%20S21%20Ultra%20Screenshot%201.png' width='19%' alt='Attendance home screen'/>  
+ <img src='attendance/screenshots/Samsung%20Galaxy%20S21%20Ultra%20Screenshot%202.png' width='19%' alt='Attendance history screen'/>  
+ <img src='attendance/screenshots/Samsung%20Galaxy%20S21%20Ultra%20Screenshot%203.png' width='19%' alt='Admin dashboard screen'/>  
+ <img src='attendance/screenshots/Samsung%20Galaxy%20S21%20Ultra%20Screenshot%204.png' width='19%' alt='Profile screen'/>  
+ <img src='attendance/screenshots/Samsung%20Galaxy%20S21%20Ultra%20Screenshot%205.png' width='19%' alt='Settings screen'/>  
+ <img src='attendance/screenshots/Samsung%20Galaxy%20S21%20Ultra%20Screenshot%206.png' width='19%' alt='Privacy policy screen'/>  
+</p>  
+<br/>
 
-## What It Does
+## ✨ What It Does
 
 - Lets employees check in from a mobile-first attendance screen.
 - Verifies location before attendance is accepted.
@@ -46,7 +43,7 @@ This repository is prepared as a public portfolio version. Private organization-
 - Provides profile, settings, and privacy policy screens.
 - Keeps the public version safe by replacing private attendance submission with a stub.
 
-## Tech Stack
+## 🛠️ Tech Stack
 
 | Area | Tools |
 | --- | --- |
@@ -59,7 +56,7 @@ This repository is prepared as a public portfolio version. Private organization-
 | Networking | http |
 | UI | Material Design, Google Fonts |
 
-## Architecture
+## 🏗️ Architecture
 
 The project keeps app logic separated into focused layers:
 
@@ -81,7 +78,7 @@ Attendance submission is abstracted behind `AttendanceSubmissionService`.
 
 This keeps the GitHub version buildable without private backend code.
 
-## Public vs Private Build
+## 🔒 Public vs Private Build
 
 The default public entrypoint is:
 
@@ -97,7 +94,47 @@ flutter run -t lib/main_private.dart
 
 For the public repository, the private attendance submission file is not required and should not be committed.
 
-## Getting Started
+## 📱 Key Screens
+
+**Attendance**
+
+The attendance screen focuses on quick check-in, status visibility, upload availability, and daily attendance feedback.
+
+**History**
+
+Employees can review past attendance records with clear verification states and monthly summary metrics.
+
+**Admin Dashboard**
+
+Admins can monitor present and absent employees, review live attendance counts, and configure office attendance rules.
+
+**Profile and Settings**
+
+The profile flow includes user details, attendance overview, editable settings, and privacy information.
+
+## 🔐 Privacy Notes
+
+The app is designed around attendance data, location checks, device metadata, and timestamps. The public version does not include private backend submission code or organization-specific secrets.
+
+Before publishing any fork, review local files for private credentials, API keys, or organization-specific endpoints.
+
+## 📊 Project Status
+
+This is an active Flutter portfolio project built to demonstrate:
+
+- practical mobile UI design,
+- provider-based state management,
+- location-aware workflows,
+- clean public/private code separation,
+- and maintainable Flutter project structure.
+
+## 👤 Author
+
+Built by Umer Jamshaid as a Flutter attendance management project.
+
+<br/>
+
+## 🚀 Getting Started
 
 ### Prerequisites
 
@@ -128,41 +165,3 @@ flutter analyze
 ```powershell
 flutter build apk --debug
 ```
-
-## Key Screens
-
-**Attendance**
-
-The attendance screen focuses on quick check-in, status visibility, upload availability, and daily attendance feedback.
-
-**History**
-
-Employees can review past attendance records with clear verification states and monthly summary metrics.
-
-**Admin Dashboard**
-
-Admins can monitor present and absent employees, review live attendance counts, and configure office attendance rules.
-
-**Profile and Settings**
-
-The profile flow includes user details, attendance overview, editable settings, and privacy information.
-
-## Privacy Notes
-
-The app is designed around attendance data, location checks, device metadata, and timestamps. The public version does not include private backend submission code or organization-specific secrets.
-
-Before publishing any fork, review local files for private credentials, API keys, or organization-specific endpoints.
-
-## Project Status
-
-This is an active Flutter portfolio project built to demonstrate:
-
-- practical mobile UI design,
-- provider-based state management,
-- location-aware workflows,
-- clean public/private code separation,
-- and maintainable Flutter project structure.
-
-## Author
-
-Built by Umer Jamshaid as a Flutter attendance management project.
