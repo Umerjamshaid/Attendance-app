@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class StatChip extends StatelessWidget {
   final String label;
   final Color color;
-  const StatChip({required this.label, required this.color});
+  const StatChip({super.key, required this.label, required this.color});
 
   @override
   Widget build(BuildContext context) {

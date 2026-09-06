@@ -166,7 +166,7 @@ class _LoginHeader extends StatelessWidget {
                     vertical: 10,
                   ),
                   decoration: BoxDecoration(
-                    color: WC.white.withOpacity(0.10),
+                    color: WC.white.withValues(alpha: 0.10),
                     borderRadius: WC.r12,
                   ),
                   child: Row(

@@ -9,7 +9,7 @@ class DashboardHeader extends StatelessWidget {
   final TabController tab;
   final ValueChanged<int> onTabChanged;
 
-  const DashboardHeader({
+  const DashboardHeader({super.key, 
     required this.totalEmployees,
     required this.presentToday,
     required this.absentToday,
@@ -110,7 +110,7 @@ class DashboardHeader extends StatelessWidget {
 
 class HeaderIconButton extends StatelessWidget {
   final IconData icon;
-  const HeaderIconButton({required this.icon});
+  const HeaderIconButton({super.key, required this.icon});
 
   @override
   Widget build(BuildContext context) {

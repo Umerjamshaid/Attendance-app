@@ -13,7 +13,7 @@ class AttendanceApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Attendance App',
-      theme: AppColors.dark == true ? ThemeData.dark() : ThemeData.light(),
+      theme: AppTheme.theme,
       debugShowCheckedModeBanner: false,
       home: Consumer<AuthProvider>(
         builder: (context, auth, _) {

@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 class AttendanceGroupCard extends StatelessWidget {
   final AttendanceGroup group;
-  const AttendanceGroupCard({Key? key, required this.group}) : super(key: key);
+  const AttendanceGroupCard({super.key, required this.group});
 
   @override
   Widget build(BuildContext context) {
@@ -33,8 +33,7 @@ class AttendanceGroupCard extends StatelessWidget {
 class CompactAttendanceCard extends StatelessWidget {
   final AttendanceRecord record;
 
-  const CompactAttendanceCard({Key? key, required this.record})
-    : super(key: key);
+  const CompactAttendanceCard({super.key, required this.record});
 
   String _formatTime(DateTime dt) {
     final hour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
@@ -56,7 +55,7 @@ class CompactAttendanceCard extends StatelessWidget {
         border: Border.all(color: const Color(0xFFF0F0F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -68,7 +67,7 @@ class CompactAttendanceCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.08),
+              color: color.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(

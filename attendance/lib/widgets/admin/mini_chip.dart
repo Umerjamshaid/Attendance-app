@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 class MiniChip extends StatelessWidget {
   final IconData icon;
   final String label;
-  const MiniChip({required this.icon, required this.label});
+  const MiniChip({super.key, required this.icon, required this.label});
 
   @override
   Widget build(BuildContext context) {

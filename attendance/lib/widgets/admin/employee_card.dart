@@ -1,6 +1,5 @@
 import 'package:attendance/config/wc_tokens.dart';
 import 'package:attendance/models/attendance_record_model.dart';
-import 'package:attendance/models/employees_model.dart';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -30,7 +29,7 @@ class EmployeeCard extends StatelessWidget {
         border: Border.all(color: const Color(0xFFF0F0F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -48,12 +47,12 @@ class EmployeeCard extends StatelessWidget {
                   height: 52,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: color.withOpacity(0.2), width: 2),
+                    border: Border.all(color: color.withValues(alpha: 0.2), width: 2),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(2),
                     child: CircleAvatar(
-                      backgroundColor: color.withOpacity(0.08),
+                      backgroundColor: color.withValues(alpha: 0.08),
                       child: Text(
                         initials,
                         style: GoogleFonts.dmSans(
@@ -110,7 +109,7 @@ class EmployeeCard extends StatelessWidget {
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.08),
+                    color: color.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
@@ -133,8 +132,8 @@ class EmployeeCard extends StatelessWidget {
             borderRadius: const BorderRadius.vertical(
               bottom: Radius.circular(24),
             ),
-            splashColor: Colors.black.withOpacity(0.02),
-            highlightColor: Colors.black.withOpacity(0.01),
+            splashColor: Colors.black.withValues(alpha: 0.02),
+            highlightColor: Colors.black.withValues(alpha: 0.01),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
@@ -312,7 +311,7 @@ class _InfoItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 14, color: color.withOpacity(0.6)),
+        Icon(icon, size: 14, color: color.withValues(alpha: 0.6)),
         const SizedBox(width: 6),
         Text(
           label,

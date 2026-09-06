@@ -6,7 +6,6 @@
 // ─────────────────────────────────────────────────────────────
 
 // ── 3A. AttendanceHistoryProvider  →  powers the History Screen
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 
@@ -180,7 +179,9 @@ Future<void> addRecordOptimistically(AttendanceRecord record) async {
     if (_records.isNotEmpty && 
         _records.every((r) => r.userId == userId) && 
         !force && 
-        !_isLoading) return;
+        !_isLoading) {
+      return;
+    }
 
     _isLoading = true;
     _error = null;

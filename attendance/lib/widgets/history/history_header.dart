@@ -1,5 +1,4 @@
 import 'package:attendance/config/wc_tokens.dart';
-import 'package:attendance/config/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -84,7 +83,7 @@ class _DarkStatBadge extends StatelessWidget {
                 color: color,
                 shape: BoxShape.circle,
                 boxShadow: [
-                  BoxShadow(color: color.withOpacity(0.4), blurRadius: 8),
+                  BoxShadow(color: color.withValues(alpha: 0.4), blurRadius: 8),
                 ],
               ),
             ),

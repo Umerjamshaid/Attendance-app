@@ -3,6 +3,7 @@ import 'package:attendance/providers/attendance_provider.dart';
 import 'package:attendance/widgets/admin/dashboard_header.dart';
 import 'package:attendance/widgets/admin/employee_card.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../config/wc_tokens.dart';
 import 'set_attendance_window_sheet.dart';
@@ -51,90 +52,101 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen>
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFA),
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(
-          parent: AlwaysScrollableScrollPhysics(),
-        ),
-        slivers: [
-          SliverToBoxAdapter(
-            child: DashboardHeader(
-              totalEmployees: adminProvider.totalEmployees,
-              presentToday: adminProvider.presentToday,
-              absentToday: adminProvider.absentToday,
-              tab: _tab,
-              activeTab: adminProvider.filter == 'present'
-                  ? 1
-                  : (adminProvider.filter == 'absent' ? 2 : 0),
-              onTabChanged: (i) {
-                final filter = i == 1 ? 'present' : (i == 2 ? 'absent' : 'all');
-                adminProvider.setFilter(filter);
-              },
-            ),
+      body: RefreshIndicator(
+        color: const Color(0xFF1B1D1F),
+        backgroundColor: Colors.white,
+        onRefresh: () async {
+          HapticFeedback.lightImpact();
+          await Future.wait([
+            context.read<AdminProvider>().loadDashboard(),
+            context.read<AttendanceProvider>().loadWindowConfig(),
+          ]);
+        },
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
           ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-              child: _AttendanceWindowCard(onEdit: _openWindowSheet),
+          slivers: [
+            SliverToBoxAdapter(
+              child: DashboardHeader(
+                totalEmployees: adminProvider.totalEmployees,
+                presentToday: adminProvider.presentToday,
+                absentToday: adminProvider.absentToday,
+                tab: _tab,
+                activeTab: adminProvider.filter == 'present'
+                    ? 1
+                    : (adminProvider.filter == 'absent' ? 2 : 0),
+                onTabChanged: (i) {
+                  final filter = i == 1 ? 'present' : (i == 2 ? 'absent' : 'all');
+                  adminProvider.setFilter(filter);
+                },
+              ),
             ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-              child: Row(
-                children: [
-                  const Text(
-                    'EMPLOYEES',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.2,
-                      color: Color(0xFF8E8E93),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                child: _AttendanceWindowCard(onEdit: _openWindowSheet),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                child: Row(
+                  children: [
+                    const Text(
+                      'EMPLOYEES',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                        color: Color(0xFF8E8E93),
+                      ),
                     ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    '${filteredList.length} shown',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF8E8E93),
-                      fontWeight: FontWeight.w600,
+                    const Spacer(),
+                    Text(
+                      '${filteredList.length} shown',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF8E8E93),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (isLoading)
-            const SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(
-                child: CircularProgressIndicator(color: Color(0xFF1B1D1F)),
-              ),
-            )
-          else if (filteredList.isEmpty)
-            const SliverFillRemaining(
-              hasScrollBody: false,
-              child: _EmptyState(
-                title: 'No employees found',
-                subtitle: 'Try changing the filter or add new employees.',
-              ),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    return EmployeeCard(data: filteredList[index]);
-                  },
-                  childCount: filteredList.length,
-                  addAutomaticKeepAlives: false,
-                  addRepaintBoundaries: true,
+                  ],
                 ),
               ),
             ),
-          const SliverToBoxAdapter(child: SizedBox(height: 32)),
-        ],
+            if (isLoading)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: CircularProgressIndicator(color: Color(0xFF1B1D1F)),
+                ),
+              )
+            else if (filteredList.isEmpty)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: _EmptyState(
+                  title: 'No employees found',
+                  subtitle: 'Try changing the filter or add new employees.',
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      return EmployeeCard(data: filteredList[index]);
+                    },
+                    childCount: filteredList.length,
+                    addAutomaticKeepAlives: false,
+                    addRepaintBoundaries: true,
+                  ),
+                ),
+              ),
+            const SliverToBoxAdapter(child: SizedBox(height: 32)),
+          ],
+        ),
       ),
     );
   }

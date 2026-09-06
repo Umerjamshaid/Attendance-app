@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class StatCell extends StatelessWidget {
   final String value, label;
   final Color color;
-  const StatCell({
+  const StatCell({super.key, 
     required this.value,
     required this.label,
     required this.color,
@@ -41,6 +41,8 @@ class StatCell extends StatelessWidget {
 }
 
 class StatDivider extends StatelessWidget {
+  const StatDivider({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Container(width: 1, height: 40, color: const Color(0xFF2A2A2A));

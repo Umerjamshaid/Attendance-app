@@ -1,8 +1,6 @@
-import 'package:attendance/config/wc_tokens.dart';
 import 'package:attendance/models/employees_model.dart';
 import 'package:attendance/providers/attendance_history_provider.dart';
 import 'package:attendance/providers/profile_provider.dart';
-import 'package:attendance/screens/admin/admin_notification_screen.dart';
 import 'package:attendance/screens/profile/privacy_screen.dart';
 import 'package:attendance/screens/profile/settings_screen.dart';
 import 'package:attendance/widgets/user-profile/attendance_stats_card.dart';
@@ -114,8 +112,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   _buildDivider(),
                   ProfileMenuItem(
-                    icon: Icons.lock_outline_rounded,
-                    title: 'Privacy Policy',
+                    icon: Icons.shield_outlined,
+                    title: 'Privacy & Security Trust Portal',
+                    badge: 'VERIFIED',
+                    badgeColor: const Color(0xFF10B981),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const PrivacyScreen()),
                     ),
@@ -200,7 +200,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -225,7 +225,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       trailing: Switch.adaptive(
         value: value,
         onChanged: onChanged,
-        activeColor: Colors.blue,
+        activeTrackColor: Colors.blue,
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 20),
     );

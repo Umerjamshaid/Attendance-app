@@ -1,7 +1,6 @@
 import 'package:attendance/config/wc_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../config/app_theme.dart';
 
 class CheckInStatusCard extends StatelessWidget {
   final bool isCheckedIn;
@@ -25,14 +24,14 @@ class CheckInStatusCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         decoration: BoxDecoration(
           color: WC.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(22),
           border: Border.all(
-            color: const Color(0xFFF0F0F0),
-            width: 1,
+            color: const Color(0xFF10B981).withValues(alpha: 0.25),
+            width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
-              color: WC.present.withOpacity(0.05),
+              color: const Color(0xFF10B981).withValues(alpha: 0.08),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
@@ -41,15 +40,15 @@ class CheckInStatusCard extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: WC.present.withOpacity(0.08),
+                color: const Color(0xFF10B981).withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
                 Icons.verified_rounded,
-                color: WC.present,
-                size: 24,
+                color: Color(0xFF10B981),
+                size: 26,
               ),
             ),
             const SizedBox(width: 16),
@@ -57,22 +56,35 @@ class CheckInStatusCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'STATUS: CHECKED IN',
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      color: const Color(0xFF999999),
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1,
-                    ),
+                  Row(
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF10B981),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'PUNCH VERIFIED & LOGGED',
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          color: const Color(0xFF059669),
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Today at $checkInTime',
+                    'Checked in at $checkInTime',
                     style: GoogleFonts.dmSans(
-                      fontSize: 18,
-                      color: const Color(0xFF1B1D1F),
-                      fontWeight: FontWeight.w900,
+                      fontSize: 17,
+                      color: const Color(0xFF0F172A),
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ],

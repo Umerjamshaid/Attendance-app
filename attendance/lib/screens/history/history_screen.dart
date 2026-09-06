@@ -3,6 +3,7 @@ import 'package:attendance/models/attendance_record_model.dart';
 import 'package:attendance/providers/attendance_history_provider.dart';
 import 'package:attendance/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:timeline_tile/timeline_tile.dart';
@@ -15,6 +16,9 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
+  List<AttendanceGroup>? _cachedGroups;
+  List<dynamic> _cachedFlatItems = const [];
+
   @override
   void initState() {
     super.initState();
@@ -28,9 +32,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
     });
   }
 
-  // Flattens the grouped data into a 1D list to allow a single SliverList
-  // This eliminates the need for nested ListViews and shrinkWrap entirely.
-  List<dynamic> _buildFlatList(List<AttendanceGroup> groups) {
+  // Memoizes the flat list computation so scrolling at 60/120 FPS
+  // does not re-allocate headers and record wrapper objects on every frame.
+  List<dynamic> _getFlatItems(List<AttendanceGroup> groups) {
+    if (identical(_cachedGroups, groups)) {
+      return _cachedFlatItems;
+    }
+    _cachedGroups = groups;
     final List<dynamic> flatItems = [];
     for (final group in groups) {
       flatItems.add(_HeaderItem(date: group.date));
@@ -38,7 +46,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
         flatItems.add(_RecordItem(record: record));
       }
     }
+    _cachedFlatItems = flatItems;
     return flatItems;
+  }
+
+  Future<void> _onRefresh() async {
+    HapticFeedback.lightImpact();
+    final userId = context.read<AuthProvider>().currentUser?.id;
+    if (userId != null) {
+      await context.read<AttendanceHistoryProvider>().loadHistory(userId);
+    }
   }
 
   @override
@@ -46,88 +63,94 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final historyProvider = context.watch<AttendanceHistoryProvider>();
     final groups = historyProvider.groups;
 
-    // Calculate flat list for rendering
-    final flatItems = _buildFlatList(groups);
+    // Retrieve cached flat list for 120fps smooth scrolling
+    final flatItems = _getFlatItems(groups);
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFA),
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(
-          parent: AlwaysScrollableScrollPhysics(),
-        ),
-        slivers: [
-          // Premium Apple Fitness / Linear inspired Header
-          SliverToBoxAdapter(
-            child: _HistoryOverview(
-              present: historyProvider.presentCount,
-              absent: historyProvider.absentCount,
-              total: historyProvider.totalCount,
-              streak: historyProvider.currentStreak,
-              monthlyRate: historyProvider.monthlyRate,
-            ),
+      body: RefreshIndicator(
+        color: const Color(0xFF1B1D1F),
+        backgroundColor: Colors.white,
+        onRefresh: _onRefresh,
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
           ),
-
-          if (historyProvider.isLoading)
-            const SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(
-                child: CircularProgressIndicator(color: Color(0xFF1B1D1F)),
+          slivers: [
+            // Premium Apple Fitness / Linear inspired Header
+            SliverToBoxAdapter(
+              child: _HistoryOverview(
+                present: historyProvider.presentCount,
+                absent: historyProvider.absentCount,
+                total: historyProvider.totalCount,
+                streak: historyProvider.currentStreak,
+                monthlyRate: historyProvider.monthlyRate,
               ),
-            )
-          else if (historyProvider.error != null)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: _EmptyState(
-                icon: Icons.error_outline_rounded,
-                title: 'Something went wrong',
-                subtitle: historyProvider.error!,
-              ),
-            )
-          else if (groups.isEmpty)
-            const SliverFillRemaining(
-              hasScrollBody: false,
-              child: _EmptyState(
-                icon: Icons.history_rounded,
-                title: 'No History Yet',
-                subtitle: 'Your attendance activity will show up here.',
-              ),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final item = flatItems[index];
+            ),
 
-                    if (item is _HeaderItem) {
-                      return _TimelineDateHeader(date: item.date);
-                    }
+            if (historyProvider.isLoading)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: CircularProgressIndicator(color: Color(0xFF1B1D1F)),
+                ),
+              )
+            else if (historyProvider.error != null)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: _EmptyState(
+                  icon: Icons.error_outline_rounded,
+                  title: 'Something went wrong',
+                  subtitle: historyProvider.error!,
+                  onRefresh: _onRefresh,
+                ),
+              )
+            else if (groups.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: _EmptyState(
+                  icon: Icons.history_rounded,
+                  title: 'No History Yet',
+                  subtitle: 'Your attendance activity will show up here.',
+                  onRefresh: _onRefresh,
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final item = flatItems[index];
 
-                    if (item is _RecordItem) {
-                      // Determine if this is the first or last item in the timeline sequence
-                      final bool isFirst =
-                          index == 0 || flatItems[index - 1] is _HeaderItem;
-                      final bool isLast =
-                          index == flatItems.length - 1 ||
-                          flatItems[index + 1] is _HeaderItem;
+                      if (item is _HeaderItem) {
+                        return _TimelineDateHeader(date: item.date);
+                      }
 
-                      return _TimelineRecord(
-                        record: item.record,
-                        isFirst: isFirst,
-                        isLast: isLast,
-                      );
-                    }
+                      if (item is _RecordItem) {
+                        final bool isFirst =
+                            index == 0 || flatItems[index - 1] is _HeaderItem;
+                        final bool isLast =
+                            index == flatItems.length - 1 ||
+                            flatItems[index + 1] is _HeaderItem;
 
-                    return const SizedBox.shrink();
-                  },
-                  childCount: flatItems.length,
-                  addAutomaticKeepAlives: false,
-                  addRepaintBoundaries: true,
+                        return _TimelineRecord(
+                          record: item.record,
+                          isFirst: isFirst,
+                          isLast: isLast,
+                        );
+                      }
+
+                      return const SizedBox.shrink();
+                    },
+                    childCount: flatItems.length,
+                    addAutomaticKeepAlives: false,
+                    addRepaintBoundaries: true,
+                  ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -493,7 +516,7 @@ class _TimelineRecord extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.08),
+                  color: color.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
@@ -548,7 +571,7 @@ class _TimelineRecord extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: isPresent
-                          ? color.withOpacity(0.1)
+                          ? color.withValues(alpha: 0.1)
                           : const Color(0xFFF2F2F7),
                       borderRadius: BorderRadius.circular(6),
                     ),
@@ -576,11 +599,13 @@ class _EmptyState extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
+  final VoidCallback? onRefresh;
 
   const _EmptyState({
     required this.icon,
     required this.title,
     required this.subtitle,
+    this.onRefresh,
   });
 
   @override
@@ -617,6 +642,25 @@ class _EmptyState extends StatelessWidget {
               fontWeight: FontWeight.w500,
             ),
           ),
+          if (onRefresh != null) ...[
+            const SizedBox(height: 18),
+            OutlinedButton.icon(
+              onPressed: onRefresh,
+              icon: const Icon(Icons.refresh_rounded, size: 16),
+              label: const Text('Refresh'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF1B1D1F),
+                side: const BorderSide(color: Color(0xFFE5E5EA)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 10,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

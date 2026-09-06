@@ -1,4 +1,3 @@
-import 'package:attendance/config/wc_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -71,50 +70,59 @@ class _SplashScreenState extends State<SplashScreen>
             const Spacer(flex: 4),
 
             // Warm rounded app logo container
-            Container(
-              width: 110,
-              height: 110,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(28),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF1B1D1F).withOpacity(0.04),
-                    blurRadius: 24,
-                    offset: const Offset(0, 8),
+            ScaleTransition(
+              scale: _scaleAnimation,
+              child: Container(
+                width: 110,
+                height: 110,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(28),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF1B1D1F).withValues(alpha: 0.04),
+                      blurRadius: 24,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.fingerprint_rounded,
+                    color: Color(0xFF1B1D1F), // Clean contrast color
+                    size: 56,
                   ),
-                ],
-              ),
-              child: const Center(
-                child: Icon(
-                  Icons.fingerprint_rounded,
-                  color: Color(0xFF1B1D1F), // Clean contrast color
-                  size: 56,
                 ),
               ),
             ),
 
             const Spacer(flex: 3),
 
-            // Soft circular progress indicator
-            const SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.5,
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1B1D1F)),
-              ),
-            ),
-
-            const SizedBox(height: 32),
-
-            Text(
-              'v${_packageInfo?.version ?? '1.0.0'}',
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: const Color(0xFF8E8E93),
-                letterSpacing: 0.5,
+            // Soft circular progress indicator and version
+            FadeTransition(
+              opacity: _fadeAnimation,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1B1D1F)),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  Text(
+                    'v${_packageInfo?.version ?? '1.0.0'}',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF8E8E93),
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
               ),
             ),
 

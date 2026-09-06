@@ -213,7 +213,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 _SettingsTile(
                   icon: Icons.dark_mode_outlined,
-                  iconColor: Colors.purple[400]!,
+                  iconColor: const Color(0xFF64748B),
                   title: 'Theme Mode',
                   subtitle: 'Light',
                   onTap: () {},
@@ -454,10 +454,10 @@ class _ProfileHeader extends StatelessWidget {
                 width: 56,
                 height: 56,
                 decoration: BoxDecoration(
-                  color: avatarColor.withOpacity(0.1),
+                  color: avatarColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(
-                    color: avatarColor.withOpacity(0.2),
+                    color: avatarColor.withValues(alpha: 0.2),
                     width: 2,
                   ),
                 ),
@@ -621,7 +621,7 @@ class _SettingsToggleTile extends StatelessWidget {
               onChanged: onChanged,
               activeTrackColor: const Color(0xFF34C759),
               inactiveTrackColor: const Color(0xFFE5E5EA),
-              activeColor: Colors.white,
+              activeThumbColor: Colors.white,
             ),
           ),
         ],
@@ -642,7 +642,7 @@ class _IconContainer extends StatelessWidget {
       width: 32,
       height: 32,
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(9),
       ),
       child: Icon(icon, color: color, size: 18),
