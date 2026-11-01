@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/config/wc_tokens.dart';
 import 'package:flutter/services.dart';
@@ -10,7 +11,9 @@ import 'package:attendance/services/attendance_submission_service_factory.dart';
 import 'package:attendance/services/location_service.dart';
 import 'package:attendance/widgets/home/attendance_button.dart';
 import 'package:attendance/widgets/home/attendance_profile_header.dart';
+import 'package:attendance/widgets/home/attendance_summary_card.dart';
 import 'package:attendance/widgets/home/check_in_status_card.dart';
+import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -46,10 +49,15 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   late Animation<double> _pulseAnimation;
   late Animation<double> _scaleAnimation;
 
+  // Scroll-driven app bar divider. Only the divider rebuilds.
+  final ScrollController _scroll = ScrollController();
+  final ValueNotifier<bool> _scrolled = ValueNotifier(false);
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _scroll.addListener(_onScroll);
 
     _isCheckedIn = widget.employee.isPresentToday;
     _checkInTime = widget.employee.checkInTime ?? '';
@@ -75,13 +83,18 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     );
 
     _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(parent: _successController, curve: Curves.elasticOut),
+      CurvedAnimation(parent: _successController, curve: Curves.easeOutBack),
     );
 
     if (_isCheckedIn) {
       _successController.forward();
     }
     _syncPulse();
+  }
+
+  void _onScroll() {
+    if (!_scroll.hasClients) return;
+    _scrolled.value = _scroll.offset > 4;
   }
 
   /// Runs the looping pulse animation only when it is actually needed: the tab
@@ -207,7 +220,9 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       if (!mounted) return;
 
       if (!canCheckIn) {
-        throw Exception(attendanceProvider.error ?? 'Location validation failed.');
+        throw Exception(
+          attendanceProvider.error ?? 'Location validation failed.',
+        );
       }
 
       // 7. Successful validation and submission - update local state.
@@ -309,6 +324,10 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     WidgetsBinding.instance.removeObserver(this);
     _pulseController.dispose();
     _successController.dispose();
+    _scroll
+      ..removeListener(_onScroll)
+      ..dispose();
+    _scrolled.dispose();
     super.dispose();
   }
 
@@ -324,335 +343,144 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     } else {
       isCheckedIn = _isCheckedIn;
     }
+    final historyLoading =
+        historyProvider.isLoading && historyProvider.records.isEmpty;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
+      backgroundColor: ProfileUi.page,
       body: RefreshIndicator(
-        color: const Color(0xFF1A1F71),
+        color: AppTheme.primaryNavy,
         backgroundColor: Colors.white,
+        // Start the spinner below the pinned app bar.
+        edgeOffset: MediaQuery.paddingOf(context).top + kToolbarHeight,
         onRefresh: () async {
           HapticFeedback.lightImpact();
           await Future.wait([
             context.read<AttendanceProvider>().initialize(),
-            context.read<AttendanceHistoryProvider>().loadHistory(widget.employee.id),
+            context.read<AttendanceHistoryProvider>().loadHistory(
+              widget.employee.id,
+            ),
           ]);
         },
         child: CustomScrollView(
+          controller: _scroll,
           physics: const BouncingScrollPhysics(
             parent: AlwaysScrollableScrollPhysics(),
           ),
           slivers: [
-            // ─── Executive Obsidian Header with Profile ───────────────────────────
+            _buildSliverAppBar(),
             SliverToBoxAdapter(
-              child: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFF0B132B),
-                      Color(0xFF0F172A),
-                      Color(0xFF1E293B),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.vertical(
-                    bottom: Radius.circular(36),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Color(0x330B132B),
-                      blurRadius: 24,
-                      offset: Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: SafeArea(
-                  bottom: false,
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 560),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Top Navigation Bar
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 18, 24, 0),
-                        child: Row(
-                          children: [
-                            // App icon with executive emerald shield halo
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    Color(0xFF10B981),
-                                    Color(0xFF059669),
-                                  ],
-                                ),
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFF10B981).withValues(alpha: 0.35),
-                                    blurRadius: 14,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(
-                                Icons.fingerprint_rounded,
-                                color: WC.white,
-                                size: 22,
-                              ),
-                            ),
-                            const SizedBox(width: 14),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'ATTENDANCE',
-                                  style: GoogleFonts.dmSans(
-                                    color: WC.white,
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 1.8,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'Secure point-in-time attendance',
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xFF94A3B8),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w500,
-                                    letterSpacing: 0.3,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const Spacer(),
-                            // Live status indicator
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1E293B),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: const Color(0xFF334155),
-                                  width: 1,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const _StatusDot(active: true),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'ACTIVE',
-                                    style: GoogleFonts.inter(
-                                      color: const Color(0xFF10B981),
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: 1.2,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                      AttendanceProfileHeader(employee: widget.employee),
+                      const SizedBox(height: 24),
+                      _LiveClockHero(isCheckedIn: isCheckedIn),
+                      const SizedBox(height: 16),
+                      Center(
+                        child: AttendanceButton(
+                          isLoading:
+                          _isLocalLoading || attendanceProvider.isLoading,
+                          pulseAnimation: _pulseAnimation,
+                          onTap: _handleCheckIn,
+                          isUploadEnabled:
+                          attendanceProvider.isUploadEnabled &&
+                              submissionService.isAvailable,
+                          uploadLabel: submissionService.isAvailable
+                              ? attendanceProvider.uploadButtonLabel
+                              : submissionService.unavailableMessage,
                         ),
                       ),
-                      // Profile Header
-                      AttendanceProfileHeader(employee: widget.employee),
-                      const SizedBox(height: 36),
+                      const SizedBox(height: 8),
+                      CheckInStatusCard(
+                        isCheckedIn: isCheckedIn,
+                        checkInTime: attendanceProvider.checkInTime.isNotEmpty
+                            ? attendanceProvider.checkInTime
+                            : _checkInTime,
+                        scaleAnimation: _scaleAnimation,
+                      ),
+                      AttendanceSummaryCard(
+                        isCheckedIn: isCheckedIn,
+                        monthlyRate: historyProvider.monthlyRate,
+                        streak: historyProvider.currentStreak,
+                        isLoading: historyLoading,
+                      ),
+                      const _LocationNote(),
+                      SizedBox(
+                        height: 32 + MediaQuery.paddingOf(context).bottom,
+                      ),
                     ],
                   ),
                 ),
-              ),
-            ),
-
-            // ─── Body Content ───────────────────────────────────────────
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 48),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  // ─── Check-in trust cue ─────────────────────────────
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 20),
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: WC.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: const Color(0xFFE2E8F0),
-                        width: 1,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF0F172A).withValues(alpha: 0.04),
-                          blurRadius: 16,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0EA5E9).withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: const Icon(
-                            Icons.radar_rounded,
-                            color: Color(0xFF0EA5E9),
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'CHECK-IN LOCATION',
-                                style: GoogleFonts.inter(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  color: const Color(0xFF64748B),
-                                  letterSpacing: 1.0,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Captured only when you submit',
-                                style: GoogleFonts.dmSans(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800,
-                                  color: const Color(0xFF0F172A),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF10B981).withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.location_on_outlined,
-                                color: Color(0xFF10B981),
-                                size: 14,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'READY',
-                                style: GoogleFonts.inter(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  color: const Color(0xFF059669),
-                                  letterSpacing: 0.8,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // ─── Executive Stats Card ─────────────────────────
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 22,
-                    ),
-                    decoration: BoxDecoration(
-                      color: WC.white,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: const Color(0xFFE2E8F0),
-                        width: 1,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF0F172A).withValues(alpha: 0.05),
-                          blurRadius: 20,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: _StatItem(
-                            label: 'Today',
-                            value: isCheckedIn ? '100%' : '0%',
-                            color: isCheckedIn
-                                ? const Color(0xFF10B981)
-                                : const Color(0xFFEF4444),
-                            icon: isCheckedIn
-                                ? Icons.check_circle_outline_rounded
-                                : Icons.radio_button_unchecked,
-                          ),
-                        ),
-                        _StatDivider(),
-                        Expanded(
-                          child: _StatItem(
-                            label: 'Month',
-                            value: '92%',
-                            color: const Color(0xFF0EA5E9),
-                            icon: Icons.calendar_month_rounded,
-                          ),
-                        ),
-                        _StatDivider(),
-                        Expanded(
-                          child: _StatItem(
-                            label: 'On-time',
-                            value: '98%',
-                            color: const Color(0xFFF59E0B),
-                            icon: Icons.timer_outlined,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-
-                  // ─── Live Date & Time Hero Section ───────────────────
-                  _LiveClockHero(isCheckedIn: isCheckedIn),
-                  const SizedBox(height: 28),
-
-                  // ─── Check-in Status Card ─────────────────────────────
-                  CheckInStatusCard(
-                    isCheckedIn: isCheckedIn,
-                    checkInTime: attendanceProvider.checkInTime.isNotEmpty
-                        ? attendanceProvider.checkInTime
-                        : _checkInTime,
-                    scaleAnimation: _scaleAnimation,
-                  ),
-                  const SizedBox(height: 36),
-
-                  // ─── Attendance Button ────────────────────────────────
-                  AttendanceButton(
-                    isLoading: _isLocalLoading || attendanceProvider.isLoading,
-                    pulseAnimation: _pulseAnimation,
-                    onTap: _handleCheckIn,
-                    isUploadEnabled:
-                        attendanceProvider.isUploadEnabled &&
-                        submissionService.isAvailable,
-                    uploadLabel: submissionService.isAvailable
-                        ? attendanceProvider.uploadButtonLabel
-                        : submissionService.unavailableMessage,
-                  ),
-                ]),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSliverAppBar() {
+    return SliverAppBar(
+      pinned: true,
+      automaticallyImplyLeading: false,
+      backgroundColor: ProfileUi.page,
+      surfaceTintColor: Colors.transparent,
+      scrolledUnderElevation: 0,
+      elevation: 0,
+      centerTitle: true,
+      title: Text('Attendance', style: ProfileUi.body(weight: FontWeight.w600)),
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(1),
+        child: ValueListenableBuilder<bool>(
+          valueListenable: _scrolled,
+          builder: (_, scrolled, _) => AnimatedOpacity(
+            opacity: scrolled ? 1 : 0,
+            duration: const Duration(milliseconds: 150),
+            child: Divider(height: 1, thickness: 1, color: ProfileUi.hairline),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Reassurance under the summary: location is not tracked in the background.
+class _LocationNote extends StatelessWidget {
+  const _LocationNote();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        ProfileUi.gutter + 4,
+        4,
+        ProfileUi.gutter,
+        0,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 1),
+            child: Icon(
+              Icons.location_on_outlined,
+              size: 14,
+              color: AppTheme.textSecondary,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              'Your location is captured only when you submit.',
+              style: ProfileUi.caption(),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -732,194 +560,50 @@ class _LiveClockHeroState extends State<_LiveClockHero> {
     final timeStr =
         '${hour12.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')} ${now.hour >= 12 ? 'PM' : 'AM'}';
 
-    return RepaintBoundary(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 26),
-        decoration: BoxDecoration(
-          color: WC.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: const Color(0xFFE2E8F0),
-            width: 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF0F172A).withValues(alpha: 0.04),
-              blurRadius: 18,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            // Date pill
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 7,
-              ),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(30),
-                border: Border.all(
-                  color: const Color(0xFFE2E8F0),
-                  width: 1,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: ProfileUi.gutter),
+      child: Column(
+        children: [
+          Text(dateStr, style: ProfileUi.small(weight: FontWeight.w500)),
+          const SizedBox(height: 6),
+          // The time changes every second, so it is kept out of the
+          // accessibility tree and repainted in isolation.
+          ExcludeSemantics(
+            child: RepaintBoundary(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  timeStr,
+                  maxLines: 1,
+                  style: GoogleFonts.inter(
+                    fontSize: 44,
+                    height: 1.15,
+                    letterSpacing: -1,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimary,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
                 ),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.calendar_today_rounded,
-                    size: 13,
-                    color: Color(0xFF0EA5E9),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    dateStr,
-                    style: GoogleFonts.inter(
-                      fontSize: 12.5,
-                      color: const Color(0xFF334155),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
             ),
-            const SizedBox(height: 16),
-            // Large live time display
-            Text(
-              timeStr,
-              style: GoogleFonts.dmSans(
-                fontSize: 38,
-                color: const Color(0xFF0F172A),
-                fontWeight: FontWeight.w900,
-                letterSpacing: -0.5,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
+          ),
+          const SizedBox(height: 6),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: Text(
               widget.isCheckedIn
-                  ? "✓ You're checked in for today"
+                  ? 'You’re checked in for today'
                   : 'Tap below to mark attendance',
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                color: widget.isCheckedIn
-                    ? const Color(0xFF10B981)
-                    : const Color(0xFF64748B),
-                fontWeight: FontWeight.w600,
+              key: ValueKey(widget.isCheckedIn),
+              textAlign: TextAlign.center,
+              style: ProfileUi.small(
+                weight: FontWeight.w500,
+                color: widget.isCheckedIn ? WC.present : AppTheme.textSecondary,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
-  }
-}
-
-// ─── Live Status Dot ──────────────────────────────────────────────────
-class _StatusDot extends StatelessWidget {
-  final bool active;
-  const _StatusDot({required this.active});
-
-  @override
-  Widget build(BuildContext context) {
-    return RepaintBoundary(
-      child: Container(
-        width: 8,
-        height: 8,
-        decoration: BoxDecoration(
-          color: active ? const Color(0xFF4ADE80) : const Color(0xFFEF4444),
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: (active
-                      ? const Color(0xFF4ADE80)
-                      : const Color(0xFFEF4444))
-                  .withValues(alpha: 0.5),
-              blurRadius: 6,
-              spreadRadius: 1,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Stat Divider ─────────────────────────────────────────────────────
-class _StatDivider extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 36,
-      width: 1,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            const Color(0xFFE5E7EB).withValues(alpha: 0),
-            const Color(0xFFE5E7EB),
-            const Color(0xFFE5E7EB).withValues(alpha: 0),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Stat Item with Icon ──────────────────────────────────────────────
-class _StatItem extends StatelessWidget {
-  final String label, value;
-  final Color color;
-  final IconData icon;
-
-  const _StatItem({
-    required this.label,
-    required this.value,
-    required this.color,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Icon badge
-        Container(
-          padding: const EdgeInsets.all(7),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            icon,
-            size: 16,
-            color: color,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          value,
-          style: GoogleFonts.dmSans(
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-            color: color,
-          ),
-        ),
-        const SizedBox(height: 5),
-        Text(
-          label.toUpperCase(),
-          style: GoogleFonts.inter(
-            fontSize: 9.5,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF9CA3AF),
-            letterSpacing: 1.0,
-          ),
-        ),
-      ],
     );
   }
 }

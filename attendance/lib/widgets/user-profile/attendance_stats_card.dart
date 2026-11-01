@@ -1,5 +1,3 @@
-// import 'dart:ui' show FontFeature;
-
 import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/config/wc_tokens.dart';
 import 'package:attendance/models/employees_model.dart';

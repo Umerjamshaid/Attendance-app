@@ -38,6 +38,9 @@ class AppShellState extends State<AppShell> {
     ];
 
     return Scaffold(
+      // The dock floats over the page; extendBody lets pages run underneath it
+      // and gives them the dock's height as bottom MediaQuery padding.
+      extendBody: true,
       body: IndexedStack(index: _currentIndex, children: pages),
       bottomNavigationBar: BottomNav(
         currentIndex: _currentIndex,
