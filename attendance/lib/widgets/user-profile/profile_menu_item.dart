@@ -1,68 +1,167 @@
+import 'package:attendance/config/app_theme.dart';
+import 'package:attendance/config/wc_tokens.dart';
+import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/services.dart';
 
+/// A flush settings row: leading icon, wrapping title, optional badge and a
+/// trailing chevron. Lives inside a [ProfileSectionCard], which supplies the
+/// surface and separators.
+///
+/// A null [onTap] renders a non-interactive row (no ripple, no chevron).
 class ProfileMenuItem extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final VoidCallback onTap;
-  final Color? textColor;
-  final String? badge;
-  final Color? badgeColor;
-
   const ProfileMenuItem({
     super.key,
-    required this.title,
     required this.icon,
-    required this.onTap,
+    required this.title,
+    this.onTap,
     this.textColor,
     this.badge,
     this.badgeColor,
+    this.trailing,
   });
+
+  final IconData icon;
+  final String title;
+  final VoidCallback? onTap;
+  final Color? textColor;
+  final String? badge;
+  final Color? badgeColor;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
-    final color = textColor ?? Theme.of(context).colorScheme.onSurface;
-
-    return ListTile(
-      leading: Icon(icon, color: color, size: 22),
-      title: Row(
+    final tap = onTap;
+    final row = Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: ProfileUi.rowInset,
+        vertical: 14,
+      ),
+      child: Row(
         children: [
-          Text(
-            title,
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: color,
+          Icon(
+            icon,
+            size: ProfileUi.iconSize,
+            color: textColor ?? AppTheme.textSecondary,
+          ),
+          const SizedBox(width: ProfileUi.rowInset),
+          Expanded(
+            // Wrap, not Row: a long title plus badge drops the badge to a
+            // second line on narrow screens instead of overflowing.
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(title, style: ProfileUi.body(color: textColor)),
+                if (badge != null)
+                  _Badge(label: badge!, color: badgeColor ?? WC.present),
+              ],
             ),
           ),
-          if (badge != null) ...[
+          if (trailing != null) ...[
             const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-              decoration: BoxDecoration(
-                color: (badgeColor ?? const Color(0xFF10B981)).withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                badge!,
-                style: GoogleFonts.inter(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w800,
-                  color: badgeColor ?? const Color(0xFF059669),
-                  letterSpacing: 0.8,
-                ),
-              ),
+            trailing!,
+          ] else if (tap != null) ...[
+            const SizedBox(width: 8),
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: AppTheme.textSecondary,
             ),
           ],
         ],
       ),
-      trailing: Icon(
-        Icons.arrow_forward_ios_rounded,
-        size: 14,
-        color: Colors.grey[400],
+    );
+
+    if (tap == null) return row;
+    return MergeSemantics(
+      child: Semantics(
+        button: true,
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.selectionClick();
+            tap();
+          },
+          child: row,
+        ),
       ),
-      onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+    );
+  }
+}
+
+/// A row with a trailing switch. The whole row toggles, not just the switch.
+class ProfileSwitchItem extends StatelessWidget {
+  const ProfileSwitchItem({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final IconData icon;
+  final String title;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  void _set(bool next) {
+    HapticFeedback.selectionClick();
+    onChanged(next);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MergeSemantics(
+      child: InkWell(
+        onTap: () => _set(!value),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: ProfileUi.rowInset,
+            vertical: 8,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: ProfileUi.iconSize,
+                color: AppTheme.textSecondary,
+              ),
+              const SizedBox(width: ProfileUi.rowInset),
+              Expanded(child: Text(title, style: ProfileUi.body())),
+              const SizedBox(width: 8),
+              Switch.adaptive(
+                value: value,
+                onChanged: _set,
+                activeTrackColor: AppTheme.primaryNavy,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Badge extends StatelessWidget {
+  const _Badge({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: ProfileUi.caption(color: color, weight: FontWeight.w600),
+      ),
     );
   }
 }

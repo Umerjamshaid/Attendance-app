@@ -1,17 +1,21 @@
+import 'package:attendance/config/app_theme.dart';
+import 'package:attendance/config/wc_tokens.dart';
 import 'package:attendance/models/employees_model.dart';
 import 'package:attendance/providers/attendance_history_provider.dart';
+import 'package:attendance/providers/auth_provider.dart';
 import 'package:attendance/providers/profile_provider.dart';
 import 'package:attendance/screens/profile/privacy_screen.dart';
 import 'package:attendance/screens/profile/settings_screen.dart';
 import 'package:attendance/widgets/user-profile/attendance_stats_card.dart';
 import 'package:attendance/widgets/user-profile/profile_header.dart';
 import 'package:attendance/widgets/user-profile/profile_menu_item.dart';
+import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
-import 'package:attendance/providers/auth_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:provider/provider.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -20,12 +24,36 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends State<ProfileScreen>
+    with SingleTickerProviderStateMixin {
+  static const double _contentMaxWidth = 560;
+  static const double _nameInTitleOffset = 150;
+  static const int _sectionCount = 5;
+
   bool _notificationsEnabled = true;
 
-  // Package info pakage for app version and build number
+  // App version and build number, loaded from the platform.
   String _version = '';
   String _buildNumber = '';
+
+  // Scroll-driven app bar state. Only the title and divider rebuild.
+  final ScrollController _scroll = ScrollController();
+  final ValueNotifier<bool> _scrolled = ValueNotifier(false);
+  final ValueNotifier<bool> _nameInTitle = ValueNotifier(false);
+
+  // One-shot staggered entrance for the sections.
+  late final AnimationController _entrance = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 520),
+  );
+  late final List<CurvedAnimation> _reveals = List.generate(_sectionCount, (i) {
+    final start = i * 0.1;
+    return CurvedAnimation(
+      parent: _entrance,
+      curve: Interval(start, start + 0.5, curve: Curves.easeOutCubic),
+    );
+  });
+  bool _entranceStarted = false;
 
   Future<void> _loadAppInfo() async {
     final packageInfo = await PackageInfo.fromPlatform();
@@ -38,16 +66,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
+  void _onScroll() {
+    if (!_scroll.hasClients) return;
+    final offset = _scroll.offset;
+    _scrolled.value = offset > 4;
+    _nameInTitle.value = offset > _nameInTitleOffset;
+  }
+
   @override
   void initState() {
     super.initState();
+    _scroll.addListener(_onScroll);
     _loadAppInfo();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       final auth = context.read<AuthProvider>();
       if (auth.currentUser != null) {
         context.read<ProfileProvider>().loadProfileData(auth.currentUser!.id);
       }
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_entranceStarted) return;
+    _entranceStarted = true;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _entrance.value = 1;
+    } else {
+      _entrance.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _scroll
+      ..removeListener(_onScroll)
+      ..dispose();
+    _scrolled.dispose();
+    _nameInTitle.dispose();
+    for (final animation in _reveals) {
+      animation.dispose();
+    }
+    _entrance.dispose();
+    super.dispose();
+  }
+
+  TodayStatus _statusFor(AttendanceHistoryProvider history) {
+    if (history.isLoading && history.records.isEmpty) {
+      return TodayStatus.loading;
+    }
+    if (history.isPresentToday) return TodayStatus.present;
+    if (history.error != null && history.records.isEmpty) {
+      return TodayStatus.unknown;
+    }
+    return TodayStatus.notCheckedIn;
   }
 
   @override
@@ -57,91 +131,111 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final Employee? user = auth.currentUser;
 
     if (user == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        backgroundColor: ProfileUi.page,
+        body: Center(child: CircularProgressIndicator()),
+      );
     }
 
-    // Create a version of the user with updated counts from history
+    // Show the user with live counts from the attendance history.
     final updatedUser = user.copyWith(
       totalPresents: historyProvider.presentCount,
       totalAbsents: historyProvider.absentCount,
     );
+    final historyLoading =
+        historyProvider.isLoading && historyProvider.records.isEmpty;
+
+    final sections = <Widget>[
+      ProfileHeader(
+        employee: updatedUser,
+        todayStatus: _statusFor(historyProvider),
+      ),
+      AttendanceStatsCard(employee: updatedUser, isLoading: historyLoading),
+      ProfileSectionCard(
+        label: 'Preferences',
+        children: [
+          ProfileSwitchItem(
+            icon: Icons.notifications_active_outlined,
+            title: 'Push notifications',
+            value: _notificationsEnabled,
+            onChanged: (v) => setState(() => _notificationsEnabled = v),
+          ),
+          // Placeholder row kept from the previous screen; it has no action.
+          const ProfileMenuItem(
+            icon: Icons.language_rounded,
+            title: 'Language',
+          ),
+        ],
+      ),
+      ProfileSectionCard(
+        label: 'Support',
+        children: [
+          ProfileMenuItem(
+            icon: Icons.help_outline_rounded,
+            title: 'Help center',
+            onTap: () => _showMessageDialog(
+              context,
+              title: 'Help',
+              message: 'Contact support at support@pipfa.org.pk',
+            ),
+          ),
+          ProfileMenuItem(
+            icon: Icons.info_outline_rounded,
+            title: 'About app',
+            onTap: () => _showMessageDialog(
+              context,
+              title: 'About app',
+              message: 'Secure attendance tracking for PIPFA employees.',
+            ),
+          ),
+          ProfileMenuItem(
+            icon: Icons.shield_outlined,
+            title: 'Privacy & Security Trust Portal',
+            badge: 'Verified',
+            badgeColor: WC.present,
+            onTap: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const PrivacyScreen())),
+          ),
+          ProfileMenuItem(
+            icon: Icons.settings_applications_outlined,
+            title: 'App permissions',
+            onTap: openAppSettings,
+          ),
+        ],
+      ),
+      ProfileSectionCard(
+        children: [
+          ProfileMenuItem(
+            icon: Icons.logout_rounded,
+            title: 'Log out',
+            textColor: AppTheme.errorRed,
+            onTap: () => _showLogoutConfirmation(context),
+          ),
+        ],
+      ),
+    ];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: ProfileUi.page,
       body: CustomScrollView(
+        controller: _scroll,
         slivers: [
-          _buildSliverAppBar(context),
+          _buildSliverAppBar(context, updatedUser.name),
           SliverToBoxAdapter(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                ProfileHeader(employee: updatedUser),
-                const SizedBox(height: 20),
-                AttendanceStatsCard(employee: updatedUser),
-                const SizedBox(height: 32),
-
-                _buildSectionHeader('PREFERENCES'),
-                _buildMenuContainer([
-                  _buildToggleItem(
-                    icon: Icons.notifications_active_outlined,
-                    title: 'Push Notifications',
-                    value: _notificationsEnabled,
-                    onChanged: (v) => setState(() => _notificationsEnabled = v),
-                  ),
-                  _buildDivider(),
-                  ProfileMenuItem(
-                    icon: Icons.language_rounded,
-                    title: 'Language',
-                    onTap: () {},
-                  ),
-                ]),
-
-                const SizedBox(height: 24),
-                _buildSectionHeader('SUPPORT'),
-                _buildMenuContainer([
-                  ProfileMenuItem(
-                    icon: Icons.help_outline_rounded,
-                    title: 'Help Center',
-                    onTap: () => _showHelpDialog(context),
-                  ),
-                  _buildDivider(),
-                  ProfileMenuItem(
-                    icon: Icons.info_outline_rounded,
-                    title: 'About App',
-                    onTap: () => _showAboutDialog(context),
-                  ),
-                  _buildDivider(),
-                  ProfileMenuItem(
-                    icon: Icons.shield_outlined,
-                    title: 'Privacy & Security Trust Portal',
-                    badge: 'VERIFIED',
-                    badgeColor: const Color(0xFF10B981),
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const PrivacyScreen()),
-                    ),
-                  ),
-                  _buildDivider(),
-                  ProfileMenuItem(
-                    icon: Icons.settings_applications_outlined,
-                    title: 'App Permissions',
-                    onTap: () => openAppSettings(),
-                  ),
-                ]),
-
-                const SizedBox(height: 24),
-                _buildMenuContainer([
-                  ProfileMenuItem(
-                    icon: Icons.logout_rounded,
-                    title: 'Log Out',
-                    textColor: Colors.red[600],
-                    onTap: () => _showLogoutConfirmation(context),
-                  ),
-                ]),
-
-                const SizedBox(height: 40),
-                _buildFooter(),
-                const SizedBox(height: 40),
-              ],
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var i = 0; i < sections.length; i++)
+                      _Reveal(animation: _reveals[i], child: sections[i]),
+                    _buildFooter(),
+                  ],
+                ),
+              ),
             ),
           ),
         ],
@@ -149,151 +243,118 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildSliverAppBar(BuildContext context) {
+  Widget _buildSliverAppBar(BuildContext context, String name) {
+    final displayName = name.trim();
     return SliverAppBar(
-      expandedHeight: 0,
-      floating: true,
-      backgroundColor: Colors.white,
+      pinned: true,
+      automaticallyImplyLeading: false,
+      backgroundColor: ProfileUi.page,
+      surfaceTintColor: Colors.transparent,
+      scrolledUnderElevation: 0,
       elevation: 0,
-      centerTitle: false,
-      title: Text(
-        'PROFILE',
-        style: GoogleFonts.dmSans(
-          fontSize: 18,
-          fontWeight: FontWeight.w900,
-          color: const Color(0xFF1B1D1F),
-          letterSpacing: 1.5,
-        ),
+      centerTitle: true,
+      title: ValueListenableBuilder<bool>(
+        valueListenable: _nameInTitle,
+        builder: (_, nameInTitle, _) {
+          final showName = nameInTitle && displayName.isNotEmpty;
+          return AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: Text(
+              showName ? displayName : 'Profile',
+              key: ValueKey(showName),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: ProfileUi.body(weight: FontWeight.w600),
+            ),
+          );
+        },
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.settings_outlined, color: Color(0xFF1B1D1F)),
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const SettingsScreen()),
-          ),
+          tooltip: 'Settings',
+          icon: const Icon(Icons.settings_outlined),
+          color: AppTheme.textPrimary,
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+            );
+          },
         ),
+        const SizedBox(width: 4),
       ],
-    );
-  }
-
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
-      child: Text(
-        title,
-        style: GoogleFonts.inter(
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-          color: Colors.grey[500],
-          letterSpacing: 1.2,
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(1),
+        child: ValueListenableBuilder<bool>(
+          valueListenable: _scrolled,
+          builder: (_, scrolled, _) => AnimatedOpacity(
+            opacity: scrolled ? 1 : 0,
+            duration: const Duration(milliseconds: 150),
+            child: Divider(height: 1, thickness: 1, color: ProfileUi.hairline),
+          ),
         ),
       ),
     );
-  }
-
-  Widget _buildMenuContainer(List<Widget> children) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(children: children),
-    );
-  }
-
-  Widget _buildToggleItem({
-    required IconData icon,
-    required String title,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) {
-    return ListTile(
-      leading: Icon(icon, color: const Color(0xFF1B1D1F), size: 22),
-      title: Text(
-        title,
-        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500),
-      ),
-      trailing: Switch.adaptive(
-        value: value,
-        onChanged: onChanged,
-        activeTrackColor: Colors.blue,
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20),
-    );
-  }
-
-  Widget _buildDivider() {
-    return Divider(height: 1, color: Colors.grey[50], indent: 56);
   }
 
   Widget _buildFooter() {
-    return Column(
-      children: [
-        Text(
-          'PIPFA ATTENDANCE',
-          style: GoogleFonts.inter(
-            fontSize: 10,
-            fontWeight: FontWeight.w900,
-            color: Colors.grey[300],
-            letterSpacing: 2,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Version $_version Build ($_buildNumber)',
-          style: GoogleFonts.inter(
-            fontSize: 10,
-            color: Colors.grey[400],
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
+    final versionLabel = _buildNumber.isEmpty
+        ? 'v$_version'
+        : 'v$_version ($_buildNumber)';
+    final muted = AppTheme.textSecondary.withValues(alpha: 0.7);
 
-  // Reuse existing dialog methods...
-  void _showAboutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          'About App',
-          style: GoogleFonts.dmSans(fontWeight: FontWeight.bold),
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          ProfileUi.gutter,
+          16,
+          ProfileUi.gutter,
+          24,
         ),
-        content: const Text('Secure attendance tracking for PIPFA employees.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
+        child: Column(
+          children: [
+            Text(
+              'PIPFA Attendance',
+              style: ProfileUi.caption(color: muted, weight: FontWeight.w600),
+            ),
+            // Hidden until the platform reports a version.
+            if (_version.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(versionLabel, style: ProfileUi.caption(color: muted)),
+            ],
+          ],
+        ),
       ),
     );
   }
 
-  void _showHelpDialog(BuildContext context) {
-    showDialog(
+  Future<void> _showMessageDialog(
+    BuildContext context, {
+    required String title,
+    required String message,
+  }) {
+    return showDialog<void>(
       context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          'Help',
-          style: GoogleFonts.dmSans(fontWeight: FontWeight.bold),
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: ProfileUi.page,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(ProfileUi.sheetRadius),
         ),
-        content: const Text('Contact support at support@pipfa.org.pk'),
+        title: Text(
+          title,
+          style: GoogleFonts.inter(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textPrimary,
+          ),
+        ),
+        content: Text(message, style: ProfileUi.small()),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Close'),
           ),
         ],
@@ -302,28 +363,66 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showLogoutConfirmation(BuildContext context) {
-    showDialog(
+    final auth = context.read<AuthProvider>();
+    showDialog<void>(
       context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          'Log Out',
-          style: GoogleFonts.dmSans(fontWeight: FontWeight.bold),
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: ProfileUi.page,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(ProfileUi.sheetRadius),
         ),
-        content: const Text('Are you sure you want to exit?'),
+        title: Text(
+          'Log out',
+          style: GoogleFonts.inter(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textPrimary,
+          ),
+        ),
+        content: Text(
+          'Are you sure you want to exit?',
+          style: ProfileUi.small(),
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () {
-              Navigator.pop(context);
-              context.read<AuthProvider>().logout();
+              HapticFeedback.lightImpact();
+              Navigator.pop(dialogContext);
+              auth.logout();
             },
-            child: const Text('Log Out', style: TextStyle(color: Colors.red)),
+            child: const Text(
+              'Log out',
+              style: TextStyle(color: AppTheme.errorRed),
+            ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Fades and nudges a section up as the entrance animation plays.
+class _Reveal extends StatelessWidget {
+  const _Reveal({required this.animation, required this.child});
+
+  final Animation<double> animation;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: animation,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 0.04),
+          end: Offset.zero,
+        ).animate(animation),
+        child: child,
       ),
     );
   }
