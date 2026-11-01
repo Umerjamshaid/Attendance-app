@@ -37,6 +37,13 @@ class ProfileProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> removeBanner(String userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('${userId}_banner');
+    _bannerPath = null;
+    notifyListeners();
+  }
+
   Future<void> clearProfileData() async {
     _pfpPath = null;
     _bannerPath = null;
