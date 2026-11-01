@@ -108,11 +108,11 @@ class _AttendanceButtonState extends State<AttendanceButton> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         if (widget.isLoading)
-                          const SizedBox(
+                          SizedBox(
                             width: 44,
                             height: 44,
                             child: CircularProgressIndicator(
-                              color: Colors.white,
+                              color: foreground,
                               strokeWidth: 3.5,
                             ),
                           )
