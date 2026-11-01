@@ -33,6 +33,10 @@ class ProfileHeader extends StatelessWidget {
   static const double _ring = 4;
   static const double _avatarOuter = _avatarSize + _ring * 2;
 
+  /// First letter of [name] for the avatar fallback ('?' when empty).
+  static String _initialOf(String name) =>
+      name.isEmpty ? '?' : String.fromCharCode(name.runes.first).toUpperCase();
+
   Future<void> _changeImage(
     BuildContext context,
     Future<void> Function(ProfileProvider provider) pick,
@@ -188,9 +192,7 @@ class ProfileHeader extends StatelessWidget {
                   top: _bannerHeight - _avatarOuter / 2,
                   child: Center(
                     child: _Avatar(
-                      initial: name.isEmpty
-                          ? '?'
-                          : name.characters.first.toUpperCase(),
+                      initial: _initialOf(name),
                       localPath: profile.pfpPath,
                       networkUrl: employee.avatarUrl,
                       size: _avatarSize,
@@ -418,6 +420,9 @@ class _RemoveBannerButton extends StatelessWidget {
       container: true,
       button: true,
       label: 'Remove cover photo',
+      // excludeSemantics drops the GestureDetector's own tap action, so it is
+      // exposed here for screen readers.
+      onTap: onPressed,
       excludeSemantics: true,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,

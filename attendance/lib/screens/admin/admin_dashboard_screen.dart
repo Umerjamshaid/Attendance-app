@@ -51,7 +51,7 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen>
     final filteredList = adminProvider.filteredList;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
+      backgroundColor: Colors.white,
       body: RefreshIndicator(
         color: const Color(0xFF1B1D1F),
         backgroundColor: Colors.white,
@@ -144,7 +144,11 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen>
                   ),
                 ),
               ),
-            const SliverToBoxAdapter(child: SizedBox(height: 32)),
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: 32 + MediaQuery.paddingOf(context).bottom,
+              ),
+            ),
           ],
         ),
       ),

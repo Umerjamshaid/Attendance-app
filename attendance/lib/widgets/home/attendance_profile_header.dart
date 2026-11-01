@@ -1,90 +1,145 @@
 import 'dart:io';
-import 'package:attendance/config/wc_tokens.dart';
+
+import 'package:attendance/config/app_theme.dart';
+import 'package:attendance/models/employees_model.dart';
 import 'package:attendance/providers/profile_provider.dart';
+import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import '../../models/employees_model.dart';
 
+/// Compact greeting row for the home screen: avatar, name and department.
 class AttendanceProfileHeader extends StatelessWidget {
+  const AttendanceProfileHeader({super.key, required this.employee});
+
   final Employee employee;
 
-  const AttendanceProfileHeader({
-    super.key,
-    required this.employee,
-  });
+  static const double _avatarSize = 48;
+
+  /// First letter of [name] for the avatar fallback ('?' when empty).
+  static String _initialOf(String name) =>
+      name.isEmpty ? '?' : String.fromCharCode(name.runes.first).toUpperCase();
 
   @override
   Widget build(BuildContext context) {
-    final profileProvider = context.watch<ProfileProvider>();
-    
-    ImageProvider avatarImage;
-    if (profileProvider.pfpPath != null && File(profileProvider.pfpPath!).existsSync()) {
-      avatarImage = FileImage(File(profileProvider.pfpPath!));
-    } else {
-      final avatarUrl = employee.avatarUrl ??
-          'https://ui-avatars.com/api/?name=${Uri.encodeComponent(employee.name)}&background=1A1F71&color=fff&size=200';
-      avatarImage = NetworkImage(avatarUrl);
-    }
+    final profile = context.watch<ProfileProvider>();
+    final name = employee.name.trim();
+    final department = employee.department.trim();
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-      child: Column(
+      padding: const EdgeInsets.fromLTRB(
+        ProfileUi.gutter,
+        8,
+        ProfileUi.gutter,
+        0,
+      ),
+      child: Row(
         children: [
-          Container(
-            width: 92,
-            height: 92,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: const Color(0xFF10B981).withValues(alpha: 0.35),
-                width: 3,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
+          _HeaderAvatar(
+            size: _avatarSize,
+            initial: _initialOf(name),
+            localPath: profile.pfpPath,
+            networkUrl: employee.avatarUrl,
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Semantics(
+                  header: true,
+                  child: Text(
+                    name.isEmpty ? 'Welcome' : name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      fontSize: 20,
+                      height: 1.25,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
                 ),
+                if (department.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    department,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: ProfileUi.small(),
+                  ),
+                ],
               ],
-              image: DecorationImage(
-                image: avatarImage,
-                fit: BoxFit.cover,
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            employee.name,
-            style: GoogleFonts.dmSans(
-              color: WC.white,
-              fontSize: 26,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.6,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E293B),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: const Color(0xFF334155),
-                width: 1,
-              ),
-            ),
-            child: Text(
-              employee.department.toUpperCase(),
-              style: GoogleFonts.inter(
-                color: const Color(0xFF94A3B8),
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.2,
-              ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Circular avatar. Falls back local file -> network image -> initial, and
+/// never leaves an empty circle if an image is missing or fails to load.
+class _HeaderAvatar extends StatelessWidget {
+  const _HeaderAvatar({
+    required this.size,
+    required this.initial,
+    required this.localPath,
+    required this.networkUrl,
+  });
+
+  final double size;
+  final String initial;
+  final String? localPath;
+  final String? networkUrl;
+
+  static const int _decodeWidth = 144;
+
+  Widget _network() {
+    final url = networkUrl;
+    if (url == null || url.isEmpty) return const SizedBox.shrink();
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      cacheWidth: _decodeWidth,
+      errorBuilder: (_, _, _) => const SizedBox.shrink(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final path = localPath;
+    return SizedBox.square(
+      dimension: size,
+      child: ClipOval(
+        child: ColoredBox(
+          color: AppTheme.primaryNavy.withValues(alpha: 0.1),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Center(
+                child: Text(
+                  initial,
+                  style: GoogleFonts.inter(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.primaryNavy,
+                  ),
+                ),
+              ),
+              if (path != null)
+                Image.file(
+                  File(path),
+                  fit: BoxFit.cover,
+                  cacheWidth: _decodeWidth,
+                  errorBuilder: (_, _, _) => _network(),
+                )
+              else
+                _network(),
+            ],
+          ),
+        ),
       ),
     );
   }

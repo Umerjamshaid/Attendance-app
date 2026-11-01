@@ -20,7 +20,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('AttendanceApp smoke test - renders initial state and login', (WidgetTester tester) async {
+  testWidgets('AttendanceApp smoke test - renders initial state and login', (
+    WidgetTester tester,
+  ) async {
     SharedPreferences.setMockInitialValues({});
 
     await tester.pumpWidget(
@@ -46,7 +48,9 @@ void main() {
     expect(find.byType(AttendanceApp), findsOneWidget);
   });
 
-  testWidgets('BottomNav renders tabs and responds to taps', (WidgetTester tester) async {
+  testWidgets('BottomNav renders tabs and responds to taps', (
+    WidgetTester tester,
+  ) async {
     int tappedIndex = -1;
 
     await tester.pumpWidget(
@@ -62,9 +66,9 @@ void main() {
     );
 
     expect(find.text('Home'), findsOneWidget);
-    expect(find.text('History'), findsNothing); // inactive labels hidden in pill mode
+    expect(find.text('History'), findsOneWidget);
 
-    // Tap on the History icon
+    // Tap the History destination.
     await tester.tap(find.byIcon(Icons.access_time_rounded));
     await tester.pumpAndSettle();
 
