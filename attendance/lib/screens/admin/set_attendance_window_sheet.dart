@@ -1,9 +1,18 @@
+import 'package:attendance/config/app_theme.dart';
+import 'package:attendance/config/wc_tokens.dart';
 import 'package:attendance/providers/attendance_provider.dart';
 import 'package:attendance/services/local_storage_service.dart';
+import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import '../../config/wc_tokens.dart';
 
+/// Sheet content for choosing when attendance can be marked.
+///
+/// Present it with `showModalBottomSheet(isScrollControlled: true,
+/// useSafeArea: true, showDragHandle: true, backgroundColor: ProfileUi.page)`;
+/// the sheet draws no surface of its own.
 class SetAttendanceWindowSheet extends StatefulWidget {
   const SetAttendanceWindowSheet({super.key});
 
@@ -45,17 +54,22 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
     return '$h:00 $period';
   }
 
+  /// "Always open" has no range; a schedule needs the end after the start.
+  bool get _rangeValid => _always || _endHour > _startHour;
+
   Future<void> _save() async {
-    if (!_always && _endHour <= _startHour) {
+    if (!_rangeValid) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('End time must be after start time.'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppTheme.errorRed,
+          behavior: SnackBarBehavior.floating,
         ),
       );
       return;
     }
 
+    HapticFeedback.lightImpact();
     setState(() => _saving = true);
 
     try {
@@ -75,7 +89,8 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('✓ Attendance window saved!'),
-          backgroundColor: Colors.green,
+          backgroundColor: WC.present,
+          behavior: SnackBarBehavior.floating,
         ),
       );
 
@@ -83,7 +98,11 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: AppTheme.errorRed,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -92,190 +111,260 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final bottom = MediaQuery.of(context).viewInsets.bottom;
+    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
+    // useSafeArea does not cover the bottom edge, so keep clear of the gesture
+    // bar ourselves (unless the keyboard is already covering it).
+    final safeBottom = keyboard > 0
+        ? 0.0
+        : MediaQuery.viewPaddingOf(context).bottom;
 
-    return Container(
-      decoration: const BoxDecoration(
-        color: WC.white,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(24),
-          topRight: Radius.circular(24),
-        ),
-      ),
-      padding: EdgeInsets.fromLTRB(24, 0, 24, 24 + bottom),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              margin: const EdgeInsets.only(top: 12, bottom: 24),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: const Color(0xFFDDDDDD),
-                borderRadius: WC.rFull,
-              ),
-            ),
+    return PopScope(
+      canPop: !_saving,
+      child: Padding(
+        padding: EdgeInsets.only(bottom: keyboard),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            ProfileUi.gutter,
+            0,
+            ProfileUi.gutter,
+            ProfileUi.gutter + safeBottom,
           ),
-          const Text(
-            'Attendance Window',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-              color: WC.black,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Choose when employees are allowed to mark attendance.',
-            style: TextStyle(fontSize: 13, color: WC.muted, height: 1.5),
-          ),
-          const SizedBox(height: 20),
-
-          // Always-open toggle
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: WC.bg,
-              borderRadius: WC.r12,
-              border: Border.all(color: WC.border, width: 1.5),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text(
-                        'Always Open',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: WC.black,
-                        ),
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        'No time restriction (24 hours).',
-                        style: TextStyle(fontSize: 12, color: WC.muted),
-                      ),
-                    ],
-                  ),
-                ),
-                Switch(
-                  value: _always,
-                  activeThumbColor: WC.black,
-                  onChanged: (v) => setState(() => _always = v),
-                ),
-              ],
-            ),
-          ),
-
-          if (!_always) ...[
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: _HourSelector(
-                    label: 'START TIME',
-                    value: _startHour,
-                    formatter: _formatHour,
-                    onChanged: (v) => setState(() => _startHour = v),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _HourSelector(
-                    label: 'END TIME',
-                    value: _endHour,
-                    formatter: _formatHour,
-                    onChanged: (v) => setState(() => _endHour = v),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Employees can mark attendance from ${_formatHour(_startHour)} to ${_formatHour(_endHour)}.',
-              style: const TextStyle(fontSize: 11, color: WC.muted),
-            ),
-          ],
-
-          const SizedBox(height: 24),
-          Row(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => Navigator.of(context).pop(),
-                  child: Container(
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: WC.surface,
-                      borderRadius: WC.rFull,
-                      border: Border.all(color: WC.border),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Semantics(
+                          header: true,
+                          child: Text(
+                            'Attendance window',
+                            style: GoogleFonts.inter(
+                              fontSize: 20,
+                              height: 1.3,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Choose when employees are allowed to mark attendance.',
+                          style: ProfileUi.small(),
+                        ),
+                      ],
                     ),
-                    child: const Center(
-                      child: Text(
-                        'Cancel',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: WC.muted,
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox.square(
+                    dimension: 44,
+                    child: IconButton(
+                      tooltip: 'Close',
+                      onPressed: _saving
+                          ? null
+                          : () => Navigator.of(context).pop(),
+                      style: IconButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        backgroundColor: ProfileUi.cardFill,
+                        foregroundColor: AppTheme.textPrimary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            ProfileUi.sheetRadius,
+                          ),
                         ),
                       ),
+                      icon: const Icon(Icons.close_rounded, size: 22),
                     ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment<bool>(
+                    value: false,
+                    icon: Icon(Icons.schedule_rounded, size: 18),
+                    label: Text('Scheduled'),
+                  ),
+                  ButtonSegment<bool>(
+                    value: true,
+                    icon: Icon(Icons.all_inclusive_rounded, size: 18),
+                    label: Text('Always open'),
+                  ),
+                ],
+                selected: {_always},
+                showSelectedIcon: false,
+                onSelectionChanged: _saving
+                    ? null
+                    : (selection) {
+                        HapticFeedback.selectionClick();
+                        setState(() => _always = selection.first);
+                      },
+                style: SegmentedButton.styleFrom(
+                  backgroundColor: ProfileUi.cardFill,
+                  foregroundColor: AppTheme.textSecondary,
+                  selectedBackgroundColor: AppTheme.primaryNavy,
+                  selectedForegroundColor: Colors.white,
+                  side: BorderSide.none,
+                  minimumSize: const Size.fromHeight(48),
+                  textStyle: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 2,
-                child: GestureDetector(
-                  onTap: _saving ? null : _save,
-                  child: Container(
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: WC.black,
-                      borderRadius: WC.rFull,
+              const SizedBox(height: 20),
+              AnimatedSize(
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
+                alignment: Alignment.topCenter,
+                child: _always
+                    ? Text(
+                        'No time restriction (24 hours).',
+                        style: ProfileUi.small(),
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: _HourSelector(
+                                  label: 'Start time',
+                                  value: _startHour,
+                                  formatter: _formatHour,
+                                  enabled: !_saving,
+                                  onChanged: (v) =>
+                                      setState(() => _startHour = v),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _HourSelector(
+                                  label: 'End time',
+                                  value: _endHour,
+                                  formatter: _formatHour,
+                                  enabled: !_saving,
+                                  onChanged: (v) =>
+                                      setState(() => _endHour = v),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          if (_rangeValid)
+                            Text(
+                              'Employees can mark attendance from ${_formatHour(_startHour)} to ${_formatHour(_endHour)}.',
+                              style: ProfileUi.small(),
+                            )
+                          else
+                            Semantics(
+                              liveRegion: true,
+                              child: Text(
+                                'End time must be after start time.',
+                                style: ProfileUi.small(
+                                  color: AppTheme.errorRed,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+              ),
+              const SizedBox(height: 16),
+              // The window is stored in this device's local storage, so it
+              // does not reach other employees' phones. Say so plainly.
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(top: 1),
+                    child: Icon(
+                      Icons.info_outline_rounded,
+                      size: 14,
+                      color: AppTheme.textSecondary,
                     ),
-                    child: Center(
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Saved on this device. Other devices keep their own setting.',
+                      style: ProfileUi.caption(),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _saving
+                          ? null
+                          : () => Navigator.of(context).pop(),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: ProfileUi.cardFill,
+                        foregroundColor: AppTheme.textPrimary,
+                        elevation: 0,
+                        minimumSize: const Size.fromHeight(52),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        textStyle: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: FilledButton(
+                      onPressed: (_saving || !_rangeValid) ? null : _save,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppTheme.primaryNavy,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(52),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        textStyle: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       child: _saving
                           ? const SizedBox(
-                              width: 20,
-                              height: 20,
+                              width: 22,
+                              height: 22,
                               child: CircularProgressIndicator(
-                                color: WC.white,
+                                color: Colors.white,
                                 strokeWidth: 2.5,
                               ),
                             )
                           : const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(
-                                  Icons.check_rounded,
-                                  color: WC.white,
-                                  size: 18,
-                                ),
-                                SizedBox(width: 7),
-                                Text(
-                                  'Save Window',
-                                  style: TextStyle(
-                                    color: WC.white,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
+                                Icon(Icons.check_rounded, size: 18),
+                                SizedBox(width: 8),
+                                Text('Save window'),
                               ],
                             ),
                     ),
                   ),
-                ),
+                ],
               ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -286,63 +375,61 @@ class _HourSelector extends StatelessWidget {
   final int value;
   final String Function(int) formatter;
   final ValueChanged<int> onChanged;
+  final bool enabled;
 
   const _HourSelector({
     required this.label,
     required this.value,
     required this.formatter,
     required this.onChanged,
+    this.enabled = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.3,
-            color: WC.muted,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          height: 50,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: WC.bg,
-            borderRadius: WC.r12,
-            border: Border.all(color: WC.border, width: 1.5),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<int>(
-              value: value,
-              isExpanded: true,
-              icon: const Icon(Icons.keyboard_arrow_down_rounded,
-                  color: WC.muted),
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: WC.black,
+    return MergeSemantics(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: ProfileUi.small(weight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          Container(
+            height: 52,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: ProfileUi.cardFill,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<int>(
+                value: value,
+                isExpanded: true,
+                borderRadius: BorderRadius.circular(16),
+                dropdownColor: Colors.white,
+                menuMaxHeight: 320,
+                icon: const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: AppTheme.textSecondary,
+                ),
+                style: ProfileUi.body(weight: FontWeight.w500),
+                items: List.generate(24, (h) => h)
+                    .map(
+                      (h) => DropdownMenuItem<int>(
+                        value: h,
+                        child: Text(formatter(h)),
+                      ),
+                    )
+                    .toList(),
+                onChanged: enabled
+                    ? (v) {
+                        if (v != null) onChanged(v);
+                      }
+                    : null,
               ),
-              items: List.generate(24, (h) => h)
-                  .map(
-                    (h) => DropdownMenuItem<int>(
-                      value: h,
-                      child: Text(formatter(h)),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (v) {
-                if (v != null) onChanged(v);
-              },
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

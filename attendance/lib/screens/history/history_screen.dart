@@ -10,7 +10,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:timeline_tile/timeline_tile.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -26,13 +25,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
   final ScrollController _scroll = ScrollController();
   final ValueNotifier<bool> _scrolled = ValueNotifier(false);
 
-  // Memoized flat list (headers + records). The provider mutates its record
+  // Memoized date groups. The provider mutates its record
   // list in place (insert / removeWhere), so the key is the list identity plus
   // its length and first record id, which together change on every mutation.
   List<AttendanceRecord>? _cachedRecords;
   int _cachedLength = -1;
   String? _cachedFirstId;
-  List<Object> _cachedFlatItems = const [];
+  List<AttendanceGroup> _cachedGroups = const [];
 
   @override
   void initState() {
@@ -62,29 +61,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
     _scrolled.value = _scroll.offset > 4;
   }
 
-  // Rebuilds the flat list only when the records actually changed, so
-  // scrolling and unrelated rebuilds do not re-allocate headers and wrappers.
-  List<Object> _flatItemsFor(AttendanceHistoryProvider provider) {
+  // Rebuilds the groups only when the records actually changed.
+  List<AttendanceGroup> _groupsFor(AttendanceHistoryProvider provider) {
     final records = provider.records;
     final firstId = records.isEmpty ? null : records.first.id;
     if (identical(_cachedRecords, records) &&
         _cachedLength == records.length &&
         _cachedFirstId == firstId) {
-      return _cachedFlatItems;
+      return _cachedGroups;
     }
 
-    final flatItems = <Object>[];
-    for (final group in provider.groups) {
-      flatItems.add(_HeaderItem(date: group.date));
-      for (final record in group.records) {
-        flatItems.add(_RecordItem(record: record));
-      }
-    }
     _cachedRecords = records;
     _cachedLength = records.length;
     _cachedFirstId = firstId;
-    _cachedFlatItems = flatItems;
-    return flatItems;
+    _cachedGroups = provider.groups;
+    return _cachedGroups;
   }
 
   Future<void> _onRefresh() async {
@@ -98,7 +89,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     final historyProvider = context.watch<AttendanceHistoryProvider>();
-    final flatItems = _flatItemsFor(historyProvider);
+    final groups = _groupsFor(historyProvider);
 
     final width = MediaQuery.sizeOf(context).width;
     final sidePad = width > _contentMaxWidth
@@ -155,7 +146,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   onRefresh: _onRefresh,
                 ),
               )
-            else if (flatItems.isEmpty)
+            else if (groups.isEmpty)
               SliverFillRemaining(
                 hasScrollBody: false,
                 child: _EmptyState(
@@ -168,40 +159,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
             else
               SliverPadding(
                 padding: EdgeInsets.fromLTRB(
-                  sidePad + ProfileUi.gutter,
+                  sidePad,
                   0,
-                  sidePad + ProfileUi.gutter,
+                  sidePad,
                   40 + MediaQuery.paddingOf(context).bottom,
                 ),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final item = flatItems[index];
-
-                      if (item is _HeaderItem) {
-                        return _TimelineDateHeader(date: item.date);
-                      }
-
-                      if (item is _RecordItem) {
-                        final bool isFirst =
-                            index == 0 || flatItems[index - 1] is _HeaderItem;
-                        final bool isLast =
-                            index == flatItems.length - 1 ||
-                            flatItems[index + 1] is _HeaderItem;
-
-                        return _TimelineRecord(
-                          record: item.record,
-                          isFirst: isFirst,
-                          isLast: isLast,
-                        );
-                      }
-
-                      return const SizedBox.shrink();
-                    },
-                    childCount: flatItems.length,
-                    addAutomaticKeepAlives: false,
-                    addRepaintBoundaries: true,
-                  ),
+                sliver: SliverList.builder(
+                  itemCount: groups.length,
+                  itemBuilder: (context, index) {
+                    return _AttendanceDateGroup(group: groups[index]);
+                  },
                 ),
               ),
           ],
@@ -233,17 +200,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ),
     );
   }
-}
-
-// --- Data helpers for the flat list ---
-class _HeaderItem {
-  final String date;
-  _HeaderItem({required this.date});
-}
-
-class _RecordItem {
-  final AttendanceRecord record;
-  _RecordItem({required this.record});
 }
 
 // --- Overview ---
@@ -506,35 +462,30 @@ class _MonthRing extends StatelessWidget {
   }
 }
 
-// --- Timeline components ---
+// --- Grouped attendance history ---
 
-class _TimelineDateHeader extends StatelessWidget {
-  final String date;
+class _AttendanceDateGroup extends StatelessWidget {
+  const _AttendanceDateGroup({required this.group});
 
-  const _TimelineDateHeader({required this.date});
+  final AttendanceGroup group;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 24, bottom: 8, left: 4),
-      child: Semantics(
-        header: true,
-        child: Text(date, style: ProfileUi.small(weight: FontWeight.w600)),
-      ),
+    return ProfileSectionCard(
+      label: group.date,
+      dividerIndent: ProfileUi.rowInset + 18 + 12,
+      children: [
+        for (final record in group.records)
+          _AttendanceRecordRow(record: record),
+      ],
     );
   }
 }
 
-class _TimelineRecord extends StatelessWidget {
-  final AttendanceRecord record;
-  final bool isFirst;
-  final bool isLast;
+class _AttendanceRecordRow extends StatelessWidget {
+  const _AttendanceRecordRow({required this.record});
 
-  const _TimelineRecord({
-    required this.record,
-    required this.isFirst,
-    required this.isLast,
-  });
+  final AttendanceRecord record;
 
   String _formatTime(DateTime dt) {
     final hour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
@@ -548,114 +499,65 @@ class _TimelineRecord extends StatelessWidget {
     final color = isPresent ? WC.present : WC.absent;
     final timeStr = _formatTime(record.timestamp);
     final title = isPresent ? 'Present' : 'Absent';
-    final badge = isPresent ? 'Verified' : 'Pending';
-    final device = record.device.isNotEmpty ? record.device : 'Mobile App';
-    final line = LineStyle(
-      color: AppTheme.textPrimary.withValues(alpha: 0.1),
-      thickness: 2,
-    );
+    final device = record.device.isEmpty || record.device == 'unknown'
+        ? null
+        : record.device;
 
-    return TimelineTile(
-      alignment: TimelineAlign.start,
-      lineXY: 24.0,
-      isFirst: isFirst,
-      isLast: isLast,
-      indicatorStyle: IndicatorStyle(
-        width: 14,
-        height: 14,
-        color: color,
-        drawGap: true,
-        padding: const EdgeInsets.only(top: 18, left: 6),
-      ),
-      beforeLineStyle: line,
-      afterLineStyle: line,
-      endChild: Padding(
-        padding: const EdgeInsets.only(left: 20, bottom: 16, top: 8),
-        child: Semantics(
-          container: true,
-          label: '$title, $timeStr, $device, $badge',
-          excludeSemantics: true,
-          child: Material(
-            color: ProfileUi.cardFill,
-            borderRadius: BorderRadius.circular(18),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
+    return Semantics(
+      container: true,
+      label: '$title, $timeStr${device == null ? '' : ', $device'}',
+      excludeSemantics: true,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: ProfileUi.rowInset,
+          vertical: 12,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              isPresent
+                  ? Icons.check_circle_outline_rounded
+                  : Icons.highlight_off_rounded,
+              color: color,
+              size: 18,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      isPresent ? Icons.verified_rounded : Icons.cancel_rounded,
+                  Text(
+                    title,
+                    style: ProfileUi.small(
                       color: color,
-                      size: 20,
+                      weight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: ProfileUi.body(weight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          device,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: ProfileUi.caption(),
-                        ),
-                      ],
+                  if (device != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      device,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: ProfileUi.caption(),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        timeStr,
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          height: 1.2,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.textPrimary,
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isPresent
-                              ? color.withValues(alpha: 0.15)
-                              : AppTheme.textPrimary.withValues(alpha: 0.06),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          badge,
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            height: 1.2,
-                            fontWeight: FontWeight.w600,
-                            color: isPresent ? color : AppTheme.textSecondary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                  ],
                 ],
               ),
             ),
-          ),
+            const SizedBox(width: 12),
+            Text(
+              timeStr,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                height: 1.2,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
         ),
       ),
     );

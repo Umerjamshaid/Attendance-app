@@ -1,7 +1,11 @@
-// Reusable Notification Tile Widget
+import 'package:attendance/config/app_theme.dart';
+import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
+/// One notification row: unread dot, icon, rich title, description and time.
+///
+/// Follows the unread-dot-plus-time row used by Block Buzz's activity feed
+/// instead of tinting the whole row grey.
 class NotificationTile extends StatelessWidget {
   final List<TextSpan> titleSpans;
   final String description;
@@ -18,87 +22,69 @@ class NotificationTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: isUnread ? Colors.grey[200] : Colors.transparent,
-      // padding: const EdgeInsets.symmetric(vertical: 3),
+    final plainTitle = TextSpan(children: titleSpans).toPlainText();
+
+    return Semantics(
+      container: true,
+      label: '${isUnread ? 'Unread. ' : ''}$plainTitle. $description. $time',
+      excludeSemantics: true,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(
+          horizontal: ProfileUi.gutter,
+          vertical: 14,
+        ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Icon Tile (Placeholder for the pink pattern)
+            // Reserves the dot's width so read and unread rows line up.
+            SizedBox(
+              width: 8,
+              height: 40,
+              child: isUnread
+                  ? Center(
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: AppTheme.primaryNavy,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 12),
             Container(
-              width: 48,
-              height: 48,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
-                color: const Color(0xFFFFEBEE), // Light pink background
-                borderRadius: BorderRadius.circular(10),
-                // We'll mimic the pattern with small icons
+                color: AppTheme.primaryNavy.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
               ),
-              child: const Stack(
-                alignment: Alignment.center,
-                children: [
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: Icon(Icons.cake, color: Color(0xFFEF9A9A), size: 10),
-                  ),
-                  Positioned(
-                    bottom: 8,
-                    right: 8,
-                    child: Icon(
-                      Icons.room_service,
-                      color: Color(0xFFEF9A9A),
-                      size: 10,
-                    ),
-                  ),
-                  Positioned(
-                    top: 18,
-                    right: 18,
-                    child: Icon(
-                      Icons.delivery_dining,
-                      color: Color(0xFFEF9A9A),
-                      size: 10,
-                    ),
-                  ),
-                ],
+              child: const Icon(
+                Icons.notifications_none_rounded,
+                size: 20,
+                color: AppTheme.primaryNavy,
               ),
             ),
-            const SizedBox(width: 16),
-            // Text Content
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  RichText(
-                    text: TextSpan(
-                      style: GoogleFonts.inter(
-                        color: Colors.black87,
-                        fontSize: 14,
-                      ),
-                      children: titleSpans,
+                  Text.rich(
+                    TextSpan(children: titleSpans),
+                    style: ProfileUi.body(
+                      weight: isUnread ? FontWeight.w600 : FontWeight.w400,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    description,
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF71777C),
-                      fontSize: 13,
-                    ),
-                  ),
+                  const SizedBox(height: 2),
+                  Text(description, style: ProfileUi.small()),
                 ],
               ),
             ),
-            const SizedBox(width: 16),
-            // Time
-            Text(
-              time,
-              style: GoogleFonts.inter(
-                color: const Color(0xFF71777C),
-                fontSize: 12,
-              ),
-            ),
+            const SizedBox(width: 12),
+            Text(time, style: ProfileUi.caption()),
           ],
         ),
       ),

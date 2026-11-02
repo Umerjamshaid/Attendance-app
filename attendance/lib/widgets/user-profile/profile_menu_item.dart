@@ -19,6 +19,7 @@ class ProfileMenuItem extends StatelessWidget {
     this.badge,
     this.badgeColor,
     this.trailing,
+    this.subtitle,
   });
 
   final IconData icon;
@@ -28,6 +29,9 @@ class ProfileMenuItem extends StatelessWidget {
   final String? badge;
   final Color? badgeColor;
   final Widget? trailing;
+
+  /// Optional secondary line under the title.
+  final String? subtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -46,16 +50,25 @@ class ProfileMenuItem extends StatelessWidget {
           ),
           const SizedBox(width: ProfileUi.rowInset),
           Expanded(
-            // Wrap, not Row: a long title plus badge drops the badge to a
-            // second line on narrow screens instead of overflowing.
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              crossAxisAlignment: WrapCrossAlignment.center,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: ProfileUi.body(color: textColor)),
-                if (badge != null)
-                  _Badge(label: badge!, color: badgeColor ?? WC.present),
+                // Wrap lets a long title and badge take a second line on
+                // narrow screens instead of overflowing.
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(title, style: ProfileUi.body(color: textColor)),
+                    if (badge != null)
+                      _Badge(label: badge!, color: badgeColor ?? WC.present),
+                  ],
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(subtitle!, style: ProfileUi.small()),
+                ],
               ],
             ),
           ),

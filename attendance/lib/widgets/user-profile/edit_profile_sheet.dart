@@ -111,19 +111,23 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
     final emailError = _email.text.trim().isEmpty || _emailValid
         ? null
         : 'Enter a valid email address';
+    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
+    // useSafeArea does not cover the bottom edge, so keep clear of the gesture
+    // bar unless the keyboard is already covering it.
+    final safeBottom = keyboard > 0
+        ? 0.0
+        : MediaQuery.viewPaddingOf(context).bottom;
 
     return PopScope(
       canPop: !_saving,
       child: Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.viewInsetsOf(context).bottom,
-        ),
+        padding: EdgeInsets.only(bottom: keyboard),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
+          padding: EdgeInsets.fromLTRB(
             ProfileUi.gutter,
             0,
             ProfileUi.gutter,
-            ProfileUi.gutter,
+            ProfileUi.gutter + safeBottom,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
