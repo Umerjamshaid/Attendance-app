@@ -27,39 +27,58 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
   final _controller = TextEditingController();
-  late AnimationController _animCtrl;
-  late Animation<double> _fadeIn;
-  late Animation<Offset> _slideUp;
+  late final AnimationController _animationController;
+  late final Animation<double> _fadeIn;
+  late final Animation<Offset> _riseIn;
+  bool _animationStarted = false;
 
   @override
   void initState() {
     super.initState();
-    _animCtrl = AnimationController(
+    _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 420),
     );
-    _fadeIn = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
-    _slideUp = Tween<Offset>(
-      begin: const Offset(0, 0.06),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
-    _animCtrl.forward();
+    _fadeIn = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOut,
+    );
+    _riseIn = Tween<Offset>(begin: const Offset(0, 0.025), end: Offset.zero)
+        .animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_animationStarted) return;
+    _animationStarted = true;
+
+    if (MediaQuery.of(context).disableAnimations) {
+      _animationController.value = 1;
+    } else {
+      _animationController.forward();
+    }
   }
 
   @override
   void dispose() {
     _controller.dispose();
-    _animCtrl.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
-  void _signIn() async {
+  Future<void> _signIn() async {
     final id = _controller.text.trim();
     if (id.isEmpty) return;
-    
+
     final authProvider = context.read<AuthProvider>();
     final success = await authProvider.login(id);
-    
+
     if (success) {
       widget.onLoginSuccess?.call();
     } else if (mounted) {
@@ -74,57 +93,75 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
-    final authStatus = context.watch<AuthProvider>().status;
-    final isLoading = authStatus == AuthStatus.authenticating;
+    final isLoading =
+        context.watch<AuthProvider>().status == AuthStatus.authenticating;
 
     return Scaffold(
       backgroundColor: WC.bg,
       resizeToAvoidBottomInset: true,
-      body: Column(
-        children: [
-          _LoginHeader(animation: _fadeIn),
-          Expanded(
-            child: FadeTransition(
-              opacity: _fadeIn,
-              child: SlideTransition(
-                position: _slideUp,
-                child: Container(
-                  width: double.infinity,
-                  decoration: const BoxDecoration(color: WC.white),
-                  child: SafeArea(
-                    top: false,
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(28, 36, 28, 24),
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final minHeight = (constraints.maxHeight - 48).clamp(
+              0.0,
+              double.infinity,
+            );
+
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: 440,
+                    minHeight: minHeight,
+                  ),
+                  child: FadeTransition(
+                    opacity: _fadeIn,
+                    child: SlideTransition(
+                      position: _riseIn,
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          const _BrandHeader(),
+                          const SizedBox(height: 44),
                           const Text(
-                            'EMPLOYEE ID',
+                            'Welcome back',
                             style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1.4,
-                              color: WC.muted,
+                              color: WC.black,
+                              fontSize: 32,
+                              fontWeight: FontWeight.w800,
+                              height: 1.15,
                             ),
                           ),
                           const SizedBox(height: 10),
-                          _IdInputField(controller: _controller),
-                          const SizedBox(height: 28),
-                          _SignInButton(loading: isLoading, onTap: _signIn),
-                          const SizedBox(height: 24),
-                          const Center(
-                            child: Text(
-                              'Your Employee ID was provided when your\naccount was created.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: WC.muted,
-                                height: 1.6,
-                              ),
+                          const Text(
+                            'Sign in with your employee ID to continue.',
+                            style: TextStyle(
+                              color: WC.muted,
+                              fontSize: 15,
+                              height: 1.5,
                             ),
                           ),
-                          const SizedBox(height: 28),
-                          _HintChip(
+                          const SizedBox(height: 30),
+                          _EmployeeIdField(
+                            controller: _controller,
+                            onSubmitted: (_) => _signIn(),
+                          ),
+                          const SizedBox(height: 20),
+                          _SignInButton(loading: isLoading, onPressed: _signIn),
+                          const SizedBox(height: 20),
+                          const Text(
+                            'Your Employee ID was provided when your account was created.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: WC.muted,
+                              fontSize: 13,
+                              height: 1.5,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          const _HintChip(
                             text:
                                 'Available IDs: EMP001 – EMP008  ·  Admin: EMP001',
                           ),
@@ -134,220 +171,169 @@ class _LoginScreenState extends State<LoginScreen>
                   ),
                 ),
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LoginHeader extends StatelessWidget {
-  final Animation<double> animation;
-  const _LoginHeader({required this.animation});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      color: WC.black,
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(28, 40, 28, 44),
-          child: FadeTransition(
-            opacity: animation,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: WC.white.withValues(alpha: 0.10),
-                    borderRadius: WC.r12,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: WC.white,
-                          borderRadius: WC.r8,
-                        ),
-                        child: const Icon(
-                          Icons.location_city_rounded,
-                          size: 18,
-                          color: WC.black,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'WorkCheck',
-                            style: TextStyle(
-                              color: WC.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.3,
-                            ),
-                          ),
-                          Text(
-                            'Office Attendance',
-                            style: TextStyle(
-                              color: Color(0xFF888888),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 36),
-                const Text(
-                  'Welcome\nback 👋',
-                  style: TextStyle(
-                    color: WC.white,
-                    fontSize: 38,
-                    fontWeight: FontWeight.w900,
-                    height: 1.15,
-                    letterSpacing: -1.0,
-                  ),
-                ),
-              ],
-            ),
-          ),
+            );
+          },
         ),
       ),
     );
   }
 }
 
-class _IdInputField extends StatelessWidget {
-  final TextEditingController controller;
-  const _IdInputField({required this.controller});
+class _BrandHeader extends StatelessWidget {
+  const _BrandHeader();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: WC.bg,
-        borderRadius: WC.r12,
-        border: Border.all(color: WC.border, width: 1.5),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 54,
-            height: 56,
-            decoration: BoxDecoration(
-              color: WC.surface,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                bottomLeft: Radius.circular(12),
-              ),
-            ),
-            child: const Icon(Icons.badge_outlined, color: WC.muted, size: 22),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(color: WC.black, borderRadius: WC.r12),
+          child: const Icon(
+            Icons.fingerprint_rounded,
+            color: WC.white,
+            size: 26,
           ),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              textCapitalization: TextCapitalization.characters,
-              inputFormatters: [UpperCaseTextFormatter()],
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
+        ),
+        const SizedBox(width: 12),
+        const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'WorkCheck',
+              style: TextStyle(
                 color: WC.black,
-                letterSpacing: 0.5,
-              ),
-              decoration: const InputDecoration(
-                hintText: 'e.g. EMP001',
-                hintStyle: TextStyle(
-                  color: WC.muted,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w400,
-                ),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 16),
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
               ),
             ),
-          ),
-        ],
+            SizedBox(height: 2),
+            Text(
+              'OFFICE ATTENDANCE',
+              style: TextStyle(
+                color: WC.muted,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.1,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _EmployeeIdField extends StatelessWidget {
+  const _EmployeeIdField({required this.controller, required this.onSubmitted});
+
+  final TextEditingController controller;
+  final ValueChanged<String> onSubmitted;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      autofocus: true,
+      textCapitalization: TextCapitalization.characters,
+      textInputAction: TextInputAction.done,
+      onSubmitted: onSubmitted,
+      inputFormatters: [UpperCaseTextFormatter()],
+      style: const TextStyle(
+        color: WC.black,
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+      ),
+      decoration: InputDecoration(
+        labelText: 'Employee ID',
+        hintText: 'e.g. EMP001',
+        prefixIcon: const Icon(Icons.badge_outlined, color: WC.muted),
+        filled: true,
+        fillColor: WC.white,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 18,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: WC.r12,
+          borderSide: const BorderSide(color: WC.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: WC.r12,
+          borderSide: const BorderSide(color: WC.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: WC.r12,
+          borderSide: const BorderSide(color: WC.accentBlue, width: 1.5),
+        ),
       ),
     );
   }
 }
 
 class _SignInButton extends StatelessWidget {
+  const _SignInButton({required this.loading, required this.onPressed});
+
   final bool loading;
-  final VoidCallback onTap;
-  const _SignInButton({required this.loading, required this.onTap});
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: loading ? null : onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        height: 56,
-        decoration: BoxDecoration(
-          color: loading ? const Color(0xFF333333) : WC.black,
-          borderRadius: WC.rFull,
+    return SizedBox(
+      height: 56,
+      child: FilledButton(
+        onPressed: loading ? null : onPressed,
+        style: FilledButton.styleFrom(
+          backgroundColor: WC.black,
+          disabledBackgroundColor: const Color(0xFF333333),
+          foregroundColor: WC.white,
+          shape: const StadiumBorder(),
         ),
-        child: Center(
-          child: loading
-              ? const SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(
-                    color: WC.white,
-                    strokeWidth: 2.5,
-                  ),
-                )
-              : const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Sign In',
-                      style: TextStyle(
-                        color: WC.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.2,
-                      ),
+        child: loading
+            ? const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      color: WC.white,
+                      strokeWidth: 2,
                     ),
-                    SizedBox(width: 8),
-                    Icon(Icons.arrow_forward, color: WC.white, size: 18),
-                  ],
-                ),
-        ),
+                  ),
+                  SizedBox(width: 12),
+                  Text('Signing in'),
+                ],
+              )
+            : const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Sign in',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  ),
+                  SizedBox(width: 10),
+                  Icon(Icons.arrow_forward_rounded, size: 18),
+                ],
+              ),
       ),
     );
   }
 }
 
 class _HintChip extends StatelessWidget {
-  final String text;
   const _HintChip({required this.text});
+
+  final String text;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: WC.surface,
-        borderRadius: WC.r12,
-        border: Border.all(color: WC.border),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(color: WC.surface, borderRadius: WC.r8),
       child: Row(
         children: [
           const Icon(Icons.info_outline_rounded, size: 16, color: WC.muted),
@@ -356,9 +342,10 @@ class _HintChip extends StatelessWidget {
             child: Text(
               text,
               style: const TextStyle(
-                fontSize: 12,
                 color: WC.muted,
+                fontSize: 12,
                 fontWeight: FontWeight.w500,
+                height: 1.4,
               ),
             ),
           ),

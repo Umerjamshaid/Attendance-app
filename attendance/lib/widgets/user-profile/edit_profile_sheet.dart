@@ -227,6 +227,8 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
                 style: FilledButton.styleFrom(
                   backgroundColor: AppTheme.primaryNavy,
                   foregroundColor: Colors.white,
+                  disabledBackgroundColor: const Color(0xFFF1F5F9),
+                  disabledForegroundColor: const Color(0xFF64748B),
                   minimumSize: const Size.fromHeight(52),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
