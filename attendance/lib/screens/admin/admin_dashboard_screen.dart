@@ -134,7 +134,7 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       present: adminProvider.presentToday,
                       absent: adminProvider.absentToday,
                     ),
-                    if (showInlineError)
+                    if (error != null && showInlineError)
                       _InlineError(
                         message: error,
                         onRetry: adminProvider.loadDashboard,
@@ -155,7 +155,7 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
                 sliver: const SliverToBoxAdapter(child: _LoadingRows()),
               )
-            else if (showFullError)
+            else if (error != null && showFullError)
               SliverFillRemaining(
                 hasScrollBody: false,
                 child: _StateView(

@@ -73,16 +73,15 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
     setState(() => _saving = true);
 
     try {
+      final attendanceProvider = context.read<AttendanceProvider>();
       await _storageService.saveAttendanceWindow(
         mode: _always ? 'always' : 'period',
         startHour: _startHour,
         endHour: _endHour,
       );
 
-      if (!mounted) return;
-
       // Refresh the provider so the attendance button updates immediately.
-      await context.read<AttendanceProvider>().loadWindowConfig();
+      await attendanceProvider.loadWindowConfig();
 
       if (!mounted) return;
 
