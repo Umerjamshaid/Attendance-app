@@ -17,19 +17,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _emailNotificationsEnabled = false;
   late TextEditingController _headlineController;
   late TextEditingController _chipsController;
+  late String _initialHeadline;
+  late String _initialChips;
+  bool _savingProfileDetails = false;
 
   @override
   void initState() {
     super.initState();
     final user = context.read<AuthProvider>().currentUser;
-    _headlineController = TextEditingController(
-      text: user?.headline ?? '${user?.role ?? ''} at ${user?.department ?? ''}',
-    );
-    _chipsController = TextEditingController(
-      text: user != null && user.chips.isNotEmpty
-          ? user.chips.join(', ')
-          : '${user?.department ?? ''}, ${user?.role ?? ''}',
-    );
+    _initialHeadline =
+        user?.headline ?? '${user?.role ?? ''} at ${user?.department ?? ''}';
+    _initialChips = user != null && user.chips.isNotEmpty
+        ? user.chips.join(', ')
+        : '${user?.department ?? ''}, ${user?.role ?? ''}';
+    _headlineController = TextEditingController(text: _initialHeadline)
+      ..addListener(_onProfileDetailsChanged);
+    _chipsController = TextEditingController(text: _initialChips)
+      ..addListener(_onProfileDetailsChanged);
   }
 
   @override
@@ -39,26 +43,57 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.dispose();
   }
 
-  void _saveProfileDetails() {
+  bool get _hasProfileDetailsChanges =>
+      _headlineController.text.trim() != _initialHeadline.trim() ||
+      _chipsController.text.trim() != _initialChips.trim();
+
+  void _onProfileDetailsChanged() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _saveProfileDetails() async {
+    if (!_hasProfileDetailsChanges || _savingProfileDetails) return;
+
     final headline = _headlineController.text.trim();
     final chipsText = _chipsController.text.trim();
     final chips = chipsText.isNotEmpty
-        ? chipsText.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList()
+        ? chipsText
+              .split(',')
+              .map((e) => e.trim())
+              .where((e) => e.isNotEmpty)
+              .toList()
         : <String>[];
 
-    context.read<AuthProvider>().updateProfile(
-      headline: headline,
-      chips: chips,
-    );
+    setState(() => _savingProfileDetails = true);
+    try {
+      await context.read<AuthProvider>().updateProfile(
+        headline: headline,
+        chips: chips,
+      );
+      if (!mounted) return;
+      setState(() {
+        _initialHeadline = headline;
+        _initialChips = chipsText;
+        _savingProfileDetails = false;
+      });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Profile details saved!'),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        backgroundColor: Colors.green[700],
-      ),
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Profile details saved!'),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          backgroundColor: Colors.green[700],
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _savingProfileDetails = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not save profile details.')),
+      );
+    }
   }
 
   // Helper to build groups without manual dividers
@@ -126,7 +161,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   return _ProfileHeader(
                     name: user?.name ?? 'User',
                     email: user?.email ?? '',
-                    role: user?.headline ?? '${user?.role ?? ''} at ${user?.department ?? ''}',
+                    role:
+                        user?.headline ??
+                        '${user?.role ?? ''} at ${user?.department ?? ''}',
                     avatarColor: const Color(0xFF7C5CFC),
                     onTap: () {},
                   );
@@ -281,6 +318,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 8),
           TextField(
             controller: _headlineController,
+            enabled: !_savingProfileDetails,
             style: GoogleFonts.inter(
               fontSize: 15,
               fontWeight: FontWeight.w600,
@@ -288,10 +326,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             decoration: InputDecoration(
               hintText: 'e.g. Software Engineer at Company',
-              prefixIcon: Icon(Icons.short_text_rounded, size: 20, color: Colors.grey[400]),
+              prefixIcon: Icon(
+                Icons.short_text_rounded,
+                size: 20,
+                color: Colors.grey[400],
+              ),
               filled: true,
               fillColor: const Color(0xFFF8F9FA),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 18,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(15),
                 borderSide: BorderSide.none,
@@ -319,14 +364,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 4),
           Text(
             'Separate multiple tags with commas',
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              color: Colors.grey[400],
-            ),
+            style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[400]),
           ),
           const SizedBox(height: 8),
           TextField(
             controller: _chipsController,
+            enabled: !_savingProfileDetails,
             style: GoogleFonts.inter(
               fontSize: 15,
               fontWeight: FontWeight.w600,
@@ -334,10 +377,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             decoration: InputDecoration(
               hintText: 'e.g. Engineering, Admin, Full-time',
-              prefixIcon: Icon(Icons.label_outline_rounded, size: 20, color: Colors.grey[400]),
+              prefixIcon: Icon(
+                Icons.label_outline_rounded,
+                size: 20,
+                color: Colors.grey[400],
+              ),
               filled: true,
               fillColor: const Color(0xFFF8F9FA),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 18,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(15),
                 borderSide: BorderSide.none,
@@ -357,17 +407,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
             width: double.infinity,
             height: 50,
             child: ElevatedButton(
-              onPressed: _saveProfileDetails,
+              onPressed: _hasProfileDetailsChanges && !_savingProfileDetails
+                  ? _saveProfileDetails
+                  : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1B1D1F),
                 foregroundColor: Colors.white,
+                disabledBackgroundColor: const Color(0xFFF1F5F9),
+                disabledForegroundColor: const Color(0xFF64748B),
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(15),
                 ),
               ),
               child: Text(
-                'Save Details',
+                _savingProfileDetails ? 'Saving…' : 'Save changes',
                 style: GoogleFonts.inter(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,

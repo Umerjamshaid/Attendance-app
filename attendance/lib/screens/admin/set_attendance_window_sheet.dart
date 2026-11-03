@@ -27,6 +27,10 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
   bool _always = false;
   int _startHour = 7;
   int _endHour = 13;
+  bool _initialAlways = false;
+  int _initialStartHour = 7;
+  int _initialEndHour = 13;
+  bool _loading = true;
   bool _saving = false;
 
   @override
@@ -36,13 +40,23 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
   }
 
   Future<void> _loadSaved() async {
-    final saved = await _storageService.getAttendanceWindow();
-    if (saved != null && mounted) {
+    try {
+      final saved = await _storageService.getAttendanceWindow();
+      if (!mounted) return;
       setState(() {
-        _always = (saved['mode'] as String?) == 'always';
-        _startHour = (saved['startHour'] as int?) ?? 7;
-        _endHour = (saved['endHour'] as int?) ?? 13;
+        if (saved != null) {
+          _always = (saved['mode'] as String?) == 'always';
+          _startHour = (saved['startHour'] as int?) ?? 7;
+          _endHour = (saved['endHour'] as int?) ?? 13;
+        }
+        _initialAlways = _always;
+        _initialStartHour = _startHour;
+        _initialEndHour = _endHour;
+        _loading = false;
       });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loading = false);
     }
   }
 
@@ -56,8 +70,13 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
 
   /// "Always open" has no range; a schedule needs the end after the start.
   bool get _rangeValid => _always || _endHour > _startHour;
+  bool get _hasChanges =>
+      _always != _initialAlways ||
+      _startHour != _initialStartHour ||
+      _endHour != _initialEndHour;
 
   Future<void> _save() async {
+    if (_loading || _saving || !_hasChanges) return;
     if (!_rangeValid) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -197,7 +216,7 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
                 ],
                 selected: {_always},
                 showSelectedIcon: false,
-                onSelectionChanged: _saving
+                onSelectionChanged: (_saving || _loading)
                     ? null
                     : (selection) {
                         HapticFeedback.selectionClick();
@@ -239,7 +258,7 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
                                   label: 'Start time',
                                   value: _startHour,
                                   formatter: _formatHour,
-                                  enabled: !_saving,
+                                  enabled: !_saving && !_loading,
                                   onChanged: (v) =>
                                       setState(() => _startHour = v),
                                 ),
@@ -250,7 +269,7 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
                                   label: 'End time',
                                   value: _endHour,
                                   formatter: _formatHour,
-                                  enabled: !_saving,
+                                  enabled: !_saving && !_loading,
                                   onChanged: (v) =>
                                       setState(() => _endHour = v),
                                 ),
@@ -327,10 +346,15 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
                   Expanded(
                     flex: 2,
                     child: FilledButton(
-                      onPressed: (_saving || !_rangeValid) ? null : _save,
+                      onPressed:
+                          (_loading || _saving || !_hasChanges || !_rangeValid)
+                          ? null
+                          : _save,
                       style: FilledButton.styleFrom(
                         backgroundColor: AppTheme.primaryNavy,
                         foregroundColor: Colors.white,
+                        disabledBackgroundColor: const Color(0xFFF1F5F9),
+                        disabledForegroundColor: const Color(0xFF64748B),
                         minimumSize: const Size.fromHeight(52),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
