@@ -1,175 +1,199 @@
+import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/config/wc_tokens.dart';
 import 'package:attendance/models/attendance_record_model.dart';
-
+import 'package:attendance/models/employees_model.dart';
+import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+/// One employee row in the admin roster.
+///
+/// Rows are laid out independently but look like a single grouped card: only
+/// the first row rounds its top corners and only the last rounds its bottom
+/// ones, with a hairline divider inset past the avatar in between. This is the
+/// pattern Block Buzz uses for its member list, and it keeps long lists
+/// virtualized.
 class EmployeeCard extends StatelessWidget {
+  const EmployeeCard({
+    super.key,
+    required this.data,
+    this.isFirst = true,
+    this.isLast = true,
+  });
+
   final EmployeeAttendance data;
-  const EmployeeCard({super.key, required this.data});
+  final bool isFirst;
+  final bool isLast;
+
+  static const double _avatarSize = 40;
+
+  /// Dividers start after the avatar so they align with the text.
+  static const double _dividerIndent =
+      ProfileUi.rowInset + _avatarSize + ProfileUi.rowInset;
+
+  static String _initials(String name) {
+    final letters = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .take(2)
+        .map((part) => String.fromCharCode(part.runes.first))
+        .join()
+        .toUpperCase();
+    return letters.isEmpty ? '?' : letters;
+  }
+
+  static String _formatTime(DateTime dt) {
+    final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+    final minute = dt.minute.toString().padLeft(2, '0');
+    return '$hour:$minute ${dt.hour >= 12 ? 'PM' : 'AM'}';
+  }
+
+  /// "Role · Department", skipping whichever part is empty.
+  String get _roleLine => [
+    data.employee.role.trim(),
+    data.employee.department.trim(),
+  ].where((part) => part.isNotEmpty).join(' · ');
+
+  String get _statusLine {
+    final employee = data.employee;
+    final record = data.latestRecord;
+    final totals = '${employee.totalPresents}P / ${employee.totalAbsents}A';
+
+    if (data.isPresent) {
+      final time = record == null ? null : _formatTime(record.timestamp);
+      return time == null ? 'Checked in · $totals' : 'In at $time · $totals';
+    }
+    final last = employee.time.trim();
+    final hasLast = last.isNotEmpty && last != '—';
+    final status = record == null ? 'Not checked in' : 'Marked absent';
+    return hasLast ? '$status · Last $last · $totals' : '$status · $totals';
+  }
+
+  void _openDetails(BuildContext context) {
+    HapticFeedback.selectionClick();
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      backgroundColor: ProfileUi.page,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(ProfileUi.sheetRadius),
+        ),
+      ),
+      builder: (_) => _EmployeeDetailsSheet(
+        employee: data.employee,
+        isPresent: data.isPresent,
+        initials: _initials(data.employee.name),
+        roleLine: _roleLine,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final employee = data.employee;
+    final name = employee.name.trim().isEmpty
+        ? 'Unnamed employee'
+        : employee.name.trim();
     final isPresent = data.isPresent;
-    final color = isPresent ? WC.present : WC.absent;
-    final initials = employee.name
-        .split(' ')
-        .where((e) => e.isNotEmpty)
-        .map((e) => e[0])
-        .take(2)
-        .join()
-        .toUpperCase();
+    final statusColor = isPresent ? WC.present : AppTheme.textSecondary;
+    final roleLine = _roleLine;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: WC.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFF0F0F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
-        ],
+    return Material(
+      color: ProfileUi.cardFill,
+      borderRadius: BorderRadius.vertical(
+        top: isFirst
+            ? const Radius.circular(ProfileUi.cardRadius)
+            : Radius.zero,
+        bottom: isLast
+            ? const Radius.circular(ProfileUi.cardRadius)
+            : Radius.zero,
       ),
+      // Keeps the row ripple inside the rounded corners.
+      clipBehavior: Clip.antiAlias,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                // Avatar with presence ring
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: color.withValues(alpha: 0.2), width: 2),
+          if (!isFirst)
+            Divider(
+              height: 1,
+              thickness: 1,
+              indent: _dividerIndent,
+              endIndent: ProfileUi.rowInset,
+              color: ProfileUi.hairline,
+            ),
+          MergeSemantics(
+            child: Semantics(
+              button: true,
+              hint: 'Opens attendance details',
+              child: InkWell(
+                onTap: () => _openDetails(context),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: ProfileUi.rowInset,
+                    vertical: 12,
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(2),
-                    child: CircleAvatar(
-                      backgroundColor: color.withValues(alpha: 0.08),
-                      child: Text(
-                        initials,
-                        style: GoogleFonts.dmSans(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: color,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-
-                // Name & Role
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      Text(
-                        employee.name,
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF1B1D1F),
+                      Container(
+                        width: _avatarSize,
+                        height: _avatarSize,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryNavy.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          _initials(employee.name),
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.primaryNavy,
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.work_outline_rounded,
-                            size: 12,
-                            color: Colors.grey[400],
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${employee.role} · ${employee.department}',
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              color: Colors.grey[500],
-                              fontWeight: FontWeight.w500,
+                      const SizedBox(width: ProfileUi.rowInset),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              name,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: ProfileUi.body(weight: FontWeight.w600),
                             ),
-                          ),
-                        ],
+                            if (roleLine.isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                roleLine,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: ProfileUi.caption(),
+                              ),
+                            ],
+                            const SizedBox(height: 2),
+                            Text(
+                              _statusLine,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: ProfileUi.caption(
+                                color: statusColor,
+                                weight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 8),
+                      _StatusPill(isPresent: isPresent),
                     ],
                   ),
                 ),
-
-                // Compact Status Badge
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    isPresent ? 'PRESENT' : 'ABSENT',
-                    style: GoogleFonts.inter(
-                      color: color,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Secondary Info Strip (Balanced details)
-          InkWell(
-            onTap: () => _showEmployeeStats(context),
-            borderRadius: const BorderRadius.vertical(
-              bottom: Radius.circular(24),
-            ),
-            splashColor: Colors.black.withValues(alpha: 0.02),
-            highlightColor: Colors.black.withValues(alpha: 0.01),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFAFAFA),
-                borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(24),
-                ),
-                border: const Border(top: BorderSide(color: Color(0xFFF5F5F5))),
-              ),
-              child: Row(
-                children: [
-                  if (isPresent)
-                    _InfoItem(
-                      icon: Icons.access_time_filled_rounded,
-                      label: 'IN: ${data.latestRecord?.timestamp.hour.toString().padLeft(2, '0')}:${data.latestRecord?.timestamp.minute.toString().padLeft(2, '0')}',
-                      color: Colors.blue[700]!,
-                    )
-                  else
-                    _InfoItem(
-                      icon: Icons.event_busy_rounded,
-                      label: 'LAST: ${employee.time}',
-                      color: Colors.grey[600]!,
-                    ),
-                  const SizedBox(width: 16),
-                  _InfoItem(
-                    icon: Icons.analytics_outlined,
-                    label: '${employee.totalPresents}P / ${employee.totalAbsents}A',
-                    color: const Color(0xFF666666),
-                  ),
-                  const Spacer(),
-                  const Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    size: 12,
-                    color: Color(0xFFCCCCCC),
-                  ),
-                ],
               ),
             ),
           ),
@@ -177,80 +201,166 @@ class EmployeeCard extends StatelessWidget {
       ),
     );
   }
+}
 
-  void _showEmployeeStats(BuildContext context) {
-    final employee = data.employee;
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: WC.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(28),
-          side: const BorderSide(color: Color(0xFFEEEEEE)),
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.isPresent});
+
+  final bool isPresent;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isPresent ? WC.present : AppTheme.textSecondary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        isPresent ? 'Present' : 'Absent',
+        style: GoogleFonts.inter(
+          fontSize: 11,
+          height: 1.2,
+          fontWeight: FontWeight.w600,
+          color: color,
         ),
-        title: Column(
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: const Color(0xFFEEEEEE),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Detailed Analytics',
-              style: GoogleFonts.dmSans(
-                fontWeight: FontWeight.w900,
-                color: const Color(0xFF1B1D1F),
-                fontSize: 20,
-              ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _DetailRow(
-              label: 'Total Presents',
-              value: '${employee.totalPresents}',
-              color: WC.present,
-            ),
-            const Divider(color: Color(0xFFF5F5F5)),
-            _DetailRow(
-              label: 'Total Absents',
-              value: '${employee.totalAbsents}',
-              color: WC.absent,
-            ),
-            const Divider(color: Color(0xFFF5F5F5)),
-            _DetailRow(
-              label: 'Attendance Rate',
-              value:
-                  '${((employee.totalPresents / (employee.totalPresents + employee.totalAbsents)) * 100).toStringAsFixed(1)}%',
-              color: Colors.blue[700]!,
-            ),
-          ],
-        ),
-        actions: [
+      ),
+    );
+  }
+}
+
+/// Totals for one employee. Replaces the old "Detailed Analytics" dialog.
+class _EmployeeDetailsSheet extends StatelessWidget {
+  const _EmployeeDetailsSheet({
+    required this.employee,
+    required this.isPresent,
+    required this.initials,
+    required this.roleLine,
+  });
+
+  final Employee employee;
+  final bool isPresent;
+  final String initials;
+  final String roleLine;
+
+  /// Percentage of recorded days that were present, or an em dash before any
+  /// day is recorded (the old dialog divided by zero and printed "NaN%").
+  String get _rate {
+    final total = employee.totalPresents + employee.totalAbsents;
+    if (total == 0) return '—';
+    return '${(employee.totalPresents / total * 100).toStringAsFixed(1)}%';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final name = employee.name.trim().isEmpty
+        ? 'Unnamed employee'
+        : employee.name.trim();
+
+    return SingleChildScrollView(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.paddingOf(context).bottom + ProfileUi.gutter,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
           Padding(
-            padding: const EdgeInsets.only(bottom: 8, right: 8),
-            child: TextButton(
-              onPressed: () => Navigator.pop(context),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
+            padding: const EdgeInsets.symmetric(horizontal: ProfileUi.gutter),
+            child: Row(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryNavy.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    initials,
+                    style: GoogleFonts.inter(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.primaryNavy,
+                    ),
+                  ),
                 ),
-              ),
-              child: Text(
-                'Close',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFF1B1D1F),
-                  fontWeight: FontWeight.w700,
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Semantics(
+                        header: true,
+                        child: Text(
+                          name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 20,
+                            height: 1.25,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                      ),
+                      if (roleLine.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(roleLine, style: ProfileUi.small()),
+                      ],
+                    ],
+                  ),
                 ),
-              ),
+                const SizedBox(width: 12),
+                SizedBox.square(
+                  dimension: 44,
+                  child: IconButton(
+                    tooltip: 'Close',
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: IconButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      backgroundColor: ProfileUi.cardFill,
+                      foregroundColor: AppTheme.textPrimary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                          ProfileUi.sheetRadius,
+                        ),
+                      ),
+                    ),
+                    icon: const Icon(Icons.close_rounded, size: 22),
+                  ),
+                ),
+              ],
             ),
+          ),
+          const SizedBox(height: 8),
+          ProfileSectionCard(
+            label: 'Attendance',
+            dividerIndent: ProfileUi.rowInset,
+            children: [
+              _DetailRow(
+                label: 'Today',
+                value: isPresent ? 'Present' : 'Absent',
+                color: isPresent ? WC.present : AppTheme.textSecondary,
+              ),
+              _DetailRow(
+                label: 'Total presents',
+                value: '${employee.totalPresents}',
+                color: WC.present,
+              ),
+              _DetailRow(
+                label: 'Total absents',
+                value: '${employee.totalAbsents}',
+                color: WC.absent,
+              ),
+              _DetailRow(
+                label: 'Attendance rate',
+                value: _rate,
+                color: AppTheme.primaryNavy,
+              ),
+            ],
           ),
         ],
       ),
@@ -259,69 +369,45 @@ class EmployeeCard extends StatelessWidget {
 }
 
 class _DetailRow extends StatelessWidget {
-  final String label, value;
-  final Color color;
   const _DetailRow({
     required this.label,
     required this.value,
     required this.color,
   });
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              color: const Color(0xFF666666),
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
-            ),
-          ),
-          Text(
-            value,
-            style: GoogleFonts.dmSans(
-              color: color,
-              fontWeight: FontWeight.w900,
-              fontSize: 18,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoItem extends StatelessWidget {
-  final IconData icon;
   final String label;
+  final String value;
   final Color color;
 
-  const _InfoItem({
-    required this.icon,
-    required this.label,
-    required this.color,
-  });
-
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 14, color: color.withValues(alpha: 0.6)),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: GoogleFonts.inter(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: color,
-          ),
+    return MergeSemantics(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: ProfileUi.rowInset,
+          vertical: 14,
         ),
-      ],
+        child: Row(
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text(label, style: ProfileUi.body())),
+            Text(
+              value,
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

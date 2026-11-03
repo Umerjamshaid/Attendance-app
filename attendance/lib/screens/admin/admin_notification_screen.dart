@@ -1,142 +1,110 @@
-// Screens imports
-import 'package:attendance/config/wc_tokens.dart';
+import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/widgets/notification_tile.dart';
-
-// dart packages
+import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
-// google fonts
 import 'package:google_fonts/google_fonts.dart';
 
-// --- Font Suggestion for a Cleaner, More Professional Look ---
-//
-// The 'Akatab' font you used is quite stylized and perhaps better for a specific theme.
-// For a standard, professional "Admin" screen, a clean, highly readable geometric
-// sans-serif font is generally preferred.
-//
-// I highly recommend 'Inter'. It's incredibly versatile, clean, and has a great
-// range of weights, making it a favorite for UI design.
-// Other great alternatives: 'Poppins', 'Montserrat', 'Roboto', 'Public Sans'.
-//
-// Let's use 'Inter' for this screen transformation!
-
-class AdminNotificationScreen extends StatefulWidget {
+class AdminNotificationScreen extends StatelessWidget {
   const AdminNotificationScreen({super.key});
 
-  @override
-  State<AdminNotificationScreen> createState() =>
-      _AdminNotificationScreenState();
-}
+  /// There is no notification data source yet, so this is empty and the screen
+  /// shows its empty state. Populate it (newest first) once one exists; the
+  /// list below renders them as-is.
+  static const List<NotificationTile> _items = [];
 
-class _AdminNotificationScreenState extends State<AdminNotificationScreen> {
   @override
   Widget build(BuildContext context) {
-    // --- Body Content based on the image style ---
     return Scaffold(
-      backgroundColor: Colors.white, // Clean background
+      backgroundColor: ProfileUi.page,
       appBar: AppBar(
-        backgroundColor: Colors.white, // Clean background
-        elevation: 0, // No shadow
+        backgroundColor: ProfileUi.page,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        elevation: 0,
+        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: WC.muted, // Standard dark red color from the image
-            size: 18, // Adjust size
-          ),
-          onPressed: () =>
-              Navigator.of(context).pop(), // Functional back button
+          tooltip: 'Back',
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          color: AppTheme.textPrimary,
+          onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          'NOTIFICATIONS', // Capitalized title
-          style: GoogleFonts.inter(
-            // Use Inter font here
-            fontSize: 16, // Size similar to image
-            fontWeight: FontWeight.bold,
-            color: const Color(0xFF1B1D1F), // Dark charcoal, not pure black
-            letterSpacing: 1.2, // To mimic the geometric spacing
-          ),
+          'Notifications',
+          style: ProfileUi.body(weight: FontWeight.w600),
         ),
-        centerTitle: true,
       ),
-      body: ListView(
-        children: [
-          SizedBox(height: 16), // Top padding
-          // Replicating Item 1 from the image
-          NotificationTile(
-            isUnread: true,
-            titleSpans: [
-              TextSpan(text: 'Admin, você ganhou '),
-              TextSpan(
-                text: '2 meses grátis',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
+      body: _items.isEmpty
+          ? const _EmptyNotifications()
+          : ListView.separated(
+              padding: EdgeInsets.only(
+                top: 8,
+                bottom: 24 + MediaQuery.paddingOf(context).bottom,
               ),
-              TextSpan(text: ' 💰'),
-            ],
-            description: 'Em cupons pra qualquer restaurante! Aproveite aqui',
-            time: '09:22',
-          ),
+              itemCount: _items.length,
+              separatorBuilder: (_, _) => Divider(
+                height: 1,
+                thickness: 1,
+                indent: ProfileUi.gutter,
+                endIndent: ProfileUi.gutter,
+                color: ProfileUi.hairline,
+              ),
+              itemBuilder: (_, index) => _items[index],
+            ),
+    );
+  }
+}
 
-          // Replicating Item 2 from the image
-          NotificationTile(
-            isUnread: false,
-            titleSpans: [
-              TextSpan(
-                text: '😁 Pra fazer sua alegria!',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-            ],
-            description: 'Vem pro canal do zap aproveitar as ofertas. Bora!',
-            time: '18/06',
-          ),
+class _EmptyNotifications extends StatelessWidget {
+  const _EmptyNotifications();
 
-          // Add a couple more examples to fill the space
-          NotificationTile(
-            isUnread: false,
-            titleSpans: [
-              TextSpan(
-                text: 'Sua entrega foi confirmada!',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          ProfileUi.gutter + 4,
+          ProfileUi.gutter + 4,
+          ProfileUi.gutter + 4,
+          ProfileUi.gutter + 4 + MediaQuery.paddingOf(context).bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: const BoxDecoration(
+                color: ProfileUi.cardFill,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.notifications_none_rounded,
+                size: 32,
+                color: AppTheme.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Semantics(
+              header: true,
+              child: Text(
+                'You’re all caught up',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  height: 1.3,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
                 ),
               ),
-            ],
-            description: 'Aproveite seu prato! Nos avalie.',
-            time: '23/06',
-          ),
-          NotificationTile(
-            isUnread: true,
-            titleSpans: [
-              TextSpan(
-                text: 'Nova oferta de ',
-                style: TextStyle(color: Colors.black87),
-              ),
-              TextSpan(
-                text: 'Pizza Hut',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.redAccent,
-                ),
-              ),
-              TextSpan(
-                text: '!',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.redAccent,
-                ),
-              ),
-            ],
-            description: '50% de desconto na sua próxima compra.',
-            time: '24/06',
-          ),
-
-          SizedBox(height: 32), // Bottom padding
-        ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'New notifications will appear here.',
+              textAlign: TextAlign.center,
+              style: ProfileUi.small().copyWith(height: 1.45),
+            ),
+          ],
+        ),
       ),
     );
   }

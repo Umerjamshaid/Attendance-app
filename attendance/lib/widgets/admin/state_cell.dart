@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 class StatCell extends StatelessWidget {
   final String value, label;
   final Color color;
-  const StatCell({super.key, 
+  const StatCell({
+    super.key,
     required this.value,
     required this.label,
     required this.color,
@@ -22,6 +23,7 @@ class StatCell extends StatelessWidget {
               fontWeight: FontWeight.w900,
               height: 1,
               letterSpacing: -0.5,
+              fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
           const SizedBox(height: 5),
