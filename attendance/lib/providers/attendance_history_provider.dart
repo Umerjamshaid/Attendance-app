@@ -27,6 +27,7 @@ class AttendanceHistoryProvider extends ChangeNotifier {
   List<AttendanceRecord> get records => _records;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  bool get isDemoMode => _service.isDemoMode;
 
   // ── Computed stats (derived from records, no extra storage needed)
   int get presentCount => _records.where((r) => r.isPresent).length;

@@ -1,4 +1,5 @@
 import 'package:attendance/providers/auth_provider.dart';
+import 'package:attendance/widgets/demo_mode_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -143,6 +144,10 @@ class _LoginScreenState extends State<LoginScreen>
                               height: 1.5,
                             ),
                           ),
+                          if (context.watch<AuthProvider>().isDemoMode) ...[
+                            const SizedBox(height: 16),
+                            const DemoModeNotice(),
+                          ],
                           const SizedBox(height: 30),
                           _EmployeeIdField(
                             controller: _controller,
@@ -162,8 +167,7 @@ class _LoginScreenState extends State<LoginScreen>
                           ),
                           const SizedBox(height: 24),
                           const _HintChip(
-                            text:
-                                'Available IDs: EMP001 – EMP008  ·  Admin: EMP001',
+                            text: 'Demo IDs: EMP001 – EMP003 · Admin: EMP001',
                           ),
                         ],
                       ),

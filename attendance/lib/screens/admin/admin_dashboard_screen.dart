@@ -5,6 +5,7 @@ import 'package:attendance/screens/admin/admin_notification_screen.dart';
 import 'package:attendance/widgets/admin/admin_filter_bar.dart';
 import 'package:attendance/widgets/admin/admin_overview_card.dart';
 import 'package:attendance/widgets/admin/employee_card.dart';
+import 'package:attendance/widgets/demo_mode_notice.dart';
 import 'package:attendance/widgets/user-profile/profile_menu_item.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
@@ -120,6 +121,10 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    if (adminProvider.isDemoMode) ...[
+                      const DemoModeNotice(),
+                      const SizedBox(height: 12),
+                    ],
                     AdminOverviewCard(
                       total: total,
                       present: adminProvider.presentToday,

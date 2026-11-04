@@ -3,6 +3,8 @@
 import 'package:attendance/models/employees_model.dart';
 
 class EmployeeService {
+  bool get isDemoMode => true;
+
   Future<List<Employee>> getAllEmployees() async {
     // final snapshot = await FirebaseFirestore.instance
     //     .collection('employees')

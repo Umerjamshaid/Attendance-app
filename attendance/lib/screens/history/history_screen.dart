@@ -6,6 +6,7 @@ import 'package:attendance/models/attendance_record_model.dart';
 import 'package:attendance/providers/attendance_history_provider.dart';
 import 'package:attendance/providers/auth_provider.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
+import 'package:attendance/widgets/demo_mode_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -111,6 +112,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
           slivers: [
             _buildSliverAppBar(),
+            if (historyProvider.isDemoMode)
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(
+                  sidePad + ProfileUi.gutter,
+                  12,
+                  sidePad + ProfileUi.gutter,
+                  0,
+                ),
+                sliver: const SliverToBoxAdapter(child: DemoModeNotice()),
+              ),
             SliverPadding(
               padding: EdgeInsets.symmetric(horizontal: sidePad),
               sliver: SliverToBoxAdapter(

@@ -29,6 +29,8 @@ class AdminProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   String get filter => _filter;
+  bool get isDemoMode =>
+      _attendanceService.isDemoMode || _employeeService.isDemoMode;
 
   int get totalEmployees => _allEmployeeAttendance.length;
   int get presentToday =>
