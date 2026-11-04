@@ -7,7 +7,7 @@ enum AuthStatus { authenticated, unauthenticated, authenticating, initial }
 
 class AuthProvider extends ChangeNotifier {
   final EmployeeService _employeeService;
-  
+
   AuthStatus _status = AuthStatus.initial;
   Employee? _currentUser;
   String? _error;
@@ -21,6 +21,7 @@ class AuthProvider extends ChangeNotifier {
   Employee? get currentUser => _currentUser;
   String? get error => _error;
   bool get isAuthenticated => _status == AuthStatus.authenticated;
+  bool get isDemoMode => _employeeService.isDemoMode;
 
   Future<void> _checkLoginStatus() async {
     final prefs = await SharedPreferences.getInstance();
@@ -126,10 +127,10 @@ class AuthProvider extends ChangeNotifier {
   Future<void> logout() async {
     _status = AuthStatus.unauthenticated;
     _currentUser = null;
-    
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('userId');
-    
+
     notifyListeners();
   }
 }

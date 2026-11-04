@@ -10,6 +10,8 @@
 import 'package:attendance/models/attendance_record_model.dart';
 
 class AttendanceService {
+  bool get isDemoMode => true;
+
   // Replace these methods' internals with your Firebase/API calls.
   // The method signatures stay the same regardless of backend.
 
@@ -56,7 +58,7 @@ class AttendanceService {
     //     .get();
 
     await Future.delayed(const Duration(seconds: 1));
-    
+
     // Returning mock data for today to show "presents" in the Admin dashboard
     final now = DateTime.now();
     return [
