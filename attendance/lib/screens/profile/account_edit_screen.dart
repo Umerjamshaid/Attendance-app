@@ -129,8 +129,12 @@ class _AccountEditScreenState extends State<AccountEditScreen> {
               ? null
               : _save,
           style: FilledButton.styleFrom(
-            disabledBackgroundColor: const Color(0xFFF1F5F9),
-            disabledForegroundColor: const Color(0xFF64748B),
+            disabledBackgroundColor: Theme.of(
+              context,
+            ).colorScheme.surfaceContainerHighest,
+            disabledForegroundColor: Theme.of(
+              context,
+            ).colorScheme.onSurfaceVariant,
             minimumSize: const Size(0, 52),
           ),
           child: _saving

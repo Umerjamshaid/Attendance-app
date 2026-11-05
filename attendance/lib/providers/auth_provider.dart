@@ -47,6 +47,7 @@ class AuthProvider extends ChangeNotifier {
   bool get needsPasswordSetup => _backend?.needsPasswordSetup ?? false;
   CompanyBackend? get backend => _backend;
 
+  /// Refreshes membership without discarding a loaded account during outages.
   Future<void> refreshSession() async {
     if (_backend == null) return;
     final generation = ++_sessionGeneration;
@@ -60,8 +61,10 @@ class AuthProvider extends ChangeNotifier {
       _error = null;
     } catch (e) {
       if (_disposed || generation != _sessionGeneration) return;
-      _currentUser = null;
-      _status = AuthStatus.unauthenticated;
+      if (e is CompanyAccessException) _currentUser = null;
+      _status = _currentUser == null
+          ? AuthStatus.unauthenticated
+          : AuthStatus.authenticated;
       _error = e.toString();
     }
     notifyListeners();

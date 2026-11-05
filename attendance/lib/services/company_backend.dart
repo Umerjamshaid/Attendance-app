@@ -10,6 +10,11 @@ class CompanyException implements Exception {
   String toString() => message;
 }
 
+/// A confirmed loss of session or active company membership.
+class CompanyAccessException extends CompanyException {
+  const CompanyAccessException(super.message);
+}
+
 class AttendancePolicy {
   const AttendancePolicy({
     this.mode = 'period',
@@ -30,6 +35,10 @@ abstract class CompanyBackend {
   bool get needsPasswordSetup => false;
   Stream<void> get authChanges => const Stream.empty();
   DateTime get companyNow => DateTime.now();
+
+  /// Restores an active member, or returns `null` when no session exists.
+  ///
+  /// Throws [CompanyAccessException] for confirmed access loss, not outages.
   Future<Employee?> restoreSession();
   Future<Employee> signIn(String email, String password);
   Future<void> signOut();

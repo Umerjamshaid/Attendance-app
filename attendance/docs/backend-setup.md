@@ -86,6 +86,13 @@ provisioned by the project owner through administrative tooling. One account
 belongs to one company in this pilot. Deactivation immediately blocks new data
 access even with an existing JWT; it does not delete historical check-ins.
 
+Invitations do not contain a generated password. With the app installed, open
+the invitation on that phone and choose a password of at least 12 characters.
+If the invitation was already used or opened before installation, use **Forgot
+password?** on the app's sign-in screen, send a recovery email, and open the
+newest link on the same phone. Never share passwords or recovery links. Visitors
+using **Explore demo** do not need an account or password.
+
 The organization starts in `Asia/Karachi` with the existing 7 AM–1 PM schedule.
 The admin can select Scheduled or Always open in the existing window sheet.
 The server is authoritative; device-clock changes cannot open a closed window.
@@ -145,7 +152,7 @@ and must be addressed in the company's deployment/privacy policy.
 flutter analyze
 flutter test
 npx deno check supabase/functions/submit-attendance/index.ts supabase/functions/manage-employees/index.ts supabase/functions/attendance-evidence/index.ts supabase/functions/retention-cleanup/index.ts
-npx deno test supabase/functions/_shared/validation_test.ts
+npx deno test --allow-env --allow-read=supabase/functions supabase/functions/_shared
 ```
 
 The Node security test executes the real migration in isolated PostgreSQL using

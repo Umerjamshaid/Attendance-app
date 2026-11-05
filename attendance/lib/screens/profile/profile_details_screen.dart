@@ -220,8 +220,8 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
                 ? null
                 : _save,
             style: FilledButton.styleFrom(
-              disabledBackgroundColor: const Color(0xFFF1F5F9),
-              disabledForegroundColor: const Color(0xFF64748B),
+              disabledBackgroundColor: colors.surfaceContainerHighest,
+              disabledForegroundColor: colors.onSurfaceVariant,
             ),
             child: Text(_saving ? 'Saving...' : 'Save changes'),
           ),

@@ -1,6 +1,7 @@
 import 'package:attendance/providers/auth_provider.dart';
 import 'package:attendance/screens/login/login_screen.dart';
 import 'package:attendance/screens/profile/account_edit_screen.dart';
+import 'package:attendance/screens/profile/profile_details_screen.dart';
 import 'package:attendance/services/preview_company_backend.dart';
 import 'package:attendance/config/app_theme.dart';
 import 'package:flutter/material.dart';
@@ -67,4 +68,36 @@ void main() {
     expect(button().onPressed, isNull);
     expect(saved, '');
   });
+  for (final dark in [false, true]) {
+    testWidgets(
+      'disabled edit buttons follow the ${dark ? 'dark' : 'light'} theme',
+      (tester) async {
+        final theme = dark ? AppTheme.darkTheme : AppTheme.theme;
+        final employee = (await PreviewCompanyBackend().restoreSession())!;
+        for (final screen in <Widget>[
+          AccountEditScreen(
+            title: 'Display name',
+            label: 'Name',
+            initialValue: employee.name,
+            onSave: (_) async {},
+          ),
+          ProfileDetailsScreen(user: employee),
+        ]) {
+          await tester.pumpWidget(MaterialApp(theme: theme, home: screen));
+          await tester.pumpAndSettle();
+          final button = tester.widget<FilledButton>(find.byType(FilledButton));
+          expect(button.onPressed, isNull);
+          expect(
+            button.style!.backgroundColor!.resolve({WidgetState.disabled}),
+            theme.colorScheme.surfaceContainerHighest,
+          );
+          expect(
+            button.style!.foregroundColor!.resolve({WidgetState.disabled}),
+            theme.colorScheme.onSurfaceVariant,
+          );
+          expect(tester.takeException(), isNull);
+        }
+      },
+    );
+  }
 }

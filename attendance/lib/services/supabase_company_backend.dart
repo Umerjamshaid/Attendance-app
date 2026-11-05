@@ -36,11 +36,32 @@ class SupabaseCompanyBackend extends CompanyBackend {
     } on CompanyException {
       rethrow;
     } on AuthException catch (error) {
+      if ([
+        'session_not_found',
+        'session_expired',
+        'bad_jwt',
+        'user_not_found',
+        'user_banned',
+        'refresh_token_not_found',
+      ].contains(error.code)) {
+        throw const CompanyAccessException(
+          'Your session is no longer available. Sign in again.',
+        );
+      }
       if (error.code == 'invalid_credentials') {
         throw const CompanyException('Email or password is incorrect.');
       }
       throw const CompanyException(
         'Account request failed. Check your details and try again.',
+      );
+    } on PostgrestException catch (error) {
+      if (['PGRST301', 'PGRST302', 'PGRST303'].contains(error.code)) {
+        throw const CompanyAccessException(
+          'Your session is no longer available. Sign in again.',
+        );
+      }
+      throw const CompanyException(
+        'Could not connect to your company. Please try again.',
       );
     } on FunctionException catch (error) {
       final details = error.details;
@@ -71,7 +92,7 @@ class SupabaseCompanyBackend extends CompanyBackend {
   Future<Employee> _current() async {
     final row = await client.rpc('current_employee');
     if (row == null) {
-      throw const CompanyException(
+      throw const CompanyAccessException(
         'Your company access is inactive. Contact an admin.',
       );
     }

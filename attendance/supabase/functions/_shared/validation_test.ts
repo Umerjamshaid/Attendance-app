@@ -1,5 +1,7 @@
 import { ApiError, coordinate, image, text, uuid } from './validation.ts';
+/** Fails the test when a boundary assertion is false. */
 function assert(value: boolean) { if (!value) throw new Error('Assertion failed'); }
+/** Requires validation to reject input using a stable public API error. */
 function rejects(action: () => unknown) { try { action(); } catch (error) { assert(error instanceof ApiError); return; } throw new Error('Expected rejection'); }
 Deno.test('input boundaries reject invalid identifiers and coordinates', () => {
   assert(uuid('30000000-0000-4000-8000-000000000001') === '30000000-0000-4000-8000-000000000001');

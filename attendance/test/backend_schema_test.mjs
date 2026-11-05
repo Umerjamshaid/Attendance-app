@@ -37,11 +37,13 @@ await db.exec(`
   insert into public.profiles(user_id,name) values ('${admin}','Admin'),('${employee}','Employee'),('${other}','Other');
   insert into storage.objects(bucket_id,name) values ('attendance-evidence','${company}/${employee}/${request}');
 `);
+/** Switches the isolated database's SQL role and simulated authenticated user. */
 async function role(name, user) {
   await db.exec('reset role');
   await db.query(`select set_config('request.jwt.claim.sub',$1,false)`, [user || '']);
   await db.exec(`set role ${name}`);
 }
+/** Reads the scalar assertion value from a test query. */
 async function value(sql) { return (await db.query(sql)).rows[0].value; }
 async function denied(sql) { await assert.rejects(db.exec(sql)); }
 await role('anon');

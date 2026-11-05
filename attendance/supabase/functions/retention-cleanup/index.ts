@@ -1,6 +1,7 @@
 import { adminClient, handle, ApiError } from '../_shared/server.ts';
 
-Deno.serve(handle(async (req) => {
+/** Deletes expired evidence and orphaned media for an authenticated retention job. */
+async function retentionCleanup(req: Request) {
   const secret = Deno.env.get('CRON_SECRET');
   if (!secret || req.headers.get('authorization') !== `Bearer ${secret}`) throw new ApiError(401, 'unauthorized');
   const db = adminClient();
@@ -24,4 +25,6 @@ Deno.serve(handle(async (req) => {
   }
   await db.from('submission_attempts').delete().lt('created_at', new Date(Date.now() - 86400_000).toISOString());
   return { ok: true, removed };
-}));
+}
+
+Deno.serve(handle(retentionCleanup));

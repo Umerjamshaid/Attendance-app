@@ -1,7 +1,8 @@
 import { actor, handle, ApiError } from '../_shared/server.ts';
 import { text } from '../_shared/validation.ts';
 
-Deno.serve(handle(async (req, input) => {
+/** Invites employees or changes active access after verifying the company admin. */
+async function manageEmployees(req: Request, input: Record<string, unknown>) {
   const { db, user, membership } = await actor(req, true);
   const code = text(input.employee_code, 32, /^[A-Z0-9_-]{1,32}$/);
   if (input.action === 'set_active') {
@@ -14,10 +15,14 @@ Deno.serve(handle(async (req, input) => {
   const email = text(input.email, 100, /^[^@\s]+@[^@\s]+\.[^@\s]+$/).toLowerCase();
   const name = text(input.name, 100);
   const department = text(input.department, 100);
-  const { data: existing } = await db.from('employee_invitations').select('*').eq('organization_id', membership.organization_id).eq('email', email).maybeSingle();
+  const { data: existing, error: invitationError } = await db.from('employee_invitations').select('*').eq('organization_id', membership.organization_id).eq('email', email).maybeSingle();
+  if (invitationError) throw invitationError;
   let invitation = existing;
   if (invitation && invitation.employee_code !== code) throw new ApiError(409, 'duplicate_employee');
   if (!invitation) {
+    const { data: member, error: memberError } = await db.from('memberships').select('user_id').eq('organization_id', membership.organization_id).eq('employee_code', code).maybeSingle();
+    if (memberError) throw memberError;
+    if (member) throw new ApiError(409, 'duplicate_employee');
     const { data, error } = await db.from('employee_invitations').insert({ organization_id: membership.organization_id, email, name, employee_code: code, department }).select().single();
     if (error) throw new ApiError(409, 'duplicate_employee');
     invitation = data;
@@ -33,4 +38,6 @@ Deno.serve(handle(async (req, input) => {
   const { error } = await db.rpc('complete_employee_invitation', { p_actor: user.id, p_invitation: invitation.id, p_user: userId });
   if (error) throw error;
   return { ok: true };
-}));
+}
+
+Deno.serve(handle(manageEmployees));

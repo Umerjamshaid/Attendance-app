@@ -4,6 +4,7 @@ import 'package:attendance/providers/auth_provider.dart';
 import 'package:attendance/providers/attendance_history_provider.dart';
 import 'package:attendance/providers/attendance_provider.dart';
 import 'package:attendance/models/attendance_record_model.dart';
+import 'package:attendance/models/employees_model.dart';
 import 'package:attendance/services/attendance_service.dart';
 import 'package:attendance/services/company_backend.dart';
 import 'package:attendance/services/preview_company_backend.dart';
@@ -136,6 +137,60 @@ void main() {
       auth.dispose();
     },
   );
+  test('a transient refresh failure preserves a loaded account', () async {
+    final backend = _SessionBackend();
+    final auth = AuthProvider(backend: backend);
+    await Future<void>.delayed(Duration.zero);
+    final employee = auth.currentUser;
+    expect(employee, isNotNull);
+    backend.failure = const CompanyException('Connection failed');
+    await auth.refreshSession();
+    expect(auth.status, AuthStatus.authenticated);
+    expect(auth.currentUser, same(employee));
+    expect(auth.error, 'Connection failed');
+    backend.failure = null;
+    await auth.refreshSession();
+    expect(auth.isAuthenticated, true);
+    expect(auth.error, isNull);
+    auth.dispose();
+  });
+  test(
+    'confirmed inactive access clears a previously loaded account',
+    () async {
+      final backend = _SessionBackend();
+      final auth = AuthProvider(backend: backend);
+      await Future<void>.delayed(Duration.zero);
+      backend.failure = const CompanyAccessException(
+        'Company access is inactive',
+      );
+      await auth.refreshSession();
+      expect(auth.status, AuthStatus.unauthenticated);
+      expect(auth.currentUser, isNull);
+      expect(auth.error, 'Company access is inactive');
+      auth.dispose();
+    },
+  );
+  test('a missing session clears a previously loaded account', () async {
+    final backend = _SessionBackend();
+    final auth = AuthProvider(backend: backend);
+    await Future<void>.delayed(Duration.zero);
+    expect(auth.isAuthenticated, true);
+    backend.hasSession = false;
+    await auth.refreshSession();
+    expect(auth.status, AuthStatus.unauthenticated);
+    expect(auth.currentUser, isNull);
+    auth.dispose();
+  });
+}
+
+class _SessionBackend extends PreviewCompanyBackend {
+  Exception? failure;
+  bool hasSession = true;
+  @override
+  Future<Employee?> restoreSession() async {
+    if (failure != null) throw failure!;
+    return hasSession ? super.restoreSession() : null;
+  }
 }
 
 class _ControlledBackend extends PreviewCompanyBackend {
