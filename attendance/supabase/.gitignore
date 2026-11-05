@@ -1,0 +1,7 @@
+.temp/
+.branches/
+.env
+.env.*
+!.env.example
+*.local.sql
+*.local.json

@@ -17,6 +17,7 @@ class Employee {
   final double? lastLongitude;
   final String? headline;
   final List<String> chips;
+  final bool isActive;
 
   Employee({
     required this.id,
@@ -37,6 +38,7 @@ class Employee {
     this.lastLongitude,
     this.headline,
     this.chips = const [],
+    this.isActive = true,
   });
 
   // ✅ Helper getters
@@ -75,6 +77,7 @@ class Employee {
       lastLongitude: (map['lastLongitude'] as num?)?.toDouble(),
       headline: map['headline'],
       chips: (map['chips'] as List<dynamic>?)?.cast<String>() ?? const [],
+      isActive: map['isActive'] as bool? ?? true,
     );
   }
 
@@ -99,6 +102,7 @@ class Employee {
       'lastLongitude': lastLongitude,
       'headline': headline,
       'chips': chips,
+      'isActive': isActive,
     };
   }
 
@@ -142,6 +146,7 @@ class Employee {
       lastLongitude: lastLongitude ?? this.lastLongitude,
       headline: headline ?? this.headline,
       chips: chips ?? this.chips,
+      isActive: isActive,
     );
   }
 

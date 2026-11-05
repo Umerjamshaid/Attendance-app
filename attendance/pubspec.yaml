@@ -36,6 +36,10 @@ dependencies:
   cupertino_icons: ^1.0.8
   # State management
   provider: ^6.1.5+1
+  supabase_flutter: ^2.18.3
+  device_info_plus: ^13.3.0
+  uuid: ^4.6.0
+  timezone: ^0.11.2
   # Networking
   http: ^1.2.2
   # Location

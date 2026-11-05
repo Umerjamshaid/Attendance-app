@@ -136,7 +136,7 @@ class _LoginAuth extends AuthProvider {
   String? get error => 'Employee ID not found.';
 
   @override
-  Future<bool> login(String employeeId) {
+  Future<bool> login(String employeeId, {String password = ''}) {
     calls++;
     lastId = employeeId;
     _state = AuthStatus.authenticating;

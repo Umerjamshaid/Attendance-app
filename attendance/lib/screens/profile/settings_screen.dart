@@ -1,4 +1,4 @@
-import 'dart:io';
+import '../../widgets/profile_image.dart';
 
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -16,6 +16,9 @@ import 'appearance_screen.dart';
 import 'privacy_screen.dart';
 import 'profile_details_screen.dart';
 import 'settings_layout.dart';
+import 'account_edit_screen.dart';
+import 'account_security_screen.dart';
+import '../admin/employee_management_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -69,6 +72,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _editProfile(Employee user) async {
     final auth = context.read<AuthProvider>();
+    if (auth.isPreview) {
+      _feedback('Profile editing is unavailable in the preview.');
+      return;
+    }
+    if (auth.isPublicBuild) {
+      final saved = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => AccountEditScreen(
+            title: 'Display name',
+            label: 'Display name',
+            initialValue: user.name,
+            onSave: (value) => auth.updateProfile(name: value),
+          ),
+        ),
+      );
+      if (saved == true) _feedback('Profile saved.');
+      return;
+    }
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -161,12 +182,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
             edit: () => _editProfile(user),
           ),
           SettingsSection(
-            title: 'Account',
+            title: auth.isPublicBuild ? 'Profile' : 'Account',
             rows: [
-              SettingsRow('Edit profile', onTap: () => _editProfile(user)),
+              SettingsRow(
+                auth.isPublicBuild ? 'Display name' : 'Edit profile',
+                onTap: () => _editProfile(user),
+              ),
+              if (auth.isPublicBuild)
+                SettingsRow(
+                  'Profile photo',
+                  onTap: auth.isPreview
+                      ? null
+                      : () async {
+                          try {
+                            await context.read<ProfileProvider>().pickPfp(
+                              user.id,
+                            );
+                          } catch (e) {
+                            _feedback(e.toString());
+                          }
+                        },
+                ),
               SettingsRow(
                 'Profile details',
-                onTap: () => ProfileDetailsScreen.open(context, user),
+                onTap: auth.isPreview
+                    ? null
+                    : () => ProfileDetailsScreen.open(context, user),
               ),
               SettingsRow('Employee ID', detail: user.id),
               if (user.department.isNotEmpty)
@@ -178,6 +219,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ],
           ),
+          if (auth.isPublicBuild)
+            SettingsSection(
+              title: 'Account & security',
+              rows: [
+                SettingsRow(
+                  'Sign-in & recovery',
+                  detail: auth.isPreview
+                      ? 'Unavailable in preview'
+                      : user.email,
+                  onTap: auth.isPreview
+                      ? null
+                      : () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const AccountSecurityScreen(),
+                          ),
+                        ),
+                ),
+              ],
+            ),
         ],
         SettingsSection(
           title: 'Appearance',
@@ -204,6 +264,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             '${attendance.formatHour(attendance.windowEndHour)}',
                   onTap: _openWindow,
                 ),
+                if (auth.isPublicBuild)
+                  SettingsRow(
+                    'Manage employees',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const EmployeeManagementScreen(),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -295,8 +364,8 @@ class _SettingsProfileHeader extends StatelessWidget {
                   color: theme.colorScheme.primaryContainer,
                   child: path == null || path!.isEmpty
                       ? fallback
-                      : Image.file(
-                          File(path!),
+                      : Image(
+                          image: profileImageProvider(path!),
                           fit: BoxFit.cover,
                           errorBuilder: (_, _, _) => fallback,
                         ),

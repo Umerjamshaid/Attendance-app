@@ -35,6 +35,11 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
   late final _tags = [...widget.user.chips];
   bool _saving = false;
   bool _failed = false;
+  bool _leaving = false;
+  String? get _inputError =>
+      _tagsWithDraft.length > 12 || _tagsWithDraft.any((tag) => tag.length > 40)
+      ? 'Use up to 12 tags, each no longer than 40 characters.'
+      : null;
 
   List<String> get _tagsWithDraft {
     final known = _tags.map((tag) => tag.trim().toLowerCase()).toSet();
@@ -65,7 +70,7 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
   }
 
   Future<void> _save() async {
-    if (_saving || !_changed) return;
+    if (_saving || !_changed || _inputError != null) return;
     final auth = context.read<AuthProvider>();
     setState(() {
       _saving = true;
@@ -76,6 +81,9 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
         headline: _headline.text.trim(),
         chips: _tagsWithDraft,
       );
+      if (!mounted) return;
+      setState(() => _leaving = true);
+      await WidgetsBinding.instance.endOfFrame;
       if (mounted) Navigator.pop(context, true);
     } catch (_) {
       if (!mounted) return;
@@ -109,12 +117,36 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     return PopScope(
-      canPop: !_saving,
+      canPop: !_saving && (!_changed || _leaving),
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop || _saving || _leaving) return;
+        final discard = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Discard changes?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Keep editing'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Discard'),
+              ),
+            ],
+          ),
+        );
+        if (discard != true || !mounted) return;
+        setState(() => _leaving = true);
+        await WidgetsBinding.instance.endOfFrame;
+        if (context.mounted) Navigator.pop(context);
+      },
       child: SettingsLayout(
         title: 'Profile details',
         children: [
           TextField(
             controller: _headline,
+            maxLength: 160,
             readOnly: _saving,
             textInputAction: TextInputAction.next,
             textCapitalization: TextCapitalization.sentences,
@@ -162,6 +194,7 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
             onChanged: _onChanged,
             onSubmitted: (_) => _addTags(),
             decoration: _decoration(context, 'Add a tag').copyWith(
+              errorText: _inputError,
               suffixIcon: IconButton(
                 tooltip: 'Add tag',
                 icon: const Icon(AppIcons.plus),
@@ -183,7 +216,13 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
           ],
           const SizedBox(height: 20),
           FilledButton(
-            onPressed: _saving || !_changed ? null : _save,
+            onPressed: _saving || !_changed || _inputError != null
+                ? null
+                : _save,
+            style: FilledButton.styleFrom(
+              disabledBackgroundColor: const Color(0xFFF1F5F9),
+              disabledForegroundColor: const Color(0xFF64748B),
+            ),
             child: Text(_saving ? 'Saving...' : 'Save changes'),
           ),
         ],

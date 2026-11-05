@@ -1,4 +1,4 @@
-import 'dart:io';
+import '../profile_image.dart';
 
 import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/models/employees_model.dart';
@@ -129,10 +129,12 @@ class _HeaderAvatar extends StatelessWidget {
                 ),
               ),
               if (path != null)
-                Image.file(
-                  File(path),
+                Image(
+                  image: ResizeImage(
+                    profileImageProvider(path),
+                    width: _decodeWidth,
+                  ),
                   fit: BoxFit.cover,
-                  cacheWidth: _decodeWidth,
                   errorBuilder: (_, _, _) => _network(),
                 )
               else

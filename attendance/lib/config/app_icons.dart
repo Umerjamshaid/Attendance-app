@@ -47,6 +47,7 @@ abstract final class AppIcons {
   static const sun = TablerIcons.sun;
   static const trash = TablerIcons.trash;
   static const user = TablerIcons.user;
+  static const users = TablerIcons.users;
   static const userOff = TablerIcons.userOff;
   static const x = TablerIcons.x;
 }

@@ -1,7 +1,6 @@
 import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/providers/attendance_provider.dart';
-import 'package:attendance/services/local_storage_service.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -22,8 +21,6 @@ class SetAttendanceWindowSheet extends StatefulWidget {
 }
 
 class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
-  final _storageService = LocalStorageService();
-
   bool _always = false;
   int _startHour = 7;
   int _endHour = 13;
@@ -41,14 +38,13 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
 
   Future<void> _loadSaved() async {
     try {
-      final saved = await _storageService.getAttendanceWindow();
+      final provider = context.read<AttendanceProvider>();
+      await provider.loadWindowConfig();
       if (!mounted) return;
       setState(() {
-        if (saved != null) {
-          _always = (saved['mode'] as String?) == 'always';
-          _startHour = (saved['startHour'] as int?) ?? 7;
-          _endHour = (saved['endHour'] as int?) ?? 13;
-        }
+        _always = provider.windowMode == 'always';
+        _startHour = provider.windowStartHour;
+        _endHour = provider.windowEndHour;
         _initialAlways = _always;
         _initialStartHour = _startHour;
         _initialEndHour = _endHour;
@@ -92,14 +88,11 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
 
     try {
       final attendanceProvider = context.read<AttendanceProvider>();
-      await _storageService.saveAttendanceWindow(
+      await attendanceProvider.saveWindowConfig(
         mode: _always ? 'always' : 'period',
         startHour: _startHour,
         endHour: _endHour,
       );
-
-      // Refresh the provider so the attendance button updates immediately.
-      await attendanceProvider.loadWindowConfig();
 
       if (!mounted) return;
 
@@ -306,7 +299,9 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      'Saved on this device. Other devices keep their own setting.',
+                      context.read<AttendanceProvider>().isCompanyMode
+                          ? 'Company timezone: ${context.read<AttendanceProvider>().companyTimezone}'
+                          : 'Saved on this device. Other devices keep their own setting.',
                       style: ProfileUi.caption(context),
                     ),
                   ),

@@ -8,6 +8,7 @@ import 'package:attendance/providers/auth_provider.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:attendance/widgets/demo_mode_notice.dart';
 import 'package:flutter/material.dart';
+import '../../widgets/check_in_summary.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -125,14 +126,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
             SliverPadding(
               padding: EdgeInsets.symmetric(horizontal: sidePad),
               sliver: SliverToBoxAdapter(
-                child: _HistoryOverview(
-                  present: historyProvider.presentCount,
-                  absent: historyProvider.absentCount,
-                  total: historyProvider.totalCount,
-                  streak: historyProvider.currentStreak,
-                  monthlyRate: historyProvider.monthlyRate,
-                  isLoading: historyProvider.isLoading,
-                ),
+                child: historyProvider.usesCheckInLog
+                    ? const CheckInSummary()
+                    : _HistoryOverview(
+                        present: historyProvider.presentCount,
+                        absent: historyProvider.absentCount,
+                        total: historyProvider.totalCount,
+                        streak: historyProvider.currentStreak,
+                        monthlyRate: historyProvider.monthlyRate,
+                        isLoading: historyProvider.isLoading,
+                      ),
               ),
             ),
             if (historyProvider.isLoading)

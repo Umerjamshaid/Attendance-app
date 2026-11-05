@@ -14,12 +14,14 @@ class AdminOverviewCard extends StatelessWidget {
     required this.present,
     required this.absent,
     this.isLoading = false,
+    this.checkInLog = false,
   });
 
   final int total;
   final int present;
   final int absent;
   final bool isLoading;
+  final bool checkInLog;
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +43,7 @@ class AdminOverviewCard extends StatelessWidget {
               Expanded(
                 child: _Metric(
                   value: isLoading ? null : present,
-                  label: 'Present',
+                  label: checkInLog ? 'Checked in' : 'Present',
                   color: context.attendancePresent,
                 ),
               ),
@@ -49,7 +51,7 @@ class AdminOverviewCard extends StatelessWidget {
               Expanded(
                 child: _Metric(
                   value: isLoading ? null : absent,
-                  label: 'Absent',
+                  label: checkInLog ? 'Not checked in' : 'Absent',
                   color: context.attendanceAbsent,
                 ),
               ),

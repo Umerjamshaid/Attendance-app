@@ -6,6 +6,7 @@ import 'package:attendance/screens/splash/splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'config/app_theme.dart';
+import 'screens/login/password_setup_screen.dart';
 
 class AttendanceApp extends StatelessWidget {
   const AttendanceApp({super.key});
@@ -25,7 +26,10 @@ class AttendanceApp extends StatelessWidget {
         builder: (context, auth, _) {
           return switch (auth.status) {
             AuthStatus.initial => const SplashScreen(),
-            AuthStatus.authenticated => const AppShell(),
+            AuthStatus.authenticated =>
+              auth.needsPasswordSetup
+                  ? const PasswordSetupScreen()
+                  : const AppShell(),
             _ => const LoginScreen(),
           };
         },

@@ -18,6 +18,7 @@ class AdminFilterBar extends StatelessWidget {
     required this.total,
     required this.present,
     required this.absent,
+    this.checkInLog = false,
   });
 
   /// One of `'all'`, `'present'` or `'absent'`.
@@ -26,6 +27,7 @@ class AdminFilterBar extends StatelessWidget {
   final int total;
   final int present;
   final int absent;
+  final bool checkInLog;
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +49,7 @@ class AdminFilterBar extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: _Chip(
-              label: 'Present',
+              label: checkInLog ? 'Checked in' : 'Present',
               count: present,
               isSelected: selected == 'present',
               onTap: () => onSelected('present'),
@@ -56,7 +58,7 @@ class AdminFilterBar extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: _Chip(
-              label: 'Absent',
+              label: checkInLog ? 'Not yet' : 'Absent',
               count: absent,
               isSelected: selected == 'absent',
               onTap: () => onSelected('absent'),

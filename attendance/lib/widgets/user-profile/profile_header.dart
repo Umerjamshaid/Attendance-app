@@ -1,5 +1,5 @@
 import 'package:attendance/config/app_icons.dart';
-import 'dart:io';
+import '../profile_image.dart';
 
 import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/models/employees_model.dart';
@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import '../../screens/profile/account_edit_screen.dart';
 
 /// Whether the employee has checked in today, as derived by the screen from
 /// the attendance history.
@@ -85,6 +86,27 @@ class ProfileHeader extends StatelessWidget {
     final auth = context.read<AuthProvider>();
     final messenger = ScaffoldMessenger.of(context);
 
+    if (auth.isPreview) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Profile editing is unavailable in the preview.'),
+        ),
+      );
+      return;
+    }
+    if (auth.isPublicBuild) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => AccountEditScreen(
+            title: 'Display name',
+            label: 'Display name',
+            initialValue: employee.name,
+            onSave: (value) => auth.updateProfile(name: value),
+          ),
+        ),
+      );
+      return;
+    }
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -330,10 +352,12 @@ class _Banner extends StatelessWidget {
                   ? const _BannerGradient(key: ValueKey('default-banner'))
                   : SizedBox.expand(
                       key: ValueKey(image),
-                      child: Image.file(
-                        File(image),
+                      child: Image(
+                        image: ResizeImage(
+                          profileImageProvider(image),
+                          width: _decodeWidth,
+                        ),
                         fit: BoxFit.cover,
-                        cacheWidth: _decodeWidth,
                         // The picked file can disappear (cache cleared). The
                         // remove action stays available to clear the stale path.
                         errorBuilder: (_, _, _) => const _BannerGradient(),
@@ -533,10 +557,9 @@ class _Avatar extends StatelessWidget {
           ),
         ),
         if (path != null)
-          Image.file(
-            File(path),
+          Image(
+            image: ResizeImage(profileImageProvider(path), width: _decodeWidth),
             fit: BoxFit.cover,
-            cacheWidth: _decodeWidth,
             errorBuilder: (_, _, _) => network(),
           )
         else

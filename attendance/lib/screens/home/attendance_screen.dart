@@ -1,6 +1,7 @@
 import 'package:attendance/config/app_icons.dart';
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:attendance/config/app_theme.dart';
 import 'package:flutter/services.dart';
@@ -10,6 +11,8 @@ import 'package:attendance/providers/attendance_provider.dart';
 import 'package:attendance/services/attendance_submission_service_factory.dart';
 import 'package:attendance/services/location_service.dart';
 import 'package:attendance/widgets/home/attendance_button.dart';
+import 'package:attendance/widgets/check_in_summary.dart';
+import 'package:attendance/widgets/demo_mode_notice.dart';
 import 'package:attendance/widgets/home/attendance_profile_header.dart';
 import 'package:attendance/widgets/home/attendance_summary_card.dart';
 import 'package:attendance/widgets/home/check_in_status_card.dart';
@@ -121,172 +124,212 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   void _handleCheckIn() async {
     final attendanceProvider = context.read<AttendanceProvider>();
     final historyProvider = context.read<AttendanceHistoryProvider>();
-
-    // 1. Check Camera Permission (shows the system prompt if not yet granted)
-    var cameraStatus = await Permission.camera.status;
-    if (!cameraStatus.isGranted) {
-      cameraStatus = await Permission.camera.request();
-    }
-
-    if (!cameraStatus.isGranted) {
-      if (!mounted) return;
-
-      // If the user permanently denied it, guide them to app settings.
-      if (cameraStatus.isPermanentlyDenied) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '✗ Camera permission is blocked. Enable it in Settings.',
-              style: GoogleFonts.inter(fontWeight: FontWeight.w600),
-            ),
-            behavior: SnackBarBehavior.floating,
-            action: SnackBarAction(
-              label: 'Settings',
-              onPressed: openAppSettings,
-            ),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '✗ Camera permission is required to check in.',
-              style: GoogleFonts.inter(fontWeight: FontWeight.w600),
-            ),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+    if (_isLocalLoading ||
+        attendanceProvider.isLoading ||
+        attendanceProvider.isPreview) {
       return;
     }
-
-    // 2. Open front camera and take a photo
-    final ImagePicker picker = ImagePicker();
     XFile? image;
+    setState(() => _isLocalLoading = true);
     try {
-      image = await picker.pickImage(
-        source: ImageSource.camera,
-        preferredCameraDevice: CameraDevice.front,
-        maxWidth: 600,
-        maxHeight: 600,
-        imageQuality: 80,
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '✗ Failed to open camera: $e',
-            style: GoogleFonts.inter(fontWeight: FontWeight.w600),
-          ),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
-    if (image == null) return; // User cancelled
-
-    setState(() {
-      _isLocalLoading = true;
-    });
-
-    try {
-      // 3. Convert image to base64
-      final bytes = await image.readAsBytes();
-      final base64Image = base64Encode(bytes);
-
-      // 4. Fetch verified GPS location
-      final position = await LocationService().getVerifiedLocation();
-
-      // 5. Submit through the configured attendance service.
-      await attendanceSubmissionService.submit(
-        employeeId: widget.employee.id,
-        latitude: position.latitude,
-        longitude: position.longitude,
-        base64Image: base64Image,
-        attendanceDateTime: DateTime.now(),
-      );
-
-      // 6. Run the local location validation and update check-in state.
-      final canCheckIn = await attendanceProvider.attemptCheckIn(
-        widget.employee.id,
-      );
-
-      if (!mounted) return;
-
-      if (!canCheckIn) {
-        throw Exception(
-          attendanceProvider.error ?? 'Location validation failed.',
-        );
+      // 1. Check Camera Permission (shows the system prompt if not yet granted)
+      var cameraStatus = await Permission.camera.status;
+      if (!cameraStatus.isGranted) {
+        cameraStatus = await Permission.camera.request();
       }
 
-      // 7. Successful validation and submission - update local state.
-      setState(() {
-        _isCheckedIn = true;
-        _checkInTime = attendanceProvider.checkInTime;
-      });
-      _successController.forward();
-      _syncPulse();
+      if (!cameraStatus.isGranted) {
+        if (!mounted) return;
 
-      // 8. Mark attendance in history (Persists to backend)
-      final success = await historyProvider.markAttendanceNow(
-        userId: widget.employee.id,
-        isPresent: true,
-        device: attendanceProvider.deviceModel,
-      );
+        // If the user permanently denied it, guide them to app settings.
+        if (cameraStatus.isPermanentlyDenied) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '✗ Camera permission is blocked. Enable it in Settings.',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+              ),
+              behavior: SnackBarBehavior.floating,
+              action: SnackBarAction(
+                label: 'Settings',
+                onPressed: openAppSettings,
+              ),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '✗ Camera permission is required to check in.',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+              ),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return;
+      }
 
-      if (!mounted) return;
-
-      if (success) {
+      // 2. Open front camera and take a photo
+      final ImagePicker picker = ImagePicker();
+      try {
+        image = await picker.pickImage(
+          source: ImageSource.camera,
+          preferredCameraDevice: CameraDevice.front,
+          maxWidth: 600,
+          maxHeight: 600,
+          imageQuality: 80,
+        );
+      } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '✓ Attendance marked successfully!',
+              '✗ Failed to open camera: $e',
               style: GoogleFonts.inter(fontWeight: FontWeight.w600),
             ),
-            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+
+      if (image == null) return; // User cancelled
+      final capturedAt = DateTime.now();
+
+      setState(() {
+        _isLocalLoading = true;
+      });
+
+      try {
+        // 3. Convert image to base64
+        final bytes = await image.readAsBytes();
+        final base64Image = base64Encode(bytes);
+
+        // 4. Fetch verified GPS location
+        final position = await LocationService().getVerifiedLocation();
+
+        if (attendanceProvider.isCompanyMode) {
+          final record = await attendanceProvider.submitPhoto(
+            requestId: attendanceProvider.newRequestId(),
+            base64Image: base64Image,
+            latitude: position.latitude,
+            longitude: position.longitude,
+            accuracy: position.accuracy,
+            capturedAt: capturedAt,
+          );
+          historyProvider.acceptSubmittedRecord(record);
+          if (!mounted) return;
+          setState(() {
+            _isCheckedIn = true;
+            _checkInTime = attendanceProvider.checkInTime;
+          });
+          _successController.forward();
+          _syncPulse();
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Check-in saved.')));
+          return;
+        }
+
+        // 5. Submit through the configured attendance service.
+        await attendanceSubmissionService.submit(
+          employeeId: widget.employee.id,
+          latitude: position.latitude,
+          longitude: position.longitude,
+          base64Image: base64Image,
+          attendanceDateTime: DateTime.now(),
+        );
+
+        // 6. Run the local location validation and update check-in state.
+        final canCheckIn = await attendanceProvider.attemptCheckIn(
+          widget.employee.id,
+        );
+
+        if (!mounted) return;
+
+        if (!canCheckIn) {
+          throw Exception(
+            attendanceProvider.error ?? 'Location validation failed.',
+          );
+        }
+
+        // 7. Successful validation and submission - update local state.
+        setState(() {
+          _isCheckedIn = true;
+          _checkInTime = attendanceProvider.checkInTime;
+        });
+        _successController.forward();
+        _syncPulse();
+
+        // 8. Mark attendance in history (Persists to backend)
+        final success = await historyProvider.markAttendanceNow(
+          userId: widget.employee.id,
+          isPresent: true,
+          device: attendanceProvider.deviceModel,
+        );
+
+        if (!mounted) return;
+
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '✓ Attendance marked successfully!',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+              ),
+              duration: const Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          );
+        } else {
+          throw Exception(
+            historyProvider.error ?? 'Connection failed. Try again.',
+          );
+        }
+      } catch (e) {
+        if (!mounted) return;
+
+        // Revert states
+        setState(() {
+          _isCheckedIn = false;
+          _checkInTime = '';
+        });
+        _successController.reverse();
+        _syncPulse();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '✗ ${e.toString().replaceAll('Exception: ', '')}',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+            ),
+            duration: const Duration(seconds: 4),
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
           ),
         );
-      } else {
-        throw Exception(
-          historyProvider.error ?? 'Connection failed. Try again.',
-        );
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLocalLoading = false;
+          });
+        }
       }
-    } catch (e) {
-      if (!mounted) return;
-
-      // Revert states
-      setState(() {
-        _isCheckedIn = false;
-        _checkInTime = '';
-      });
-      _successController.reverse();
-      _syncPulse();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '✗ ${e.toString().replaceAll('Exception: ', '')}',
-            style: GoogleFonts.inter(fontWeight: FontWeight.w600),
-          ),
-          duration: const Duration(seconds: 4),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      );
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLocalLoading = false;
-        });
+      if (attendanceProvider.isCompanyMode && image != null) {
+        try {
+          await File(image.path).delete();
+        } catch (_) {
+          /* The platform may have already cleared its temporary capture. */
+        }
       }
+      if (mounted) setState(() => _isLocalLoading = false);
     }
   }
 
@@ -332,7 +375,9 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     final submissionService = attendanceSubmissionService;
 
     bool isCheckedIn;
-    if (historyProvider.records.isNotEmpty) {
+    if (attendanceProvider.isCompanyMode) {
+      isCheckedIn = historyProvider.isPresentToday;
+    } else if (historyProvider.records.isNotEmpty) {
       isCheckedIn = historyProvider.isPresentToday || _isCheckedIn;
     } else {
       isCheckedIn = _isCheckedIn;
@@ -353,6 +398,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
             context.read<AttendanceProvider>().initialize(),
             context.read<AttendanceHistoryProvider>().loadHistory(
               widget.employee.id,
+              force: true,
             ),
           ]);
         },
@@ -372,6 +418,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       AttendanceProfileHeader(employee: widget.employee),
+                      if (attendanceProvider.isPreview) const DemoModeNotice(),
                       const SizedBox(height: 24),
                       _LiveClockHero(isCheckedIn: isCheckedIn),
                       const SizedBox(height: 16),
@@ -383,8 +430,13 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                           onTap: _handleCheckIn,
                           isUploadEnabled:
                               attendanceProvider.isUploadEnabled &&
-                              submissionService.isAvailable,
-                          uploadLabel: submissionService.isAvailable
+                              (attendanceProvider.isCompanyMode
+                                  ? !attendanceProvider.isPreview
+                                  : submissionService.isAvailable),
+                          uploadLabel: attendanceProvider.isPreview
+                              ? 'Read-only preview'
+                              : (attendanceProvider.isCompanyMode ||
+                                    submissionService.isAvailable)
                               ? attendanceProvider.uploadButtonLabel
                               : submissionService.unavailableMessage,
                         ),
@@ -397,12 +449,15 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                             : _checkInTime,
                         scaleAnimation: _scaleAnimation,
                       ),
-                      AttendanceSummaryCard(
-                        isCheckedIn: isCheckedIn,
-                        monthlyRate: historyProvider.monthlyRate,
-                        streak: historyProvider.currentStreak,
-                        isLoading: historyLoading,
-                      ),
+                      if (historyProvider.usesCheckInLog)
+                        const CheckInSummary()
+                      else
+                        AttendanceSummaryCard(
+                          isCheckedIn: isCheckedIn,
+                          monthlyRate: historyProvider.monthlyRate,
+                          streak: historyProvider.currentStreak,
+                          isLoading: historyLoading,
+                        ),
                       const _LocationNote(),
                       SizedBox(
                         height: 32 + MediaQuery.paddingOf(context).bottom,

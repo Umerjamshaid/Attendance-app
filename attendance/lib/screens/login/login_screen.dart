@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../config/app_theme.dart';
+import '../profile/account_edit_screen.dart';
 
 class UpperCaseTextFormatter extends TextInputFormatter {
   @override
@@ -29,6 +30,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
   final _controller = TextEditingController();
+  final _password = TextEditingController();
   final _idFocus = FocusNode();
   String? _idError;
   late final AnimationController _animationController;
@@ -72,6 +74,7 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   void dispose() {
     _controller.dispose();
+    _password.dispose();
     _idFocus.dispose();
     _animationController.dispose();
     super.dispose();
@@ -81,13 +84,22 @@ class _LoginScreenState extends State<LoginScreen>
     final authProvider = context.read<AuthProvider>();
     if (authProvider.status == AuthStatus.authenticating) return;
     final id = _controller.text.trim();
+    final company = authProvider.isPublicBuild;
     if (id.isEmpty) {
-      setState(() => _idError = 'Enter your employee ID.');
+      setState(
+        () => _idError = company
+            ? 'Enter your work email.'
+            : 'Enter your employee ID.',
+      );
       _idFocus.requestFocus();
       return;
     }
+    if (company && (_password.text.isEmpty || !id.contains('@'))) {
+      setState(() => _idError = 'Enter your email and password.');
+      return;
+    }
     setState(() => _idError = null);
-    final success = await authProvider.login(id);
+    final success = await authProvider.login(id, password: _password.text);
     if (!mounted) return;
 
     if (success) {
@@ -101,6 +113,8 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final company = auth.isPublicBuild;
     final isLoading =
         context.watch<AuthProvider>().status == AuthStatus.authenticating;
 
@@ -143,7 +157,9 @@ class _LoginScreenState extends State<LoginScreen>
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'Enter your employee ID to continue.',
+                              company
+                                  ? 'Sign in with your company account.'
+                                  : 'Enter your employee ID to continue.',
                               style: TextStyle(
                                 color: context.colors.onSurfaceVariant,
                                 fontSize: 16,
@@ -152,19 +168,91 @@ class _LoginScreenState extends State<LoginScreen>
                               ),
                             ),
                             const SizedBox(height: 24),
-                            _EmployeeIdField(
-                              controller: _controller,
-                              focusNode: _idFocus,
-                              readOnly: isLoading,
-                              errorText: _idError,
-                              onChanged: (_) {
-                                if (_idError != null) {
-                                  setState(() => _idError = null);
-                                }
-                              },
-                              onSubmitted: (_) => _signIn(),
-                            ),
-                            if (context.watch<AuthProvider>().isDemoMode) ...[
+                            if (company) ...[
+                              TextField(
+                                controller: _controller,
+                                focusNode: _idFocus,
+                                readOnly: isLoading,
+                                keyboardType: TextInputType.emailAddress,
+                                autofillHints: const [
+                                  AutofillHints.username,
+                                  AutofillHints.email,
+                                ],
+                                textInputAction: TextInputAction.next,
+                                decoration: InputDecoration(
+                                  labelText: 'Work email',
+                                  errorText: _idError,
+                                  prefixIcon: const Icon(AppIcons.mail),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              TextField(
+                                controller: _password,
+                                readOnly: isLoading,
+                                obscureText: true,
+                                enableSuggestions: false,
+                                autocorrect: false,
+                                autofillHints: const [AutofillHints.password],
+                                textInputAction: TextInputAction.done,
+                                onSubmitted: (_) => _signIn(),
+                                decoration: const InputDecoration(
+                                  labelText: 'Password',
+                                  prefixIcon: Icon(AppIcons.lock),
+                                ),
+                              ),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton(
+                                  onPressed: isLoading || !auth.isConfigured
+                                      ? null
+                                      : () => Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) => AccountEditScreen(
+                                              title: 'Reset password',
+                                              label: 'Work email',
+                                              email: true,
+                                              requireChange: false,
+                                              initialValue: _controller.text,
+                                              actionLabel:
+                                                  'Send recovery email',
+                                              onSave: (value) => auth.backend!
+                                                  .resetPassword(value),
+                                              onSaved: () {
+                                                Navigator.pop(context);
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                      'If the account exists, a recovery email will arrive shortly.',
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                        ),
+                                  child: const Text('Forgot password?'),
+                                ),
+                              ),
+                              if (!auth.isConfigured)
+                                const Text(
+                                  'Company sign-in is unavailable in this build.',
+                                ),
+                            ] else
+                              _EmployeeIdField(
+                                controller: _controller,
+                                focusNode: _idFocus,
+                                readOnly: isLoading,
+                                errorText: _idError,
+                                onChanged: (_) {
+                                  if (_idError != null) {
+                                    setState(() => _idError = null);
+                                  }
+                                },
+                                onSubmitted: (_) => _signIn(),
+                              ),
+                            if (!company && auth.isDemoMode) ...[
                               const SizedBox(height: 16),
                               const DemoModeNotice(),
                               const SizedBox(height: 12),
@@ -182,9 +270,16 @@ class _LoginScreenState extends State<LoginScreen>
                               loading: isLoading,
                               onPressed: _signIn,
                             ),
+                            if (company)
+                              TextButton(
+                                onPressed: isLoading ? null : auth.enterPreview,
+                                child: const Text('Explore demo'),
+                              ),
                             const SizedBox(height: 12),
                             Text(
-                              'Your Employee ID was provided when your account was created.',
+                              company
+                                  ? 'Company access is by invitation.'
+                                  : 'Your Employee ID was provided when your account was created.',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 color: context.colors.onSurfaceVariant,

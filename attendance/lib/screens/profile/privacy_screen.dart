@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
 
 class PrivacyScreen extends StatelessWidget {
   const PrivacyScreen({super.key});
@@ -14,6 +16,7 @@ class PrivacyScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final publicBuild = context.read<AuthProvider>().isPublicBuild;
     return Scaffold(
       backgroundColor: context.colors.surface,
       appBar: AppBar(
@@ -46,7 +49,7 @@ class PrivacyScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const _Intro(),
-                    const ProfileSectionCard(
+                    ProfileSectionCard(
                       label: 'How your data is used',
                       children: [
                         _PolicyRow(
@@ -86,8 +89,9 @@ class PrivacyScreen extends StatelessWidget {
                           title: 'Retention and access',
                           summary:
                               'Attendance records are managed by your organization.',
-                          details:
-                              'Retention, access, and deletion requests are handled according to your organization’s policy. Contact your HR or IT administrator if you need to inspect or correct a record.',
+                          details: publicBuild
+                              ? 'Only active company administrators can view attendance photos and precise locations. This evidence expires after 90 days and is removed by scheduled cleanup; minimal check-in history remains. A signed photo link can remain valid for up to one minute. Contact your administrator for access or deletion requests. The demo never uploads attendance data.'
+                              : 'Retention, access, and deletion requests are handled according to your organization’s policy. Contact your HR or IT administrator if you need to inspect or correct a record.',
                         ),
                       ],
                     ),

@@ -15,6 +15,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import 'set_attendance_window_sheet.dart';
+import '../../providers/auth_provider.dart';
+import 'employee_management_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -36,7 +38,7 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
     _scroll.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AdminProvider>().loadDashboard();
-      context.read<AttendanceProvider>().loadWindowConfig();
+      context.read<AttendanceProvider>().initialize();
     });
   }
 
@@ -80,10 +82,20 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   Future<void> _refresh() async {
     HapticFeedback.lightImpact();
-    await Future.wait([
-      context.read<AdminProvider>().loadDashboard(),
-      context.read<AttendanceProvider>().loadWindowConfig(),
-    ]);
+    try {
+      await Future.wait([
+        context.read<AdminProvider>().loadDashboard(),
+        context.read<AttendanceProvider>().loadWindowConfig(),
+      ]);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not refresh attendance settings.'),
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -127,6 +139,7 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       const SizedBox(height: 12),
                     ],
                     AdminOverviewCard(
+                      checkInLog: adminProvider.usesCheckInLog,
                       total: total,
                       present: adminProvider.presentToday,
                       absent: adminProvider.absentToday,
@@ -134,6 +147,7 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     ),
                     _buildWindowSection(),
                     AdminFilterBar(
+                      checkInLog: adminProvider.usesCheckInLog,
                       selected: adminProvider.filter,
                       onSelected: adminProvider.setFilter,
                       total: total,
@@ -186,6 +200,7 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) => EmployeeCard(
+                      checkInLog: adminProvider.usesCheckInLog,
                       key: ValueKey(filteredList[index].employee.id),
                       data: filteredList[index],
                       isFirst: index == 0,
@@ -223,12 +238,23 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
         style: ProfileUi.body(context, weight: FontWeight.w600),
       ),
       actions: [
-        IconButton(
-          tooltip: 'Notifications',
-          icon: const Icon(AppIcons.bell),
-          color: context.colors.onSurface,
-          onPressed: _openNotifications,
-        ),
+        if (context.read<AuthProvider>().isPublicBuild)
+          IconButton(
+            tooltip: 'Manage employees',
+            icon: const Icon(AppIcons.users),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const EmployeeManagementScreen(),
+              ),
+            ),
+          )
+        else
+          IconButton(
+            tooltip: 'Notifications',
+            icon: const Icon(AppIcons.bell),
+            color: context.colors.onSurface,
+            onPressed: _openNotifications,
+          ),
         const SizedBox(width: 4),
       ],
       bottom: PreferredSize(
@@ -294,9 +320,11 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
       );
     }
     if (filter == 'absent') {
-      return const _StateView(
+      return _StateView(
         icon: AppIcons.rosetteDiscountCheck,
-        title: 'No absences',
+        title: context.read<AdminProvider>().usesCheckInLog
+            ? 'Everyone has checked in'
+            : 'No absences',
         subtitle: 'Everyone has checked in today.',
       );
     }

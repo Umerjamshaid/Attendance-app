@@ -6,6 +6,9 @@ import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../screens/admin/attendance_evidence_screen.dart';
 
 /// One employee row in the admin roster.
 ///
@@ -20,11 +23,13 @@ class EmployeeCard extends StatelessWidget {
     required this.data,
     this.isFirst = true,
     this.isLast = true,
+    this.checkInLog = false,
   });
 
   final EmployeeAttendance data;
   final bool isFirst;
   final bool isLast;
+  final bool checkInLog;
 
   static const double _avatarSize = 40;
 
@@ -59,6 +64,11 @@ class EmployeeCard extends StatelessWidget {
   String get _statusLine {
     final employee = data.employee;
     final record = data.latestRecord;
+    if (checkInLog) {
+      return record == null
+          ? 'Not checked in today'
+          : 'In at ${_formatTime(record.timestamp)} · ${record.device}';
+    }
     final totals = '${employee.totalPresents}P / ${employee.totalAbsents}A';
 
     if (data.isPresent) {
@@ -72,6 +82,14 @@ class EmployeeCard extends StatelessWidget {
   }
 
   void _openDetails(BuildContext context) {
+    if (checkInLog && context.read<AuthProvider>().isPublicBuild) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => EmployeeCheckInsScreen(employee: data.employee),
+        ),
+      );
+      return;
+    }
     HapticFeedback.selectionClick();
     showModalBottomSheet<void>(
       context: context,
@@ -196,7 +214,7 @@ class EmployeeCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      _StatusPill(isPresent: isPresent),
+                      _StatusPill(isPresent: isPresent, checkInLog: checkInLog),
                     ],
                   ),
                 ),
@@ -210,9 +228,10 @@ class EmployeeCard extends StatelessWidget {
 }
 
 class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.isPresent});
+  const _StatusPill({required this.isPresent, this.checkInLog = false});
 
   final bool isPresent;
+  final bool checkInLog;
 
   @override
   Widget build(BuildContext context) {
@@ -226,7 +245,9 @@ class _StatusPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        isPresent ? 'Present' : 'Absent',
+        checkInLog
+            ? (isPresent ? 'Checked in' : 'Not yet')
+            : (isPresent ? 'Present' : 'Absent'),
         style: GoogleFonts.inter(
           fontSize: 11,
           height: 1.2,

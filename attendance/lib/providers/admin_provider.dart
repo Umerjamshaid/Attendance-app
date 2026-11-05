@@ -10,6 +10,8 @@ import '../services/employees_service.dart';
 class AdminProvider extends ChangeNotifier {
   final AttendanceService _attendanceService;
   final EmployeeService _employeeService;
+  bool _disposed = false;
+  bool get usesCheckInLog => _attendanceService.backend != null;
 
   AdminProvider({
     AttendanceService? attendanceService,
@@ -68,7 +70,7 @@ class AdminProvider extends ChangeNotifier {
         _attendanceService.getTodayAllAttendance(),
       ]);
 
-      final employees = results[0] as List<Employee>;
+      final employees = (results[0] as List<Employee>).where((e) => e.isActive);
       final todayRecords = results[1] as List<AttendanceRecord>;
 
       // Match each employee to their latest attendance record
@@ -87,5 +89,16 @@ class AdminProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 }

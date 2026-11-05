@@ -1,0 +1,24 @@
+project_id = "workcheck"
+
+[auth]
+enable_signup = false
+site_url = "workcheck://auth/callback"
+additional_redirect_urls = ["workcheck://auth/callback"]
+minimum_password_length = 12
+
+[auth.email]
+enabled = true
+enable_confirmations = true
+double_confirm_changes = true
+
+[functions.submit-attendance]
+verify_jwt = false
+
+[functions.manage-employees]
+verify_jwt = false
+
+[functions.attendance-evidence]
+verify_jwt = false
+
+[functions.retention-cleanup]
+verify_jwt = false

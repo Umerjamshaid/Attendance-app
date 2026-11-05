@@ -13,6 +13,7 @@ import 'package:attendance/widgets/user-profile/profile_header.dart';
 import 'package:attendance/widgets/user-profile/profile_menu_item.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
+import '../../widgets/check_in_summary.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -152,20 +153,27 @@ class _ProfileScreenState extends State<ProfileScreen>
         employee: updatedUser,
         todayStatus: _statusFor(historyProvider),
       ),
-      AttendanceStatsCard(employee: updatedUser, isLoading: historyLoading),
+      if (auth.isPublicBuild)
+        const CheckInSummary()
+      else
+        AttendanceStatsCard(employee: updatedUser, isLoading: historyLoading),
       ProfileSectionCard(
         label: 'Preferences',
         children: [
-          ProfileSwitchItem(
-            icon: AppIcons.bellRinging,
-            title: 'Push notifications',
-            value: _notificationsEnabled,
-            onChanged: (value) => setState(() => _notificationsEnabled = value),
-          ),
+          if (!auth.isPublicBuild)
+            ProfileSwitchItem(
+              icon: AppIcons.bellRinging,
+              title: 'Push notifications',
+              value: _notificationsEnabled,
+              onChanged: (value) =>
+                  setState(() => _notificationsEnabled = value),
+            ),
           ProfileMenuItem(
             icon: AppIcons.idBadge2,
             title: 'Profile details',
-            onTap: () => ProfileDetailsScreen.open(context, user),
+            onTap: auth.isPreview
+                ? null
+                : () => ProfileDetailsScreen.open(context, user),
           ),
           ProfileMenuItem(
             icon: AppIcons.moon,
@@ -175,7 +183,8 @@ class _ProfileScreenState extends State<ProfileScreen>
             ),
           ),
           // Placeholder row kept from the previous screen; it has no action.
-          const ProfileMenuItem(icon: AppIcons.language, title: 'Language'),
+          if (!auth.isPublicBuild)
+            const ProfileMenuItem(icon: AppIcons.language, title: 'Language'),
         ],
       ),
       ProfileSectionCard(
@@ -187,7 +196,9 @@ class _ProfileScreenState extends State<ProfileScreen>
             onTap: () => _showMessageDialog(
               context,
               title: 'Help',
-              message: 'Contact support at support@pipfa.org.pk',
+              message: auth.isPublicBuild
+                  ? 'Contact your company administrator for account or attendance assistance.'
+                  : 'Contact support at support@pipfa.org.pk',
             ),
           ),
           ProfileMenuItem(
@@ -196,7 +207,9 @@ class _ProfileScreenState extends State<ProfileScreen>
             onTap: () => _showMessageDialog(
               context,
               title: 'About app',
-              message: 'Secure attendance tracking for PIPFA employees.',
+              message: auth.isPublicBuild
+                  ? 'WorkCheck company attendance.'
+                  : 'Secure attendance tracking for PIPFA employees.',
             ),
           ),
           ProfileMenuItem(
