@@ -41,8 +41,8 @@ Backend review fixes were already saved in `6bdb462` before this UI task.
 - Read this note before changing these screens. Keep reference golden tests
   meaningful; do not regenerate them to approve an unrequested redesign.
 - Run `flutter analyze` and `flutter test` after edits.
-- No APK is built as part of this UI-only task. The earlier test APK does not
-  include this restoration; build a fresh one when requested.
+- The UI-only restoration did not rebuild an APK. The subsequent requested
+  build is recorded under **APK Follow-up** below.
 - For public-only build verification, use only Git-visible public sources. A
   nested verification copy previously reused stale compiler output. Give the
   copy its own dependency configuration, run `flutter pub get` after any clean
@@ -63,3 +63,21 @@ Backend review fixes were already saved in `6bdb462` before this UI task.
   dependency, or production theme files were modified.
 - No APK was rebuilt, no live backend settings were changed, and no real-device
   camera/upload verification was performed for this UI-only task.
+
+## APK Follow-up
+
+On 2026-11-06, built the requested public ARM64 release APK from UI source commit
+`88c4726`. It replaces the previous artifact at
+`.dart_tool/public-verification/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`
+and is approximately 20 MB. The APK is a local ignored artifact, not a Git file.
+
+The isolated copy contained neither private source file. Its own package
+configuration was verified, and only its Dart build caches were cleared to force
+fresh compilation while preserving native caches. Packaged UI/session markers
+passed; private integration markers were absent. Private source hashes are
+unchanged. No application code or live settings changed during this build.
+
+SHA-256: `59BD126D5C64C64B2BF245D25A4622B862067ADA05F4E62AEEB177344C5432EA`.
+The existing debug signing and shared application ID remain unchanged. This is
+a release-mode test artifact; installing it can replace the private app. Actual
+phone camera/upload verification is still separate from build verification.
