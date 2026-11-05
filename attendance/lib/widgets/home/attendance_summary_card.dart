@@ -106,7 +106,9 @@ class _Metric extends StatelessWidget {
           FittedBox(
             fit: BoxFit.scaleDown,
             child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : const Duration(milliseconds: 200),
               child: Text(
                 text,
                 key: ValueKey(text),
@@ -133,8 +135,8 @@ class _Metric extends StatelessWidget {
               Flexible(
                 child: Text(
                   label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                  textAlign: TextAlign.center,
                   style: ProfileUi.caption(context),
                 ),
               ),

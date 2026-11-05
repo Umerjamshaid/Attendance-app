@@ -11,7 +11,6 @@ import 'package:attendance/providers/attendance_provider.dart';
 import 'package:attendance/services/attendance_submission_service_factory.dart';
 import 'package:attendance/services/location_service.dart';
 import 'package:attendance/widgets/home/attendance_button.dart';
-import 'package:attendance/widgets/check_in_summary.dart';
 import 'package:attendance/widgets/demo_mode_notice.dart';
 import 'package:attendance/widgets/home/attendance_profile_header.dart';
 import 'package:attendance/widgets/home/attendance_summary_card.dart';
@@ -449,15 +448,12 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                             : _checkInTime,
                         scaleAnimation: _scaleAnimation,
                       ),
-                      if (historyProvider.usesCheckInLog)
-                        const CheckInSummary()
-                      else
-                        AttendanceSummaryCard(
-                          isCheckedIn: isCheckedIn,
-                          monthlyRate: historyProvider.monthlyRate,
-                          streak: historyProvider.currentStreak,
-                          isLoading: historyLoading,
-                        ),
+                      AttendanceSummaryCard(
+                        isCheckedIn: isCheckedIn,
+                        monthlyRate: historyProvider.monthlyRate,
+                        streak: historyProvider.currentStreak,
+                        isLoading: historyLoading,
+                      ),
                       const _LocationNote(),
                       SizedBox(
                         height: 32 + MediaQuery.paddingOf(context).bottom,

@@ -8,7 +8,6 @@ import 'package:attendance/providers/auth_provider.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:attendance/widgets/demo_mode_notice.dart';
 import 'package:flutter/material.dart';
-import '../../widgets/check_in_summary.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -126,16 +125,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
             SliverPadding(
               padding: EdgeInsets.symmetric(horizontal: sidePad),
               sliver: SliverToBoxAdapter(
-                child: historyProvider.usesCheckInLog
-                    ? const CheckInSummary()
-                    : _HistoryOverview(
-                        present: historyProvider.presentCount,
-                        absent: historyProvider.absentCount,
-                        total: historyProvider.totalCount,
-                        streak: historyProvider.currentStreak,
-                        monthlyRate: historyProvider.monthlyRate,
-                        isLoading: historyProvider.isLoading,
-                      ),
+                child: _HistoryOverview(
+                  present: historyProvider.presentCount,
+                  absent: historyProvider.absentCount,
+                  total:
+                      historyProvider.presentCount +
+                      historyProvider.absentCount,
+                  streak: historyProvider.currentStreak,
+                  monthlyRate: historyProvider.monthlyRate,
+                  isLoading: historyProvider.isLoading,
+                ),
               ),
             ),
             if (historyProvider.isLoading)
@@ -253,30 +252,62 @@ class _HistoryOverview extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.all(20),
-          child: Row(
-            children: [
-              _MonthRing(progress: monthlyRate, isLoading: isLoading),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final scale = math.max(
+                1.0,
+                MediaQuery.textScalerOf(context).scale(18) / 18,
+              );
+              final ringSize = math.min(constraints.maxWidth, 84 * scale);
+              final ring = _MonthRing(
+                progress: monthlyRate,
+                isLoading: isLoading,
+                dimension: ringSize,
+              );
+              final streakFact = _Fact(
+                value: isLoading ? null : _days(streak),
+                label: 'Current streak',
+                color: context.attendanceWarning,
+              );
+              final rateFact = _Fact(
+                value: isLoading ? null : '$rate%',
+                label: 'Overall rate',
+                color: context.colors.primary,
+              );
+              if (constraints.maxWidth < ringSize + 20 + 120 * scale) {
+                return Column(
                   children: [
-                    _Fact(
-                      value: isLoading ? null : _days(streak),
-                      label: 'Current streak',
-                      color: context.attendanceWarning,
-                    ),
-                    const SizedBox(height: 14),
-                    _Fact(
-                      value: isLoading ? null : '$rate%',
-                      label: 'Overall rate',
-                      color: context.colors.primary,
+                    ring,
+                    const SizedBox(height: 20),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: streakFact),
+                        const SizedBox(width: 20),
+                        Expanded(child: rateFact),
+                      ],
                     ),
                   ],
-                ),
-              ),
-            ],
+                );
+              }
+              return Row(
+                children: [
+                  ring,
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        streakFact,
+                        const SizedBox(height: 14),
+                        rateFact,
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
         Padding(
@@ -326,16 +357,18 @@ class _Fact extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            value ?? '—',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.inter(
-              fontSize: 20,
-              height: 1.2,
-              fontWeight: FontWeight.w600,
-              color: context.colors.onSurface,
-              fontFeatures: const [FontFeature.tabularFigures()],
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value ?? '—',
+              style: GoogleFonts.inter(
+                fontSize: 20,
+                height: 1.2,
+                fontWeight: FontWeight.w600,
+                color: context.colors.onSurface,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
             ),
           ),
           const SizedBox(height: 4),
@@ -350,8 +383,7 @@ class _Fact extends StatelessWidget {
               Expanded(
                 child: Text(
                   label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
                   style: ProfileUi.caption(context),
                 ),
               ),
@@ -390,18 +422,20 @@ class _Count extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (v == null)
-            Text('—', style: _numberStyle(context))
-          else
-            TweenAnimationBuilder<int>(
-              tween: IntTween(begin: 0, end: v),
-              duration: reduceMotion
-                  ? Duration.zero
-                  : const Duration(milliseconds: 600),
-              curve: Curves.easeOutCubic,
-              builder: (_, animated, _) =>
-                  Text('$animated', style: _numberStyle(context)),
-            ),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: v == null
+                ? Text('—', style: _numberStyle(context))
+                : TweenAnimationBuilder<int>(
+                    tween: IntTween(begin: 0, end: v),
+                    duration: reduceMotion
+                        ? Duration.zero
+                        : const Duration(milliseconds: 600),
+                    curve: Curves.easeOutCubic,
+                    builder: (_, animated, _) =>
+                        Text('$animated', style: _numberStyle(context)),
+                  ),
+          ),
           const SizedBox(height: 4),
           Row(
             mainAxisSize: MainAxisSize.min,
@@ -415,8 +449,8 @@ class _Count extends StatelessWidget {
               Flexible(
                 child: Text(
                   label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                  textAlign: TextAlign.center,
                   style: ProfileUi.caption(context),
                 ),
               ),
@@ -432,8 +466,13 @@ class _Count extends StatelessWidget {
 class _MonthRing extends StatelessWidget {
   final double progress;
   final bool isLoading;
+  final double dimension;
 
-  const _MonthRing({required this.progress, required this.isLoading});
+  const _MonthRing({
+    required this.progress,
+    required this.isLoading,
+    required this.dimension,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -445,7 +484,7 @@ class _MonthRing extends StatelessWidget {
           'This month: ${isLoading ? 'loading' : '${(target * 100).round()} percent'}',
       excludeSemantics: true,
       child: SizedBox.square(
-        dimension: 84,
+        dimension: dimension,
         child: TweenAnimationBuilder<double>(
           tween: Tween<double>(begin: 0, end: target),
           duration: reduceMotion
@@ -458,25 +497,31 @@ class _MonthRing extends StatelessWidget {
               color: context.colors.primary,
               trackColor: context.colors.onSurface.withValues(alpha: 0.08),
             ),
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    isLoading ? '—' : '${(value * 100).round()}%',
-                    style: GoogleFonts.inter(
-                      fontSize: 18,
-                      height: 1.2,
-                      fontWeight: FontWeight.w600,
-                      color: context.colors.onSurface,
-                      fontFeatures: const [FontFeature.tabularFigures()],
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      isLoading ? '—' : '${(value * 100).round()}%',
+                      style: GoogleFonts.inter(
+                        fontSize: 18,
+                        height: 1.2,
+                        fontWeight: FontWeight.w600,
+                        color: context.colors.onSurface,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
                     ),
-                  ),
-                  Text(
-                    'This month',
-                    style: ProfileUi.caption(context).copyWith(fontSize: 10.5),
-                  ),
-                ],
+                    Text(
+                      'This month',
+                      style: ProfileUi.caption(
+                        context,
+                      ).copyWith(fontSize: 10.5),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
