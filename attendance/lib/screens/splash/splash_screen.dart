@@ -1,6 +1,9 @@
+import 'package:attendance/config/app_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+
+import '../../config/app_theme.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -61,8 +64,9 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFFCFAF7), // Warm premium background
+      backgroundColor: context.colors.surface,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -71,28 +75,24 @@ class _SplashScreenState extends State<SplashScreen>
 
             // Warm rounded app logo container
             ScaleTransition(
-              scale: _scaleAnimation,
+              scale: reduceMotion
+                  ? const AlwaysStoppedAnimation(1.0)
+                  : _scaleAnimation,
               child: Container(
                 width: 110,
                 height: 110,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: context.colors.surfaceContainerLow,
                   borderRadius: BorderRadius.circular(28),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF1B1D1F).withValues(alpha: 0.04),
+                      color: Colors.black.withValues(alpha: 0.08),
                       blurRadius: 24,
                       offset: const Offset(0, 8),
                     ),
                   ],
                 ),
-                child: const Center(
-                  child: Icon(
-                    Icons.fingerprint_rounded,
-                    color: Color(0xFF1B1D1F), // Clean contrast color
-                    size: 56,
-                  ),
-                ),
+                child: Center(child: Icon(AppIcons.fingerprint, size: 24)),
               ),
             ),
 
@@ -100,28 +100,28 @@ class _SplashScreenState extends State<SplashScreen>
 
             // Soft circular progress indicator and version
             FadeTransition(
-              opacity: _fadeAnimation,
+              opacity: reduceMotion
+                  ? const AlwaysStoppedAnimation(1.0)
+                  : _fadeAnimation,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const SizedBox(
                     width: 24,
                     height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1B1D1F)),
-                    ),
+                    child: CircularProgressIndicator(strokeWidth: 2.5),
                   ),
                   const SizedBox(height: 32),
-                  Text(
-                    'v${_packageInfo?.version ?? '1.0.0'}',
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(0xFF8E8E93),
-                      letterSpacing: 0.5,
+                  if (_packageInfo case final info?)
+                    Text(
+                      'v${info.version}',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: context.colors.onSurfaceVariant,
+                        letterSpacing: 0,
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),

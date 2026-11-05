@@ -1,3 +1,4 @@
+import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/providers/admin_provider.dart';
 import 'package:attendance/providers/attendance_provider.dart';
@@ -59,7 +60,7 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
-      backgroundColor: ProfileUi.page,
+      backgroundColor: context.colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(ProfileUi.sheetRadius),
@@ -101,10 +102,10 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
         : 0.0;
 
     return Scaffold(
-      backgroundColor: ProfileUi.page,
+      backgroundColor: context.colors.surface,
       body: RefreshIndicator(
-        color: AppTheme.primaryNavy,
-        backgroundColor: Colors.white,
+        color: context.colors.primary,
+        backgroundColor: context.colors.surfaceContainerLow,
         // Start the spinner below the pinned app bar.
         edgeOffset: MediaQuery.paddingOf(context).top + kToolbarHeight,
         onRefresh: _refresh,
@@ -164,7 +165,7 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
               SliverFillRemaining(
                 hasScrollBody: false,
                 child: _StateView(
-                  icon: Icons.error_outline_rounded,
+                  icon: AppIcons.alertCircle,
                   title: 'Couldn’t load employees',
                   subtitle: error,
                   isError: true,
@@ -212,17 +213,20 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return SliverAppBar(
       pinned: true,
       automaticallyImplyLeading: false,
-      backgroundColor: ProfileUi.page,
+      backgroundColor: context.colors.surface,
       surfaceTintColor: Colors.transparent,
       scrolledUnderElevation: 0,
       elevation: 0,
       centerTitle: true,
-      title: Text('Admin', style: ProfileUi.body(weight: FontWeight.w600)),
+      title: Text(
+        'Admin',
+        style: ProfileUi.body(context, weight: FontWeight.w600),
+      ),
       actions: [
         IconButton(
           tooltip: 'Notifications',
-          icon: const Icon(Icons.notifications_none_rounded),
-          color: AppTheme.textPrimary,
+          icon: const Icon(AppIcons.bell),
+          color: context.colors.onSurface,
           onPressed: _openNotifications,
         ),
         const SizedBox(width: 4),
@@ -234,7 +238,11 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
           builder: (_, scrolled, _) => AnimatedOpacity(
             opacity: scrolled ? 1 : 0,
             duration: const Duration(milliseconds: 150),
-            child: Divider(height: 1, thickness: 1, color: ProfileUi.hairline),
+            child: Divider(
+              height: 1,
+              thickness: 1,
+              color: context.colors.outlineVariant,
+            ),
           ),
         ),
       ),
@@ -256,7 +264,7 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
           label: 'Attendance window',
           children: [
             ProfileMenuItem(
-              icon: Icons.schedule_rounded,
+              icon: AppIcons.clock,
               title: title,
               subtitle: always
                   ? 'No time restriction'
@@ -265,7 +273,8 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
               trailing: Text(
                 'Edit',
                 style: ProfileUi.small(
-                  color: AppTheme.primaryNavy,
+                  context,
+                  color: context.colors.primary,
                   weight: FontWeight.w600,
                 ),
               ),
@@ -279,20 +288,20 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget _emptyStateFor(String filter, int total) {
     if (total == 0) {
       return const _StateView(
-        icon: Icons.person_off_outlined,
+        icon: AppIcons.userOff,
         title: 'No employees yet',
         subtitle: 'Employees will appear here once they are added.',
       );
     }
     if (filter == 'absent') {
       return const _StateView(
-        icon: Icons.verified_outlined,
+        icon: AppIcons.rosetteDiscountCheck,
         title: 'No absences',
         subtitle: 'Everyone has checked in today.',
       );
     }
     return const _StateView(
-      icon: Icons.person_off_outlined,
+      icon: AppIcons.userOff,
       title: 'Nobody is present yet',
       subtitle: 'Check-ins will show up here as employees mark attendance.',
     );
@@ -315,7 +324,10 @@ class _SectionLabel extends StatelessWidget {
       ),
       child: Semantics(
         header: true,
-        child: Text(text, style: ProfileUi.small(weight: FontWeight.w600)),
+        child: Text(
+          text,
+          style: ProfileUi.small(context, weight: FontWeight.w600),
+        ),
       ),
     );
   }
@@ -341,16 +353,12 @@ class _InlineError extends StatelessWidget {
         liveRegion: true,
         child: Row(
           children: [
-            const Icon(
-              Icons.error_outline_rounded,
-              size: 16,
-              color: AppTheme.errorRed,
-            ),
+            Icon(AppIcons.alertCircle, size: 24),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 message,
-                style: ProfileUi.caption(color: AppTheme.errorRed),
+                style: ProfileUi.caption(context, color: context.colors.error),
               ),
             ),
             TextButton(
@@ -361,7 +369,8 @@ class _InlineError extends StatelessWidget {
               child: Text(
                 'Retry',
                 style: ProfileUi.small(
-                  color: AppTheme.primaryNavy,
+                  context,
+                  color: context.colors.primary,
                   weight: FontWeight.w600,
                 ),
               ),
@@ -381,7 +390,7 @@ class _LoadingRows extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bar = AppTheme.textPrimary;
+    final bar = context.colors.onSurface;
 
     Widget block(double width, double height, double alpha) => Container(
       width: width,
@@ -396,7 +405,7 @@ class _LoadingRows extends StatelessWidget {
       label: 'Loading employees',
       excludeSemantics: true,
       child: Material(
-        color: ProfileUi.cardFill,
+        color: context.colors.surfaceContainerLow,
         borderRadius: BorderRadius.circular(ProfileUi.cardRadius),
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -408,7 +417,7 @@ class _LoadingRows extends StatelessWidget {
                   thickness: 1,
                   indent: ProfileUi.rowInset + 40 + ProfileUi.rowInset,
                   endIndent: ProfileUi.rowInset,
-                  color: ProfileUi.hairline,
+                  color: context.colors.outlineVariant,
                 ),
               Padding(
                 padding: const EdgeInsets.symmetric(
@@ -481,15 +490,11 @@ class _StateView extends StatelessWidget {
           Container(
             width: 72,
             height: 72,
-            decoration: const BoxDecoration(
-              color: ProfileUi.cardFill,
+            decoration: BoxDecoration(
+              color: context.colors.surfaceContainerLow,
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              icon,
-              size: 32,
-              color: isError ? AppTheme.errorRed : AppTheme.textSecondary,
-            ),
+            child: Icon(icon, size: 24),
           ),
           const SizedBox(height: 20),
           Semantics(
@@ -501,7 +506,7 @@ class _StateView extends StatelessWidget {
                 fontSize: 18,
                 height: 1.3,
                 fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
+                color: context.colors.onSurface,
               ),
             ),
           ),
@@ -511,7 +516,7 @@ class _StateView extends StatelessWidget {
             child: Text(
               subtitle,
               textAlign: TextAlign.center,
-              style: ProfileUi.small().copyWith(height: 1.45),
+              style: ProfileUi.small(context).copyWith(height: 1.45),
             ),
           ),
           if (action != null && actionLabel != null) ...[
@@ -521,11 +526,11 @@ class _StateView extends StatelessWidget {
                 HapticFeedback.lightImpact();
                 action();
               },
-              icon: const Icon(Icons.refresh_rounded, size: 18),
+              icon: const Icon(AppIcons.refresh, size: 24),
               label: Text(actionLabel!),
               style: FilledButton.styleFrom(
-                backgroundColor: ProfileUi.cardFill,
-                foregroundColor: AppTheme.textPrimary,
+                backgroundColor: context.colors.surfaceContainerLow,
+                foregroundColor: context.colors.onSurface,
                 elevation: 0,
                 minimumSize: const Size(0, 44),
                 padding: const EdgeInsets.symmetric(horizontal: 20),

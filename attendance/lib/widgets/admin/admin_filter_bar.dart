@@ -94,8 +94,8 @@ class _Chip extends StatelessWidget {
       side: BorderSide.none,
       elevation: 0,
       pressElevation: 0,
-      backgroundColor: ProfileUi.cardFill,
-      selectedColor: AppTheme.primaryNavy,
+      backgroundColor: context.colors.surfaceContainerLow,
+      selectedColor: context.colors.primary,
       labelPadding: EdgeInsets.zero,
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
       // Keeps the full 48dp touch target even though the chip looks smaller.
@@ -111,7 +111,9 @@ class _Chip extends StatelessWidget {
             fontSize: 13,
             height: 1.2,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-            color: isSelected ? Colors.white : AppTheme.textSecondary,
+            color: isSelected
+                ? context.colors.onPrimary
+                : context.colors.onSurfaceVariant,
           ),
         ),
       ),

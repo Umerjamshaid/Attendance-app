@@ -1,3 +1,4 @@
+import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/config/wc_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -31,11 +32,7 @@ class DeviceInfoWidget extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.phone_android_rounded,
-            size: compact ? 14 : 16,
-            color: WC.accentBlue,
-          ),
+          Icon(AppIcons.deviceMobile, size: 24),
           SizedBox(width: compact ? 6 : 8),
           Flexible(
             child: Column(

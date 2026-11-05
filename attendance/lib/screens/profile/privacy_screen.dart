@@ -1,5 +1,5 @@
+import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/config/app_theme.dart';
-import 'package:attendance/config/wc_tokens.dart';
 import 'package:attendance/widgets/user-profile/profile_menu_item.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
@@ -15,22 +15,22 @@ class PrivacyScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: ProfileUi.page,
+      backgroundColor: context.colors.surface,
       appBar: AppBar(
-        backgroundColor: ProfileUi.page,
+        backgroundColor: context.colors.surface,
         surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 0,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
           tooltip: 'Back',
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          color: AppTheme.textPrimary,
+          icon: const Icon(AppIcons.chevronLeft, size: 24),
+          color: context.colors.onSurface,
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           'Privacy & security',
-          style: ProfileUi.body(weight: FontWeight.w600),
+          style: ProfileUi.body(context, weight: FontWeight.w600),
         ),
       ),
       body: SingleChildScrollView(
@@ -50,7 +50,7 @@ class PrivacyScreen extends StatelessWidget {
                       label: 'How your data is used',
                       children: [
                         _PolicyRow(
-                          icon: Icons.face_retouching_natural_rounded,
+                          icon: AppIcons.moodSmile,
                           title: 'Check-in photo',
                           summary:
                               'A front-camera photo helps confirm that the right person is checking in.',
@@ -58,7 +58,7 @@ class PrivacyScreen extends StatelessWidget {
                               'A photo is captured only after you tap the attendance button. It is encoded for submission to the configured attendance service and is not used for advertising or profiling.',
                         ),
                         _PolicyRow(
-                          icon: Icons.share_location_rounded,
+                          icon: AppIcons.currentLocation,
                           title: 'Point-in-time location',
                           summary:
                               'Your location is read once when you submit attendance.',
@@ -66,7 +66,7 @@ class PrivacyScreen extends StatelessWidget {
                               'The app does not continuously track your location. The coordinates captured at check-in are sent with the attendance record so the organization can verify where the submission came from.',
                         ),
                         _PolicyRow(
-                          icon: Icons.security_rounded,
+                          icon: AppIcons.shieldLock,
                           title: 'Submission integrity',
                           summary:
                               'The app performs basic device and location checks before sending a record.',
@@ -74,7 +74,7 @@ class PrivacyScreen extends StatelessWidget {
                               'Permission checks and location validation help the organization keep attendance records trustworthy. The exact checks may vary by build and configured attendance service.',
                         ),
                         _PolicyRow(
-                          icon: Icons.cloud_done_rounded,
+                          icon: AppIcons.cloudCheck,
                           title: 'Secure transmission',
                           summary:
                               'Attendance details are sent to the configured organization service.',
@@ -82,7 +82,7 @@ class PrivacyScreen extends StatelessWidget {
                               'The submission includes the employee identifier, check-in time, location, device details, and captured photo as required by the active service. Transport security is provided by the organization’s backend configuration.',
                         ),
                         _PolicyRow(
-                          icon: Icons.history_edu_rounded,
+                          icon: AppIcons.fileCertificate,
                           title: 'Retention and access',
                           summary:
                               'Attendance records are managed by your organization.',
@@ -95,7 +95,7 @@ class PrivacyScreen extends StatelessWidget {
                       label: 'Permissions',
                       children: [
                         ProfileMenuItem(
-                          icon: Icons.tune_rounded,
+                          icon: AppIcons.adjustments,
                           title: 'Open system settings',
                           onTap: openAppSettings,
                         ),
@@ -110,7 +110,7 @@ class PrivacyScreen extends StatelessWidget {
                       ),
                       child: Text(
                         'Review camera and location access at any time.',
-                        style: ProfileUi.caption(),
+                        style: ProfileUi.caption(context),
                       ),
                     ),
                   ],
@@ -142,14 +142,10 @@ class _Intro extends StatelessWidget {
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-              color: WC.present.withValues(alpha: 0.12),
+              color: context.attendancePresent.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.shield_outlined,
-              size: 34,
-              color: WC.present,
-            ),
+            child: Icon(AppIcons.shield, size: 24),
           ),
           const SizedBox(height: 16),
           Semantics(
@@ -161,7 +157,7 @@ class _Intro extends StatelessWidget {
                 fontSize: 22,
                 height: 1.25,
                 fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
+                color: context.colors.onSurface,
               ),
             ),
           ),
@@ -169,7 +165,7 @@ class _Intro extends StatelessWidget {
           Text(
             'Attendance uses your camera and location only when you choose to check in. Nothing runs continuously in the background.',
             textAlign: TextAlign.center,
-            style: ProfileUi.small().copyWith(height: 1.5),
+            style: ProfileUi.small(context).copyWith(height: 1.5),
           ),
         ],
       ),
@@ -227,11 +223,7 @@ class _PolicyRowState extends State<_PolicyRow> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      widget.icon,
-                      size: ProfileUi.iconSize,
-                      color: AppTheme.textSecondary,
-                    ),
+                    Icon(widget.icon, size: 24),
                     const SizedBox(width: ProfileUi.rowInset),
                     Expanded(
                       child: Column(
@@ -239,12 +231,17 @@ class _PolicyRowState extends State<_PolicyRow> {
                         children: [
                           Text(
                             widget.title,
-                            style: ProfileUi.body(weight: FontWeight.w500),
+                            style: ProfileUi.body(
+                              context,
+                              weight: FontWeight.w500,
+                            ),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             widget.summary,
-                            style: ProfileUi.small().copyWith(height: 1.4),
+                            style: ProfileUi.small(
+                              context,
+                            ).copyWith(height: 1.4),
                           ),
                         ],
                       ),
@@ -254,11 +251,7 @@ class _PolicyRowState extends State<_PolicyRow> {
                       turns: _expanded ? 0.5 : 0,
                       duration: duration,
                       curve: Curves.easeOutCubic,
-                      child: const Icon(
-                        Icons.expand_more_rounded,
-                        size: 20,
-                        color: AppTheme.textSecondary,
-                      ),
+                      child: Icon(AppIcons.chevronDown, size: 24),
                     ),
                   ],
                 ),
@@ -276,7 +269,8 @@ class _PolicyRowState extends State<_PolicyRow> {
                           child: Text(
                             widget.details,
                             style: ProfileUi.small(
-                              color: AppTheme.textPrimary.withValues(
+                              context,
+                              color: context.colors.onSurface.withValues(
                                 alpha: 0.8,
                               ),
                             ).copyWith(height: 1.55),

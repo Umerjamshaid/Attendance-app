@@ -1,3 +1,4 @@
+import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/screens/admin/admin_notification_screen.dart';
 import 'package:attendance/config/wc_tokens.dart';
 import 'package:attendance/widgets/admin/state_cell.dart';
@@ -9,7 +10,8 @@ class DashboardHeader extends StatelessWidget {
   final TabController tab;
   final ValueChanged<int> onTabChanged;
 
-  const DashboardHeader({super.key, 
+  const DashboardHeader({
+    super.key,
     required this.totalEmployees,
     required this.presentToday,
     required this.absentToday,
@@ -59,7 +61,7 @@ class DashboardHeader extends StatelessWidget {
                       ],
                     ),
                   ),
-                  HeaderIconButton(icon: Icons.notifications_none_rounded),
+                  HeaderIconButton(icon: AppIcons.bell),
                 ],
               ),
             ),
@@ -130,7 +132,7 @@ class HeaderIconButton extends StatelessWidget {
           color: Color(0xFF1A1A1A),
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, color: WC.white, size: 20),
+        child: Icon(icon, size: 24, color: Colors.white),
       ),
     );
   }

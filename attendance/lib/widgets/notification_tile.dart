@@ -1,3 +1,4 @@
+import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
@@ -45,8 +46,8 @@ class NotificationTile extends StatelessWidget {
                       child: Container(
                         width: 8,
                         height: 8,
-                        decoration: const BoxDecoration(
-                          color: AppTheme.primaryNavy,
+                        decoration: BoxDecoration(
+                          color: context.colors.primary,
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -58,14 +59,10 @@ class NotificationTile extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: AppTheme.primaryNavy.withValues(alpha: 0.1),
+                color: context.colors.primary.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.notifications_none_rounded,
-                size: 20,
-                color: AppTheme.primaryNavy,
-              ),
+              child: Icon(AppIcons.bell, size: 24),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -75,16 +72,17 @@ class NotificationTile extends StatelessWidget {
                   Text.rich(
                     TextSpan(children: titleSpans),
                     style: ProfileUi.body(
+                      context,
                       weight: isUnread ? FontWeight.w600 : FontWeight.w400,
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Text(description, style: ProfileUi.small()),
+                  Text(description, style: ProfileUi.small(context)),
                 ],
               ),
             ),
             const SizedBox(width: 12),
-            Text(time, style: ProfileUi.caption()),
+            Text(time, style: ProfileUi.caption(context)),
           ],
         ),
       ),

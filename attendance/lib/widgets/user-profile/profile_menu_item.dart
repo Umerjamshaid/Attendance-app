@@ -1,5 +1,5 @@
+import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/config/app_theme.dart';
-import 'package:attendance/config/wc_tokens.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -43,11 +43,7 @@ class ProfileMenuItem extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(
-            icon,
-            size: ProfileUi.iconSize,
-            color: textColor ?? AppTheme.textSecondary,
-          ),
+          Icon(icon, size: 24),
           const SizedBox(width: ProfileUi.rowInset),
           Expanded(
             child: Column(
@@ -60,14 +56,20 @@ class ProfileMenuItem extends StatelessWidget {
                   runSpacing: 4,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Text(title, style: ProfileUi.body(color: textColor)),
+                    Text(
+                      title,
+                      style: ProfileUi.body(context, color: textColor),
+                    ),
                     if (badge != null)
-                      _Badge(label: badge!, color: badgeColor ?? WC.present),
+                      _Badge(
+                        label: badge!,
+                        color: badgeColor ?? context.attendancePresent,
+                      ),
                   ],
                 ),
                 if (subtitle != null) ...[
                   const SizedBox(height: 2),
-                  Text(subtitle!, style: ProfileUi.small()),
+                  Text(subtitle!, style: ProfileUi.small(context)),
                 ],
               ],
             ),
@@ -77,11 +79,7 @@ class ProfileMenuItem extends StatelessWidget {
             trailing!,
           ] else if (tap != null) ...[
             const SizedBox(width: 8),
-            const Icon(
-              Icons.chevron_right_rounded,
-              size: 20,
-              color: AppTheme.textSecondary,
-            ),
+            Icon(AppIcons.chevronRight, size: 24),
           ],
         ],
       ),
@@ -135,19 +133,22 @@ class ProfileSwitchItem extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(
-                icon,
-                size: ProfileUi.iconSize,
-                color: AppTheme.textSecondary,
-              ),
+              Icon(icon, size: 24),
               const SizedBox(width: ProfileUi.rowInset),
-              Expanded(child: Text(title, style: ProfileUi.body())),
+              Expanded(child: Text(title, style: ProfileUi.body(context))),
               const SizedBox(width: 8),
               Switch.adaptive(
                 value: value,
                 onChanged: _set,
-                activeTrackColor: AppTheme.primaryNavy,
+                activeTrackColor: context.colors.primary,
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                thumbIcon: switch (Theme.of(context).platform) {
+                  TargetPlatform.iOS || TargetPlatform.macOS => null,
+                  _ => const WidgetStateProperty<Icon?>.fromMap({
+                    WidgetState.selected: Icon(AppIcons.check),
+                    WidgetState.any: Icon(AppIcons.x),
+                  }),
+                },
               ),
             ],
           ),
@@ -173,7 +174,11 @@ class _Badge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: ProfileUi.caption(color: color, weight: FontWeight.w600),
+        style: ProfileUi.caption(
+          context,
+          color: color,
+          weight: FontWeight.w600,
+        ),
       ),
     );
   }

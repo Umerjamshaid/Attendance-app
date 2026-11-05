@@ -1,3 +1,4 @@
+import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/config/wc_tokens.dart';
 import 'package:attendance/models/attendance_record_model.dart';
 import 'package:flutter/material.dart';
@@ -72,9 +73,8 @@ class CompactAttendanceCard extends StatelessWidget {
             ),
             child: Icon(
               record.isPresent
-                  ? Icons.verified_rounded
-                  : Icons.cancel_rounded,
-              color: color,
+                  ? AppIcons.rosetteDiscountCheck
+                  : AppIcons.circleX,
               size: 24,
             ),
           ),

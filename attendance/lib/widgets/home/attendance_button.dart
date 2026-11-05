@@ -1,5 +1,5 @@
+import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/config/app_theme.dart';
-import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -42,11 +42,11 @@ class _AttendanceButtonState extends State<AttendanceButton> {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     final showRing = isEnabled && !reduceMotion;
     final fill = widget.isUploadEnabled
-        ? AppTheme.primaryNavy
-        : ProfileUi.cardFill;
+        ? context.colors.primary
+        : context.colors.surfaceContainerLow;
     final foreground = widget.isUploadEnabled
-        ? Colors.white
-        : AppTheme.textSecondary;
+        ? context.colors.onPrimary
+        : context.colors.onSurfaceVariant;
 
     return RepaintBoundary(
       child: Semantics(
@@ -88,7 +88,9 @@ class _AttendanceButtonState extends State<AttendanceButton> {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: AppTheme.primaryNavy.withValues(alpha: 0.15),
+                            color: context.colors.primary.withValues(
+                              alpha: 0.15,
+                            ),
                             width: 1.5,
                           ),
                         ),
@@ -119,9 +121,9 @@ class _AttendanceButtonState extends State<AttendanceButton> {
                         else ...[
                           Icon(
                             widget.isUploadEnabled
-                                ? Icons.fingerprint_rounded
-                                : Icons.lock_clock_rounded,
-                            size: 56,
+                                ? AppIcons.fingerprint
+                                : AppIcons.lock,
+                            size: 24,
                             color: foreground,
                           ),
                           const SizedBox(height: 10),

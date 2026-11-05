@@ -1,4 +1,4 @@
-import 'package:attendance/config/app_theme.dart';
+import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -82,6 +82,7 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
     required IconData icon,
     String? errorText,
   }) {
+    final colors = Theme.of(context).colorScheme;
     OutlineInputBorder border(Color color, [double width = 1]) =>
         OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
@@ -93,20 +94,21 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
     return InputDecoration(
       labelText: label,
       errorText: errorText,
-      prefixIcon: Icon(icon, size: 20, color: AppTheme.textSecondary),
+      prefixIcon: Icon(icon, size: 24),
       filled: true,
-      fillColor: ProfileUi.cardFill,
+      fillColor: colors.surfaceContainerHighest,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       border: border(Colors.transparent),
       enabledBorder: border(Colors.transparent),
-      focusedBorder: border(AppTheme.primaryNavy, 1.5),
-      errorBorder: border(AppTheme.errorRed),
-      focusedErrorBorder: border(AppTheme.errorRed, 1.5),
+      focusedBorder: border(colors.primary, 1.5),
+      errorBorder: border(colors.error),
+      focusedErrorBorder: border(colors.error, 1.5),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final nameError = _nameValid ? null : 'Name can’t be empty';
     final emailError = _email.text.trim().isEmpty || _emailValid
         ? null
@@ -147,14 +149,17 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
                               fontSize: 20,
                               height: 1.3,
                               fontWeight: FontWeight.w600,
-                              color: AppTheme.textPrimary,
+                              color: colors.onSurface,
                             ),
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           'Update your personal information.',
-                          style: ProfileUi.small(),
+                          style: ProfileUi.small(
+                            context,
+                            color: colors.onSurfaceVariant,
+                          ),
                         ),
                       ],
                     ),
@@ -169,15 +174,15 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
                           : () => Navigator.of(context).pop(),
                       style: IconButton.styleFrom(
                         padding: EdgeInsets.zero,
-                        backgroundColor: ProfileUi.cardFill,
-                        foregroundColor: AppTheme.textPrimary,
+                        backgroundColor: colors.surfaceContainerHighest,
+                        foregroundColor: colors.onSurface,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(
                             ProfileUi.sheetRadius,
                           ),
                         ),
                       ),
-                      icon: const Icon(Icons.close_rounded, size: 22),
+                      icon: const Icon(AppIcons.x, size: 24),
                     ),
                   ),
                 ],
@@ -189,10 +194,10 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
                 textCapitalization: TextCapitalization.words,
                 textInputAction: TextInputAction.next,
                 autofillHints: const [AutofillHints.name],
-                style: ProfileUi.body(),
+                style: ProfileUi.body(context, color: colors.onSurface),
                 decoration: _decoration(
                   label: 'Full name',
-                  icon: Icons.badge_outlined,
+                  icon: AppIcons.idBadge2,
                   errorText: nameError,
                 ),
               ),
@@ -204,10 +209,10 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
                 textInputAction: TextInputAction.done,
                 autofillHints: const [AutofillHints.email],
                 onSubmitted: (_) => _save(),
-                style: ProfileUi.body(),
+                style: ProfileUi.body(context, color: colors.onSurface),
                 decoration: _decoration(
                   label: 'Email address',
-                  icon: Icons.email_outlined,
+                  icon: AppIcons.mail,
                   errorText: emailError,
                 ),
               ),
@@ -217,7 +222,7 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
                   liveRegion: true,
                   child: Text(
                     _error!,
-                    style: ProfileUi.small(color: AppTheme.errorRed),
+                    style: ProfileUi.small(context, color: colors.error),
                   ),
                 ),
               ],
@@ -225,10 +230,8 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
               FilledButton(
                 onPressed: _canSave ? _save : null,
                 style: FilledButton.styleFrom(
-                  backgroundColor: AppTheme.primaryNavy,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: const Color(0xFFF1F5F9),
-                  disabledForegroundColor: const Color(0xFF64748B),
+                  disabledBackgroundColor: colors.surfaceContainerHighest,
+                  disabledForegroundColor: colors.onSurfaceVariant,
                   minimumSize: const Size.fromHeight(52),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),

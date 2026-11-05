@@ -1,5 +1,5 @@
+import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/config/app_theme.dart';
-import 'package:attendance/config/wc_tokens.dart';
 import 'package:attendance/providers/attendance_provider.dart';
 import 'package:attendance/services/local_storage_service.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
@@ -11,7 +11,7 @@ import 'package:provider/provider.dart';
 /// Sheet content for choosing when attendance can be marked.
 ///
 /// Present it with `showModalBottomSheet(isScrollControlled: true,
-/// useSafeArea: true, showDragHandle: true, backgroundColor: ProfileUi.page)`;
+/// useSafeArea: true, showDragHandle: true, backgroundColor: context.colors.surface)`;
 /// the sheet draws no surface of its own.
 class SetAttendanceWindowSheet extends StatefulWidget {
   const SetAttendanceWindowSheet({super.key});
@@ -81,7 +81,6 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('End time must be after start time.'),
-          backgroundColor: AppTheme.errorRed,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -107,7 +106,6 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('✓ Attendance window saved!'),
-          backgroundColor: WC.present,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -118,7 +116,6 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: $e'),
-          backgroundColor: AppTheme.errorRed,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -165,14 +162,14 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
                               fontSize: 20,
                               height: 1.3,
                               fontWeight: FontWeight.w600,
-                              color: AppTheme.textPrimary,
+                              color: context.colors.onSurface,
                             ),
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           'Choose when employees are allowed to mark attendance.',
-                          style: ProfileUi.small(),
+                          style: ProfileUi.small(context),
                         ),
                       ],
                     ),
@@ -187,15 +184,15 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
                           : () => Navigator.of(context).pop(),
                       style: IconButton.styleFrom(
                         padding: EdgeInsets.zero,
-                        backgroundColor: ProfileUi.cardFill,
-                        foregroundColor: AppTheme.textPrimary,
+                        backgroundColor: context.colors.surfaceContainerLow,
+                        foregroundColor: context.colors.onSurface,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(
                             ProfileUi.sheetRadius,
                           ),
                         ),
                       ),
-                      icon: const Icon(Icons.close_rounded, size: 22),
+                      icon: const Icon(AppIcons.x, size: 24),
                     ),
                   ),
                 ],
@@ -203,14 +200,14 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
               const SizedBox(height: 20),
               SegmentedButton<bool>(
                 segments: const [
-                  ButtonSegment<bool>(
+                  ButtonSegment(
                     value: false,
-                    icon: Icon(Icons.schedule_rounded, size: 18),
+                    icon: Icon(AppIcons.clock, size: 24),
                     label: Text('Scheduled'),
                   ),
-                  ButtonSegment<bool>(
+                  ButtonSegment(
                     value: true,
-                    icon: Icon(Icons.all_inclusive_rounded, size: 18),
+                    icon: Icon(AppIcons.infinity, size: 24),
                     label: Text('Always open'),
                   ),
                 ],
@@ -223,10 +220,10 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
                         setState(() => _always = selection.first);
                       },
                 style: SegmentedButton.styleFrom(
-                  backgroundColor: ProfileUi.cardFill,
-                  foregroundColor: AppTheme.textSecondary,
-                  selectedBackgroundColor: AppTheme.primaryNavy,
-                  selectedForegroundColor: Colors.white,
+                  backgroundColor: context.colors.surfaceContainerLow,
+                  foregroundColor: context.colors.onSurfaceVariant,
+                  selectedBackgroundColor: context.colors.primary,
+                  selectedForegroundColor: context.colors.onPrimary,
                   side: BorderSide.none,
                   minimumSize: const Size.fromHeight(48),
                   textStyle: GoogleFonts.inter(
@@ -245,7 +242,7 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
                 child: _always
                     ? Text(
                         'No time restriction (24 hours).',
-                        style: ProfileUi.small(),
+                        style: ProfileUi.small(context),
                       )
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -280,7 +277,7 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
                           if (_rangeValid)
                             Text(
                               'Employees can mark attendance from ${_formatHour(_startHour)} to ${_formatHour(_endHour)}.',
-                              style: ProfileUi.small(),
+                              style: ProfileUi.small(context),
                             )
                           else
                             Semantics(
@@ -288,7 +285,8 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
                               child: Text(
                                 'End time must be after start time.',
                                 style: ProfileUi.small(
-                                  color: AppTheme.errorRed,
+                                  context,
+                                  color: context.colors.error,
                                 ),
                               ),
                             ),
@@ -301,19 +299,15 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.only(top: 1),
-                    child: Icon(
-                      Icons.info_outline_rounded,
-                      size: 14,
-                      color: AppTheme.textSecondary,
-                    ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 1),
+                    child: Icon(AppIcons.infoCircle, size: 24),
                   ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       'Saved on this device. Other devices keep their own setting.',
-                      style: ProfileUi.caption(),
+                      style: ProfileUi.caption(context),
                     ),
                   ),
                 ],
@@ -327,8 +321,8 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
                           ? null
                           : () => Navigator.of(context).pop(),
                       style: FilledButton.styleFrom(
-                        backgroundColor: ProfileUi.cardFill,
-                        foregroundColor: AppTheme.textPrimary,
+                        backgroundColor: context.colors.surfaceContainerLow,
+                        foregroundColor: context.colors.onSurface,
                         elevation: 0,
                         minimumSize: const Size.fromHeight(52),
                         shape: RoundedRectangleBorder(
@@ -351,10 +345,12 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
                           ? null
                           : _save,
                       style: FilledButton.styleFrom(
-                        backgroundColor: AppTheme.primaryNavy,
-                        foregroundColor: Colors.white,
-                        disabledBackgroundColor: const Color(0xFFF1F5F9),
-                        disabledForegroundColor: const Color(0xFF64748B),
+                        backgroundColor: context.colors.primary,
+                        foregroundColor: context.colors.onPrimary,
+                        disabledBackgroundColor:
+                            context.colors.surfaceContainerHighest,
+                        disabledForegroundColor:
+                            context.colors.onSurfaceVariant,
                         minimumSize: const Size.fromHeight(52),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
@@ -369,14 +365,13 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
                               width: 22,
                               height: 22,
                               child: CircularProgressIndicator(
-                                color: Colors.white,
                                 strokeWidth: 2.5,
                               ),
                             )
                           : const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.check_rounded, size: 18),
+                                Icon(AppIcons.check, size: 24),
                                 SizedBox(width: 8),
                                 Text('Save window'),
                               ],
@@ -414,13 +409,13 @@ class _HourSelector extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: ProfileUi.small(weight: FontWeight.w600)),
+          Text(label, style: ProfileUi.small(context, weight: FontWeight.w600)),
           const SizedBox(height: 8),
           Container(
             height: 52,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: ProfileUi.cardFill,
+              color: context.colors.surfaceContainerLow,
               borderRadius: BorderRadius.circular(16),
             ),
             child: DropdownButtonHideUnderline(
@@ -428,13 +423,10 @@ class _HourSelector extends StatelessWidget {
                 value: value,
                 isExpanded: true,
                 borderRadius: BorderRadius.circular(16),
-                dropdownColor: Colors.white,
+                dropdownColor: context.colors.surfaceContainerLow,
                 menuMaxHeight: 320,
-                icon: const Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  color: AppTheme.textSecondary,
-                ),
-                style: ProfileUi.body(weight: FontWeight.w500),
+                icon: Icon(AppIcons.chevronDown),
+                style: ProfileUi.body(context, weight: FontWeight.w500),
                 items: List.generate(24, (h) => h)
                     .map(
                       (h) => DropdownMenuItem<int>(

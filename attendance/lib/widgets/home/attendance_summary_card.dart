@@ -1,5 +1,4 @@
 import 'package:attendance/config/app_theme.dart';
-import 'package:attendance/config/wc_tokens.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -39,7 +38,9 @@ class AttendanceSummaryCard extends StatelessWidget {
                 child: _Metric(
                   value: isCheckedIn ? 'Present' : 'Not yet',
                   label: 'Today',
-                  color: isCheckedIn ? WC.present : AppTheme.textSecondary,
+                  color: isCheckedIn
+                      ? context.attendancePresent
+                      : context.colors.onSurfaceVariant,
                 ),
               ),
               const _MetricDivider(),
@@ -47,7 +48,7 @@ class AttendanceSummaryCard extends StatelessWidget {
                 child: _Metric(
                   value: isLoading ? null : '${(monthlyRate * 100).round()}%',
                   label: 'This month',
-                  color: AppTheme.primaryNavy,
+                  color: context.colors.primary,
                 ),
               ),
               const _MetricDivider(),
@@ -55,7 +56,7 @@ class AttendanceSummaryCard extends StatelessWidget {
                 child: _Metric(
                   value: isLoading ? null : '$streak',
                   label: 'Day streak',
-                  color: ProfileUi.warning,
+                  color: context.attendanceWarning,
                 ),
               ),
             ],
@@ -71,7 +72,11 @@ class _MetricDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(width: 1, height: 36, color: ProfileUi.hairline);
+    return Container(
+      width: 1,
+      height: 36,
+      color: context.colors.outlineVariant,
+    );
   }
 }
 
@@ -109,7 +114,7 @@ class _Metric extends StatelessWidget {
                   fontSize: 24,
                   height: 1.2,
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
+                  color: context.colors.onSurface,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
@@ -130,7 +135,7 @@ class _Metric extends StatelessWidget {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: ProfileUi.caption(),
+                  style: ProfileUi.caption(context),
                 ),
               ),
             ],

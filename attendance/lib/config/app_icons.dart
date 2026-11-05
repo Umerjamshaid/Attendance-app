@@ -1,0 +1,52 @@
+import 'package:tabler_icons_plus/tabler_icons_plus.dart';
+
+/// Shared semantic icon catalog, backed by Tabler outline artwork.
+abstract final class AppIcons {
+  static const adjustments = TablerIcons.adjustments;
+  static const alertCircle = TablerIcons.alertCircle;
+  static const arrowRight = TablerIcons.arrowRight;
+  static const bell = TablerIcons.bell;
+  static const bellRinging = TablerIcons.bellRinging;
+  static const brightnessHalf = TablerIcons.brightnessHalf;
+  static const camera = TablerIcons.camera;
+  static const cameraPlus = TablerIcons.cameraPlus;
+  static const check = TablerIcons.check;
+  static const chevronDown = TablerIcons.chevronDown;
+  static const chevronLeft = TablerIcons.chevronLeft;
+  static const chevronRight = TablerIcons.chevronRight;
+  static const circle = TablerIcons.circle;
+  static const circleCheck = TablerIcons.circleCheck;
+  static const circleX = TablerIcons.circleX;
+  static const clock = TablerIcons.clock;
+  static const cloudCheck = TablerIcons.cloudCheck;
+  static const currentLocation = TablerIcons.currentLocation;
+  static const deviceMobile = TablerIcons.deviceMobile;
+  static const edit = TablerIcons.edit;
+  static const fileCertificate = TablerIcons.fileCertificate;
+  static const fingerprint = TablerIcons.fingerprint;
+  static const help = TablerIcons.help;
+  static const history = TablerIcons.history;
+  static const home = TablerIcons.home;
+  static const idBadge2 = TablerIcons.idBadge2;
+  static const infinity = TablerIcons.infinity;
+  static const infoCircle = TablerIcons.infoCircle;
+  static const language = TablerIcons.language;
+  static const lock = TablerIcons.lock;
+  static const logout = TablerIcons.logout;
+  static const mail = TablerIcons.mail;
+  static const mapPin = TablerIcons.mapPin;
+  static const moodSmile = TablerIcons.moodSmile;
+  static const moon = TablerIcons.moon;
+  static const photoPlus = TablerIcons.photoPlus;
+  static const plus = TablerIcons.plus;
+  static const refresh = TablerIcons.refresh;
+  static const rosetteDiscountCheck = TablerIcons.rosetteDiscountCheck;
+  static const settings = TablerIcons.settings;
+  static const shield = TablerIcons.shield;
+  static const shieldLock = TablerIcons.shieldLock;
+  static const sun = TablerIcons.sun;
+  static const trash = TablerIcons.trash;
+  static const user = TablerIcons.user;
+  static const userOff = TablerIcons.userOff;
+  static const x = TablerIcons.x;
+}

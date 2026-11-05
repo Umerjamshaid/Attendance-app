@@ -1,8 +1,8 @@
+import 'package:attendance/config/app_icons.dart';
 import 'dart:async';
 import 'dart:convert';
 
 import 'package:attendance/config/app_theme.dart';
-import 'package:attendance/config/wc_tokens.dart';
 import 'package:flutter/services.dart';
 import 'package:attendance/models/employees_model.dart';
 import 'package:attendance/providers/attendance_history_provider.dart';
@@ -139,11 +139,9 @@ class _AttendanceScreenState extends State<AttendanceScreen>
               '✗ Camera permission is blocked. Enable it in Settings.',
               style: GoogleFonts.inter(fontWeight: FontWeight.w600),
             ),
-            backgroundColor: AppTheme.errorRed,
             behavior: SnackBarBehavior.floating,
             action: SnackBarAction(
               label: 'Settings',
-              textColor: WC.white,
               onPressed: openAppSettings,
             ),
           ),
@@ -155,7 +153,6 @@ class _AttendanceScreenState extends State<AttendanceScreen>
               '✗ Camera permission is required to check in.',
               style: GoogleFonts.inter(fontWeight: FontWeight.w600),
             ),
-            backgroundColor: AppTheme.errorRed,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -182,7 +179,6 @@ class _AttendanceScreenState extends State<AttendanceScreen>
             '✗ Failed to open camera: $e',
             style: GoogleFonts.inter(fontWeight: FontWeight.w600),
           ),
-          backgroundColor: AppTheme.errorRed,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -251,7 +247,6 @@ class _AttendanceScreenState extends State<AttendanceScreen>
             ),
             duration: const Duration(seconds: 2),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: AppTheme.successGreen,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
@@ -281,7 +276,6 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           ),
           duration: const Duration(seconds: 4),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: AppTheme.errorRed,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -347,10 +341,10 @@ class _AttendanceScreenState extends State<AttendanceScreen>
         historyProvider.isLoading && historyProvider.records.isEmpty;
 
     return Scaffold(
-      backgroundColor: ProfileUi.page,
+      backgroundColor: context.colors.surface,
       body: RefreshIndicator(
-        color: AppTheme.primaryNavy,
-        backgroundColor: Colors.white,
+        color: context.colors.primary,
+        backgroundColor: context.colors.surfaceContainerLow,
         // Start the spinner below the pinned app bar.
         edgeOffset: MediaQuery.paddingOf(context).top + kToolbarHeight,
         onRefresh: () async {
@@ -384,11 +378,11 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                       Center(
                         child: AttendanceButton(
                           isLoading:
-                          _isLocalLoading || attendanceProvider.isLoading,
+                              _isLocalLoading || attendanceProvider.isLoading,
                           pulseAnimation: _pulseAnimation,
                           onTap: _handleCheckIn,
                           isUploadEnabled:
-                          attendanceProvider.isUploadEnabled &&
+                              attendanceProvider.isUploadEnabled &&
                               submissionService.isAvailable,
                           uploadLabel: submissionService.isAvailable
                               ? attendanceProvider.uploadButtonLabel
@@ -428,12 +422,15 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     return SliverAppBar(
       pinned: true,
       automaticallyImplyLeading: false,
-      backgroundColor: ProfileUi.page,
+      backgroundColor: context.colors.surface,
       surfaceTintColor: Colors.transparent,
       scrolledUnderElevation: 0,
       elevation: 0,
       centerTitle: true,
-      title: Text('Attendance', style: ProfileUi.body(weight: FontWeight.w600)),
+      title: Text(
+        'Attendance',
+        style: ProfileUi.body(context, weight: FontWeight.w600),
+      ),
       bottom: PreferredSize(
         preferredSize: const Size.fromHeight(1),
         child: ValueListenableBuilder<bool>(
@@ -441,7 +438,11 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           builder: (_, scrolled, _) => AnimatedOpacity(
             opacity: scrolled ? 1 : 0,
             duration: const Duration(milliseconds: 150),
-            child: Divider(height: 1, thickness: 1, color: ProfileUi.hairline),
+            child: Divider(
+              height: 1,
+              thickness: 1,
+              color: context.colors.outlineVariant,
+            ),
           ),
         ),
       ),
@@ -465,19 +466,15 @@ class _LocationNote extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.only(top: 1),
-            child: Icon(
-              Icons.location_on_outlined,
-              size: 14,
-              color: AppTheme.textSecondary,
-            ),
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(AppIcons.mapPin, size: 24),
           ),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
               'Your location is captured only when you submit.',
-              style: ProfileUi.caption(),
+              style: ProfileUi.caption(context),
             ),
           ),
         ],
@@ -564,7 +561,10 @@ class _LiveClockHeroState extends State<_LiveClockHero> {
       padding: const EdgeInsets.symmetric(horizontal: ProfileUi.gutter),
       child: Column(
         children: [
-          Text(dateStr, style: ProfileUi.small(weight: FontWeight.w500)),
+          Text(
+            dateStr,
+            style: ProfileUi.small(context, weight: FontWeight.w500),
+          ),
           const SizedBox(height: 6),
           // The time changes every second, so it is kept out of the
           // accessibility tree and repainted in isolation.
@@ -580,7 +580,7 @@ class _LiveClockHeroState extends State<_LiveClockHero> {
                     height: 1.15,
                     letterSpacing: -1,
                     fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
+                    color: context.colors.onSurface,
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
@@ -597,8 +597,11 @@ class _LiveClockHeroState extends State<_LiveClockHero> {
               key: ValueKey(widget.isCheckedIn),
               textAlign: TextAlign.center,
               style: ProfileUi.small(
+                context,
                 weight: FontWeight.w500,
-                color: widget.isCheckedIn ? WC.present : AppTheme.textSecondary,
+                color: widget.isCheckedIn
+                    ? context.attendancePresent
+                    : context.colors.onSurfaceVariant,
               ),
             ),
           ),

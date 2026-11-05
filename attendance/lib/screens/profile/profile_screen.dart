@@ -1,10 +1,12 @@
+import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/config/app_theme.dart';
-import 'package:attendance/config/wc_tokens.dart';
 import 'package:attendance/models/employees_model.dart';
 import 'package:attendance/providers/attendance_history_provider.dart';
 import 'package:attendance/providers/auth_provider.dart';
 import 'package:attendance/providers/profile_provider.dart';
+import 'package:attendance/screens/profile/appearance_screen.dart';
 import 'package:attendance/screens/profile/privacy_screen.dart';
+import 'package:attendance/screens/profile/profile_details_screen.dart';
 import 'package:attendance/screens/profile/settings_screen.dart';
 import 'package:attendance/widgets/user-profile/attendance_stats_card.dart';
 import 'package:attendance/widgets/user-profile/profile_header.dart';
@@ -131,9 +133,9 @@ class _ProfileScreenState extends State<ProfileScreen>
     final Employee? user = auth.currentUser;
 
     if (user == null) {
-      return const Scaffold(
-        backgroundColor: ProfileUi.page,
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        backgroundColor: context.colors.surface,
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -155,23 +157,32 @@ class _ProfileScreenState extends State<ProfileScreen>
         label: 'Preferences',
         children: [
           ProfileSwitchItem(
-            icon: Icons.notifications_active_outlined,
+            icon: AppIcons.bellRinging,
             title: 'Push notifications',
             value: _notificationsEnabled,
-            onChanged: (v) => setState(() => _notificationsEnabled = v),
+            onChanged: (value) => setState(() => _notificationsEnabled = value),
+          ),
+          ProfileMenuItem(
+            icon: AppIcons.idBadge2,
+            title: 'Profile details',
+            onTap: () => ProfileDetailsScreen.open(context, user),
+          ),
+          ProfileMenuItem(
+            icon: AppIcons.moon,
+            title: 'Appearance',
+            onTap: () => Navigator.of(context).push<void>(
+              MaterialPageRoute(builder: (_) => const AppearanceScreen()),
+            ),
           ),
           // Placeholder row kept from the previous screen; it has no action.
-          const ProfileMenuItem(
-            icon: Icons.language_rounded,
-            title: 'Language',
-          ),
+          const ProfileMenuItem(icon: AppIcons.language, title: 'Language'),
         ],
       ),
       ProfileSectionCard(
         label: 'Support',
         children: [
           ProfileMenuItem(
-            icon: Icons.help_outline_rounded,
+            icon: AppIcons.help,
             title: 'Help center',
             onTap: () => _showMessageDialog(
               context,
@@ -180,7 +191,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             ),
           ),
           ProfileMenuItem(
-            icon: Icons.info_outline_rounded,
+            icon: AppIcons.infoCircle,
             title: 'About app',
             onTap: () => _showMessageDialog(
               context,
@@ -189,16 +200,16 @@ class _ProfileScreenState extends State<ProfileScreen>
             ),
           ),
           ProfileMenuItem(
-            icon: Icons.shield_outlined,
-            title: 'Privacy & Security Trust Portal',
-            badge: 'Verified',
-            badgeColor: WC.present,
+            icon: AppIcons.shield,
+            title: 'Privacy',
+            // badge: 'Verified',
+            badgeColor: context.attendancePresent,
             onTap: () => Navigator.of(
               context,
             ).push(MaterialPageRoute(builder: (_) => const PrivacyScreen())),
           ),
           ProfileMenuItem(
-            icon: Icons.settings_applications_outlined,
+            icon: AppIcons.settings,
             title: 'App permissions',
             onTap: openAppSettings,
           ),
@@ -207,9 +218,9 @@ class _ProfileScreenState extends State<ProfileScreen>
       ProfileSectionCard(
         children: [
           ProfileMenuItem(
-            icon: Icons.logout_rounded,
+            icon: AppIcons.logout,
             title: 'Log out',
-            textColor: AppTheme.errorRed,
+            textColor: context.colors.error,
             onTap: () => _showLogoutConfirmation(context),
           ),
         ],
@@ -217,7 +228,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     ];
 
     return Scaffold(
-      backgroundColor: ProfileUi.page,
+      backgroundColor: context.colors.surface,
       body: CustomScrollView(
         controller: _scroll,
         slivers: [
@@ -248,7 +259,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     return SliverAppBar(
       pinned: true,
       automaticallyImplyLeading: false,
-      backgroundColor: ProfileUi.page,
+      backgroundColor: context.colors.surface,
       surfaceTintColor: Colors.transparent,
       scrolledUnderElevation: 0,
       elevation: 0,
@@ -264,7 +275,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               key: ValueKey(showName),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: ProfileUi.body(weight: FontWeight.w600),
+              style: ProfileUi.body(context, weight: FontWeight.w600),
             ),
           );
         },
@@ -272,8 +283,8 @@ class _ProfileScreenState extends State<ProfileScreen>
       actions: [
         IconButton(
           tooltip: 'Settings',
-          icon: const Icon(Icons.settings_outlined),
-          color: AppTheme.textPrimary,
+          icon: const Icon(AppIcons.settings),
+          color: context.colors.onSurface,
           onPressed: () {
             HapticFeedback.lightImpact();
             Navigator.push(
@@ -291,7 +302,11 @@ class _ProfileScreenState extends State<ProfileScreen>
           builder: (_, scrolled, _) => AnimatedOpacity(
             opacity: scrolled ? 1 : 0,
             duration: const Duration(milliseconds: 150),
-            child: Divider(height: 1, thickness: 1, color: ProfileUi.hairline),
+            child: Divider(
+              height: 1,
+              thickness: 1,
+              color: context.colors.outlineVariant,
+            ),
           ),
         ),
       ),
@@ -302,7 +317,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     final versionLabel = _buildNumber.isEmpty
         ? 'v$_version'
         : 'v$_version ($_buildNumber)';
-    final muted = AppTheme.textSecondary.withValues(alpha: 0.7);
+    final muted = context.colors.onSurfaceVariant.withValues(alpha: 0.7);
 
     return SafeArea(
       top: false,
@@ -317,12 +332,19 @@ class _ProfileScreenState extends State<ProfileScreen>
           children: [
             Text(
               'PIPFA Attendance',
-              style: ProfileUi.caption(color: muted, weight: FontWeight.w600),
+              style: ProfileUi.caption(
+                context,
+                color: muted,
+                weight: FontWeight.w600,
+              ),
             ),
             // Hidden until the platform reports a version.
             if (_version.isNotEmpty) ...[
               const SizedBox(height: 2),
-              Text(versionLabel, style: ProfileUi.caption(color: muted)),
+              Text(
+                versionLabel,
+                style: ProfileUi.caption(context, color: muted),
+              ),
             ],
           ],
         ),
@@ -338,7 +360,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     return showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: ProfileUi.page,
+        backgroundColor: context.colors.surface,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(ProfileUi.sheetRadius),
@@ -348,10 +370,10 @@ class _ProfileScreenState extends State<ProfileScreen>
           style: GoogleFonts.inter(
             fontSize: 18,
             fontWeight: FontWeight.w600,
-            color: AppTheme.textPrimary,
+            color: context.colors.onSurface,
           ),
         ),
-        content: Text(message, style: ProfileUi.small()),
+        content: Text(message, style: ProfileUi.small(context)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
@@ -367,7 +389,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: ProfileUi.page,
+        backgroundColor: context.colors.surface,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(ProfileUi.sheetRadius),
@@ -377,12 +399,12 @@ class _ProfileScreenState extends State<ProfileScreen>
           style: GoogleFonts.inter(
             fontSize: 18,
             fontWeight: FontWeight.w600,
-            color: AppTheme.textPrimary,
+            color: context.colors.onSurface,
           ),
         ),
         content: Text(
           'Are you sure you want to exit?',
-          style: ProfileUi.small(),
+          style: ProfileUi.small(context),
         ),
         actions: [
           TextButton(
@@ -395,9 +417,9 @@ class _ProfileScreenState extends State<ProfileScreen>
               Navigator.pop(dialogContext);
               auth.logout();
             },
-            child: const Text(
+            child: Text(
               'Log out',
-              style: TextStyle(color: AppTheme.errorRed),
+              style: TextStyle(color: context.colors.error),
             ),
           ),
         ],

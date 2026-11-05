@@ -3,6 +3,17 @@ import 'dart:convert';
 
 class LocalStorageService {
   static const String _attendanceWindowKey = 'attendance_window';
+  static const _themeModeKey = 'theme_mode';
+
+  Future<String?> getThemeMode() async =>
+      (await SharedPreferences.getInstance()).getString(_themeModeKey);
+
+  Future<void> saveThemeMode(String mode) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!await prefs.setString(_themeModeKey, mode)) {
+      throw StateError('Could not save theme preference');
+    }
+  }
 
   // Save the admin-configured attendance upload window.
   // mode: 'always' (no time restriction) or 'period' (startHour..endHour).
@@ -13,11 +24,7 @@ class LocalStorageService {
   }) async {
     final prefs = await SharedPreferences.getInstance();
 
-    final data = {
-      'mode': mode,
-      'startHour': startHour,
-      'endHour': endHour,
-    };
+    final data = {'mode': mode, 'startHour': startHour, 'endHour': endHour};
 
     await prefs.setString(_attendanceWindowKey, jsonEncode(data));
   }

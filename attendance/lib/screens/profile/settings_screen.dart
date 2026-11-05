@@ -1,9 +1,21 @@
-import 'package:attendance/providers/auth_provider.dart';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
+
+import '../../models/employees_model.dart';
+import '../../providers/attendance_provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/profile_provider.dart';
+import '../../providers/theme_provider.dart';
+import '../../widgets/user-profile/edit_profile_sheet.dart';
+import '../admin/set_attendance_window_sheet.dart';
+import 'appearance_screen.dart';
+import 'privacy_screen.dart';
+import 'profile_details_screen.dart';
+import 'settings_layout.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -13,693 +25,303 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _pushNotificationsEnabled = true;
-  bool _emailNotificationsEnabled = false;
-  late TextEditingController _headlineController;
-  late TextEditingController _chipsController;
-  late String _initialHeadline;
-  late String _initialChips;
-  bool _savingProfileDetails = false;
+  late final Future<PackageInfo> _package = PackageInfo.fromPlatform();
+  late var _permissions = _readPermissions();
+  late final AppLifecycleListener _lifecycle;
+  bool _signingOut = false;
 
   @override
   void initState() {
     super.initState();
-    final user = context.read<AuthProvider>().currentUser;
-    _initialHeadline =
-        user?.headline ?? '${user?.role ?? ''} at ${user?.department ?? ''}';
-    _initialChips = user != null && user.chips.isNotEmpty
-        ? user.chips.join(', ')
-        : '${user?.department ?? ''}, ${user?.role ?? ''}';
-    _headlineController = TextEditingController(text: _initialHeadline)
-      ..addListener(_onProfileDetailsChanged);
-    _chipsController = TextEditingController(text: _initialChips)
-      ..addListener(_onProfileDetailsChanged);
+    _lifecycle = AppLifecycleListener(onResume: _refreshPermissions);
   }
 
   @override
   void dispose() {
-    _headlineController.dispose();
-    _chipsController.dispose();
+    _lifecycle.dispose();
     super.dispose();
   }
 
-  bool get _hasProfileDetailsChanges =>
-      _headlineController.text.trim() != _initialHeadline.trim() ||
-      _chipsController.text.trim() != _initialChips.trim();
+  Future<List<PermissionStatus>> _readPermissions() => Future.wait([
+    Permission.locationWhenInUse.status,
+    Permission.camera.status,
+  ]);
 
-  void _onProfileDetailsChanged() {
-    if (mounted) setState(() {});
+  void _refreshPermissions() => setState(() {
+    _permissions = _readPermissions();
+  });
+
+  void _feedback(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<void> _saveProfileDetails() async {
-    if (!_hasProfileDetailsChanges || _savingProfileDetails) return;
-
-    final headline = _headlineController.text.trim();
-    final chipsText = _chipsController.text.trim();
-    final chips = chipsText.isNotEmpty
-        ? chipsText
-              .split(',')
-              .map((e) => e.trim())
-              .where((e) => e.isNotEmpty)
-              .toList()
-        : <String>[];
-
-    setState(() => _savingProfileDetails = true);
+  Future<void> _openPermissions() async {
     try {
-      await context.read<AuthProvider>().updateProfile(
-        headline: headline,
-        chips: chips,
-      );
-      if (!mounted) return;
-      setState(() {
-        _initialHeadline = headline;
-        _initialChips = chipsText;
-        _savingProfileDetails = false;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Profile details saved!'),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          backgroundColor: Colors.green[700],
-        ),
-      );
+      if (await openAppSettings()) return;
     } catch (_) {
-      if (!mounted) return;
-      setState(() => _savingProfileDetails = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not save profile details.')),
-      );
+      // The platform may not provide an app settings destination.
     }
+    _feedback('Could not open device settings.');
   }
 
-  // Helper to build groups without manual dividers
-  List<Widget> _buildGroupChildren(List<Widget> tiles) {
-    final List<Widget> children = [];
-    for (int i = 0; i < tiles.length; i++) {
-      children.add(tiles[i]);
-      if (i < tiles.length - 1) {
-        children.add(
-          const Padding(
-            padding: EdgeInsets.only(left: 64.0),
-            child: Divider(height: 1, thickness: 1, color: Color(0xFFF2F2F7)),
-          ),
-        );
-      }
-    }
-    return children;
+  Future<void> _editProfile(Employee user) async {
+    final auth = context.read<AuthProvider>();
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (_) => EditProfileSheet(
+        initialName: user.name,
+        initialEmail: user.email,
+        onSave: (name, email) => auth.updateProfile(name: name, email: email),
+      ),
+    );
+    if (saved == true) _feedback('Profile saved.');
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(
-          parent: AlwaysScrollableScrollPhysics(),
-        ),
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 100,
-            pinned: true,
-            stretch: true,
-            backgroundColor: const Color(0xFFFAFAFA),
-            elevation: 0,
-            surfaceTintColor: Colors.transparent,
-            leading: IconButton(
-              icon: const Icon(
-                Icons.arrow_back_ios_new_rounded,
-                color: Color(0xFF1B1D1F),
-                size: 18,
-              ),
-              onPressed: () => Navigator.pop(context),
-            ),
-            flexibleSpace: FlexibleSpaceBar(
-              titlePadding: const EdgeInsets.only(left: 48, bottom: 16),
-              title: Text(
-                'Settings',
-                style: GoogleFonts.dmSans(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  color: const Color(0xFF1B1D1F),
-                  letterSpacing: -0.5,
-                ),
-              ),
-            ),
+  Future<void> _signOut() async {
+    final auth = context.read<AuthProvider>();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sign out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
           ),
-
-          // Profile Header Card
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-              child: Builder(
-                builder: (context) {
-                  final user = context.watch<AuthProvider>().currentUser;
-                  return _ProfileHeader(
-                    name: user?.name ?? 'User',
-                    email: user?.email ?? '',
-                    role:
-                        user?.headline ??
-                        '${user?.role ?? ''} at ${user?.department ?? ''}',
-                    avatarColor: const Color(0xFF7C5CFC),
-                    onTap: () {},
-                  );
-                },
-              ),
-            ),
-          ),
-
-          // Settings Sections
-          SliverList(
-            delegate: SliverChildListDelegate([
-              _buildSectionHeader('ACCOUNT'),
-              _buildSettingsGroup([
-                _SettingsTile(
-                  icon: Icons.person_outline_rounded,
-                  iconColor: Colors.blue[400]!,
-                  title: 'Personal Information',
-                  onTap: () {},
-                ),
-                _SettingsTile(
-                  icon: Icons.security_rounded,
-                  iconColor: Colors.grey[600]!,
-                  title: 'Security & Password',
-                  onTap: () {},
-                ),
-              ]),
-
-              const SizedBox(height: 28),
-              _buildSectionHeader('PROFILE DETAILS'),
-              _buildProfileDetailsSection(),
-
-              const SizedBox(height: 28),
-              _buildSectionHeader('NOTIFICATIONS'),
-              _buildSettingsGroup([
-                _SettingsToggleTile(
-                  icon: Icons.notifications_none_rounded,
-                  iconColor: Colors.red[400]!,
-                  title: 'Push Notifications',
-                  value: _pushNotificationsEnabled,
-                  onChanged: (v) {
-                    HapticFeedback.lightImpact();
-                    setState(() => _pushNotificationsEnabled = v);
-                  },
-                ),
-                _SettingsToggleTile(
-                  icon: Icons.mail_outline_rounded,
-                  iconColor: Colors.orange[400]!,
-                  title: 'Email Notifications',
-                  value: _emailNotificationsEnabled,
-                  onChanged: (v) {
-                    HapticFeedback.lightImpact();
-                    setState(() => _emailNotificationsEnabled = v);
-                  },
-                ),
-              ]),
-
-              const SizedBox(height: 28),
-              _buildSectionHeader('PERMISSIONS'),
-              _buildSettingsGroup([
-                _SettingsTile(
-                  icon: Icons.location_on_outlined,
-                  iconColor: Colors.green[400]!,
-                  title: 'Location Permissions',
-                  subtitle: 'Manage in Settings',
-                  onTap: () => openAppSettings(),
-                ),
-                _SettingsTile(
-                  icon: Icons.settings_applications_outlined,
-                  iconColor: Colors.teal[400]!,
-                  title: 'App Settings',
-                  onTap: () => openAppSettings(),
-                ),
-              ]),
-
-              const SizedBox(height: 28),
-              _buildSectionHeader('PREFERENCES'),
-              _buildSettingsGroup([
-                _SettingsTile(
-                  icon: Icons.language_rounded,
-                  iconColor: Colors.indigo[400]!,
-                  title: 'App Language',
-                  subtitle: 'English (US)',
-                  onTap: () {},
-                ),
-                _SettingsTile(
-                  icon: Icons.dark_mode_outlined,
-                  iconColor: const Color(0xFF64748B),
-                  title: 'Theme Mode',
-                  subtitle: 'Light',
-                  onTap: () {},
-                ),
-              ]),
-
-              const SizedBox(height: 28),
-              _buildSectionHeader('DATA'),
-              _buildSettingsGroup([
-                _SettingsTile(
-                  icon: Icons.history_rounded,
-                  iconColor: Colors.brown[400]!,
-                  title: 'Clear History',
-                  onTap: () {},
-                ),
-                _SettingsTile(
-                  icon: Icons.delete_outline_rounded,
-                  iconColor: Colors.red[400]!,
-                  title: 'Delete Account',
-                  textColor: Colors.red[600]!,
-                  onTap: () {},
-                ),
-              ]),
-
-              const SizedBox(height: 40),
-              Center(
-                child: Text(
-                  'Version 2.4.1 • Build 2024',
-                  style: GoogleFonts.inter(
-                    color: Colors.grey[400],
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 40),
-            ]),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Sign out'),
           ),
         ],
       ),
     );
+    if (confirmed != true || !mounted) return;
+    setState(() => _signingOut = true);
+    try {
+      await auth.logout();
+      if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
+    } catch (_) {
+      _feedback('Could not sign out. Try again.');
+    } finally {
+      if (mounted) setState(() => _signingOut = false);
+    }
   }
 
-  Widget _buildProfileDetailsSection() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEFEFF4), width: 1),
+  void _openWindow() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (_) => const SetAttendanceWindowSheet(),
+    );
+  }
+
+  String _permissionLabel(
+    AsyncSnapshot<List<PermissionStatus>> snapshot,
+    int index,
+  ) {
+    if (snapshot.connectionState != ConnectionState.done) {
+      return 'Checking access...';
+    }
+    if (!snapshot.hasData) return 'Status unavailable';
+    return switch (snapshot.data![index]) {
+      PermissionStatus.granted => 'Allowed',
+      PermissionStatus.limited => 'Limited access',
+      PermissionStatus.restricted => 'Restricted',
+      PermissionStatus.provisional => 'Provisionally allowed',
+      PermissionStatus.denied ||
+      PermissionStatus.permanentlyDenied => 'Not allowed',
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final user = auth.currentUser;
+    final mode = context.select((ThemeProvider provider) => provider.mode);
+    final colors = Theme.of(context).colorScheme;
+    final avatar = context.select(
+      (ProfileProvider provider) => provider.pfpPath,
+    );
+    return SettingsLayout(
+      title: 'Settings',
+      close: true,
+      children: [
+        if (user != null) ...[
+          _SettingsProfileHeader(
+            user: user,
+            path: avatar,
+            edit: () => _editProfile(user),
+          ),
+          SettingsSection(
+            title: 'Account',
+            rows: [
+              SettingsRow('Edit profile', onTap: () => _editProfile(user)),
+              SettingsRow(
+                'Profile details',
+                onTap: () => ProfileDetailsScreen.open(context, user),
+              ),
+              SettingsRow('Employee ID', detail: user.id),
+              if (user.department.isNotEmpty)
+                SettingsRow('Department', detail: user.department),
+              SettingsRow(
+                _signingOut ? 'Signing out...' : 'Sign out',
+                destructive: true,
+                onTap: _signingOut ? null : _signOut,
+              ),
+            ],
+          ),
+        ],
+        SettingsSection(
+          title: 'Appearance',
+          rows: [
+            SettingsRow(
+              'Theme',
+              detail: themeModeLabel(mode),
+              onTap: () => Navigator.of(context).push<void>(
+                MaterialPageRoute(builder: (_) => const AppearanceScreen()),
+              ),
+            ),
+          ],
+        ),
+        if (user?.isAdmin ?? false)
+          Consumer<AttendanceProvider>(
+            builder: (context, attendance, _) => SettingsSection(
+              title: 'Attendance',
+              rows: [
+                SettingsRow(
+                  'Attendance window',
+                  detail: attendance.windowMode == 'always'
+                      ? 'Always open'
+                      : '${attendance.formatHour(attendance.windowStartHour)} to '
+                            '${attendance.formatHour(attendance.windowEndHour)}',
+                  onTap: _openWindow,
+                ),
+              ],
+            ),
+          ),
+        FutureBuilder(
+          future: _permissions,
+          builder: (context, snapshot) => SettingsSection(
+            title: 'Permissions',
+            rows: [
+              SettingsRow(
+                'Location',
+                detail: _permissionLabel(snapshot, 0),
+                onTap: _openPermissions,
+              ),
+              SettingsRow(
+                'Camera',
+                detail: _permissionLabel(snapshot, 1),
+                onTap: _openPermissions,
+              ),
+            ],
+          ),
+        ),
+        SettingsSection(
+          title: 'About',
+          rows: [
+            SettingsRow(
+              'Privacy & security',
+              onTap: () => Navigator.of(context).push<void>(
+                MaterialPageRoute(builder: (_) => const PrivacyScreen()),
+              ),
+            ),
+          ],
+        ),
+        FutureBuilder(
+          future: _package,
+          builder: (context, snapshot) {
+            final info = snapshot.data;
+            return Text(
+              info == null
+                  ? 'Attendance'
+                  : 'Attendance · Version ${info.version} (Build ${info.buildNumber})',
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _SettingsProfileHeader extends StatelessWidget {
+  const _SettingsProfileHeader({
+    required this.user,
+    required this.path,
+    required this.edit,
+  });
+
+  final Employee user;
+  final String? path;
+  final VoidCallback edit;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final name = user.name.trim();
+    final initials = name.isEmpty ? '?' : name.characters.first.toUpperCase();
+    final fallback = Center(
+      child: Text(
+        initials,
+        style: theme.textTheme.headlineMedium?.copyWith(
+          color: theme.colorScheme.onPrimaryContainer,
+        ),
       ),
+    );
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 24),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'HEADLINE',
-            style: GoogleFonts.inter(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              color: Colors.grey[500],
-              letterSpacing: 1.1,
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _headlineController,
-            enabled: !_savingProfileDetails,
-            style: GoogleFonts.inter(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF1B1D1F),
-            ),
-            decoration: InputDecoration(
-              hintText: 'e.g. Software Engineer at Company',
-              prefixIcon: Icon(
-                Icons.short_text_rounded,
-                size: 20,
-                color: Colors.grey[400],
-              ),
-              filled: true,
-              fillColor: const Color(0xFFF8F9FA),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 18,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(15),
-                borderSide: BorderSide.none,
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(15),
-                borderSide: const BorderSide(color: Color(0xFFF0F0F0)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(15),
-                borderSide: const BorderSide(color: Colors.blue, width: 2),
+          IconButton(
+            tooltip: 'Edit profile information',
+            onPressed: edit,
+            padding: EdgeInsets.zero,
+            icon: ClipOval(
+              child: SizedBox.square(
+                dimension: 76,
+                child: ColoredBox(
+                  color: theme.colorScheme.primaryContainer,
+                  child: path == null || path!.isEmpty
+                      ? fallback
+                      : Image.file(
+                          File(path!),
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => fallback,
+                        ),
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
           Text(
-            'CHIPS / TAGS',
-            style: GoogleFonts.inter(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              color: Colors.grey[500],
-              letterSpacing: 1.1,
+            name.isEmpty ? user.id : name,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            'Separate multiple tags with commas',
-            style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[400]),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _chipsController,
-            enabled: !_savingProfileDetails,
-            style: GoogleFonts.inter(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF1B1D1F),
-            ),
-            decoration: InputDecoration(
-              hintText: 'e.g. Engineering, Admin, Full-time',
-              prefixIcon: Icon(
-                Icons.label_outline_rounded,
-                size: 20,
-                color: Colors.grey[400],
-              ),
-              filled: true,
-              fillColor: const Color(0xFFF8F9FA),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 18,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(15),
-                borderSide: BorderSide.none,
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(15),
-                borderSide: const BorderSide(color: Color(0xFFF0F0F0)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(15),
-                borderSide: const BorderSide(color: Colors.blue, width: 2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton(
-              onPressed: _hasProfileDetailsChanges && !_savingProfileDetails
-                  ? _saveProfileDetails
-                  : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1B1D1F),
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: const Color(0xFFF1F5F9),
-                disabledForegroundColor: const Color(0xFF64748B),
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-              ),
-              child: Text(
-                _savingProfileDetails ? 'Saving…' : 'Save changes',
-                style: GoogleFonts.inter(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+            user.email.trim().isEmpty ? user.id : user.email,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
-      child: Text(
-        title,
-        style: GoogleFonts.inter(
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-          color: const Color(0xFF8E8E93),
-          letterSpacing: 1.2,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSettingsGroup(List<Widget> tiles) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEFEFF4), width: 1),
-      ),
-      child: Column(children: _buildGroupChildren(tiles)),
-    );
-  }
-}
-
-// =========================================================
-// Custom Widgets for Pixel-Perfect UI
-// =========================================================
-
-class _ProfileHeader extends StatelessWidget {
-  final String name;
-  final String email;
-  final String role;
-  final Color avatarColor;
-  final VoidCallback onTap;
-
-  const _ProfileHeader({
-    required this.name,
-    required this.email,
-    required this.role,
-    required this.avatarColor,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final initials = name
-        .split(' ')
-        .map((e) => e[0])
-        .take(2)
-        .join()
-        .toUpperCase();
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFEFEFF4), width: 1),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: avatarColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: avatarColor.withValues(alpha: 0.2),
-                    width: 2,
-                  ),
-                ),
-                child: Center(
-                  child: Text(
-                    initials,
-                    style: GoogleFonts.dmSans(
-                      color: avatarColor,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 20,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      style: GoogleFonts.inter(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        color: const Color(0xFF1B1D1F),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      role,
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: avatarColor,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      email,
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: const Color(0xFF8E8E93),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: Color(0xFFC7C7CC),
-                size: 24,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SettingsTile extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String title;
-  final String? subtitle;
-  final Color? textColor;
-  final VoidCallback onTap;
-
-  const _SettingsTile({
-    required this.icon,
-    required this.iconColor,
-    required this.title,
-    required this.onTap,
-    this.subtitle,
-    this.textColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(0), // Handled by parent container
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            children: [
-              _IconContainer(icon: icon, color: iconColor),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Text(
-                  title,
-                  style: GoogleFonts.inter(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: textColor ?? const Color(0xFF1B1D1F),
-                  ),
-                ),
-              ),
-              if (subtitle != null)
-                Text(
-                  subtitle!,
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    color: const Color(0xFF8E8E93),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              const SizedBox(width: 8),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: Colors.grey[350],
-                size: 22,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SettingsToggleTile extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String title;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  const _SettingsToggleTile({
-    required this.icon,
-    required this.iconColor,
-    required this.title,
-    required this.value,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: [
-          _IconContainer(icon: icon, color: iconColor),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              title,
-              style: GoogleFonts.inter(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF1B1D1F),
-              ),
-            ),
-          ),
-          Transform.scale(
-            scale: 0.85,
-            child: Switch.adaptive(
-              value: value,
-              onChanged: onChanged,
-              activeTrackColor: const Color(0xFF34C759),
-              inactiveTrackColor: const Color(0xFFE5E5EA),
-              activeThumbColor: Colors.white,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _IconContainer extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-
-  const _IconContainer({required this.icon, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(9),
-      ),
-      child: Icon(icon, color: color, size: 18),
     );
   }
 }

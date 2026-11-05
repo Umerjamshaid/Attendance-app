@@ -1,10 +1,11 @@
+import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/providers/auth_provider.dart';
 import 'package:attendance/widgets/demo_mode_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-import '../../config/wc_tokens.dart';
+import '../../config/app_theme.dart';
 
 class UpperCaseTextFormatter extends TextInputFormatter {
   @override
@@ -28,6 +29,8 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
   final _controller = TextEditingController();
+  final _idFocus = FocusNode();
+  String? _idError;
   late final AnimationController _animationController;
   late final Animation<double> _fadeIn;
   late final Animation<Offset> _riseIn;
@@ -69,25 +72,29 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   void dispose() {
     _controller.dispose();
+    _idFocus.dispose();
     _animationController.dispose();
     super.dispose();
   }
 
   Future<void> _signIn() async {
-    final id = _controller.text.trim();
-    if (id.isEmpty) return;
-
     final authProvider = context.read<AuthProvider>();
+    if (authProvider.status == AuthStatus.authenticating) return;
+    final id = _controller.text.trim();
+    if (id.isEmpty) {
+      setState(() => _idError = 'Enter your employee ID.');
+      _idFocus.requestFocus();
+      return;
+    }
+    setState(() => _idError = null);
     final success = await authProvider.login(id);
+    if (!mounted) return;
 
     if (success) {
       widget.onLoginSuccess?.call();
-    } else if (mounted) {
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authProvider.error ?? 'Login failed'),
-          backgroundColor: WC.absent,
-        ),
+        SnackBar(content: Text(authProvider.error ?? 'Login failed')),
       );
     }
   }
@@ -98,85 +105,102 @@ class _LoginScreenState extends State<LoginScreen>
         context.watch<AuthProvider>().status == AuthStatus.authenticating;
 
     return Scaffold(
-      backgroundColor: WC.bg,
+      backgroundColor: context.colors.surface,
       resizeToAvoidBottomInset: true,
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final minHeight = (constraints.maxHeight - 48).clamp(
-              0.0,
-              double.infinity,
-            );
-
-            return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: 440,
-                    minHeight: minHeight,
-                  ),
-                  child: FadeTransition(
-                    opacity: _fadeIn,
-                    child: SlideTransition(
-                      position: _riseIn,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const _BrandHeader(),
-                          const SizedBox(height: 44),
-                          const Text(
-                            'Welcome back',
-                            style: TextStyle(
-                              color: WC.black,
-                              fontSize: 32,
-                              fontWeight: FontWeight.w800,
-                              height: 1.15,
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 488),
+            child: CustomScrollView(
+              slivers: [
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: FadeTransition(
+                      opacity: _fadeIn,
+                      child: SlideTransition(
+                        position: _riseIn,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const _BrandHeader(),
+                            const SizedBox(height: 32),
+                            Semantics(
+                              header: true,
+                              namesRoute: true,
+                              child: Text(
+                                'Sign in',
+                                style: TextStyle(
+                                  color: context.colors.onSurface,
+                                  fontSize: 30,
+                                  fontWeight: FontWeight.w400,
+                                  height: 1.2,
+                                  letterSpacing: 0,
+                                ),
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 10),
-                          const Text(
-                            'Sign in with your employee ID to continue.',
-                            style: TextStyle(
-                              color: WC.muted,
-                              fontSize: 15,
-                              height: 1.5,
-                            ),
-                          ),
-                          if (context.watch<AuthProvider>().isDemoMode) ...[
                             const SizedBox(height: 16),
-                            const DemoModeNotice(),
-                          ],
-                          const SizedBox(height: 30),
-                          _EmployeeIdField(
-                            controller: _controller,
-                            onSubmitted: (_) => _signIn(),
-                          ),
-                          const SizedBox(height: 20),
-                          _SignInButton(loading: isLoading, onPressed: _signIn),
-                          const SizedBox(height: 20),
-                          const Text(
-                            'Your Employee ID was provided when your account was created.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: WC.muted,
-                              fontSize: 13,
-                              height: 1.5,
+                            Text(
+                              'Enter your employee ID to continue.',
+                              style: TextStyle(
+                                color: context.colors.onSurfaceVariant,
+                                fontSize: 16,
+                                height: 1.5,
+                                letterSpacing: 0,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 24),
-                          const _HintChip(
-                            text: 'Demo IDs: EMP001 – EMP003 · Admin: EMP001',
-                          ),
-                        ],
+                            const SizedBox(height: 24),
+                            _EmployeeIdField(
+                              controller: _controller,
+                              focusNode: _idFocus,
+                              readOnly: isLoading,
+                              errorText: _idError,
+                              onChanged: (_) {
+                                if (_idError != null) {
+                                  setState(() => _idError = null);
+                                }
+                              },
+                              onSubmitted: (_) => _signIn(),
+                            ),
+                            if (context.watch<AuthProvider>().isDemoMode) ...[
+                              const SizedBox(height: 16),
+                              const DemoModeNotice(),
+                              const SizedBox(height: 12),
+                              Text(
+                                'Demo IDs: EMP001 – EMP003 · Admin: EMP001',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: context.colors.onSurfaceVariant,
+                                    ),
+                              ),
+                            ],
+                            const Spacer(),
+                            const SizedBox(height: 24),
+                            _SignInButton(
+                              loading: isLoading,
+                              onPressed: _signIn,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Your Employee ID was provided when your account was created.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: context.colors.onSurfaceVariant,
+                                fontSize: 13,
+                                height: 1.5,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            );
-          },
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -194,36 +218,41 @@ class _BrandHeader extends StatelessWidget {
         Container(
           width: 44,
           height: 44,
-          decoration: BoxDecoration(color: WC.black, borderRadius: WC.r12),
-          child: const Icon(
-            Icons.fingerprint_rounded,
-            color: WC.white,
-            size: 26,
+          decoration: BoxDecoration(
+            color: context.colors.primary,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            AppIcons.fingerprint,
+            color: context.colors.onPrimary,
+            size: 24,
           ),
         ),
         const SizedBox(width: 12),
-        const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'WorkCheck',
-              style: TextStyle(
-                color: WC.black,
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'WorkCheck',
+                style: TextStyle(
+                  color: context.colors.onSurface,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-            SizedBox(height: 2),
-            Text(
-              'OFFICE ATTENDANCE',
-              style: TextStyle(
-                color: WC.muted,
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.1,
+              const SizedBox(height: 2),
+              Text(
+                'OFFICE ATTENDANCE',
+                style: TextStyle(
+                  color: context.colors.onSurfaceVariant,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );
@@ -231,46 +260,61 @@ class _BrandHeader extends StatelessWidget {
 }
 
 class _EmployeeIdField extends StatelessWidget {
-  const _EmployeeIdField({required this.controller, required this.onSubmitted});
+  const _EmployeeIdField({
+    required this.controller,
+    required this.onSubmitted,
+    required this.focusNode,
+    required this.readOnly,
+    required this.onChanged,
+    this.errorText,
+  });
 
   final TextEditingController controller;
   final ValueChanged<String> onSubmitted;
+  final ValueChanged<String> onChanged;
+  final FocusNode focusNode;
+  final bool readOnly;
+  final String? errorText;
 
   @override
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
+      focusNode: focusNode,
+      readOnly: readOnly,
+      onChanged: onChanged,
       autofocus: true,
       textCapitalization: TextCapitalization.characters,
       textInputAction: TextInputAction.done,
       onSubmitted: onSubmitted,
       inputFormatters: [UpperCaseTextFormatter()],
-      style: const TextStyle(
-        color: WC.black,
+      style: TextStyle(
+        color: context.colors.onSurface,
         fontSize: 16,
         fontWeight: FontWeight.w600,
       ),
       decoration: InputDecoration(
         labelText: 'Employee ID',
+        errorText: errorText,
         hintText: 'e.g. EMP001',
-        prefixIcon: const Icon(Icons.badge_outlined, color: WC.muted),
+        prefixIcon: Icon(AppIcons.idBadge2),
         filled: true,
-        fillColor: WC.white,
+        fillColor: context.colors.surfaceContainerLow,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 18,
         ),
         border: OutlineInputBorder(
-          borderRadius: WC.r12,
-          borderSide: const BorderSide(color: WC.border),
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: context.colors.outlineVariant),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: WC.r12,
-          borderSide: const BorderSide(color: WC.border),
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: context.colors.outlineVariant),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: WC.r12,
-          borderSide: const BorderSide(color: WC.accentBlue, width: 1.5),
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: context.colors.primary, width: 1.5),
         ),
       ),
     );
@@ -285,75 +329,48 @@ class _SignInButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 56,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 52),
       child: FilledButton(
         onPressed: loading ? null : onPressed,
         style: FilledButton.styleFrom(
-          backgroundColor: WC.black,
-          disabledBackgroundColor: const Color(0xFF333333),
-          foregroundColor: WC.white,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           shape: const StadiumBorder(),
         ),
         child: loading
-            ? const Row(
+            ? Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   SizedBox(
                     width: 18,
                     height: 18,
                     child: CircularProgressIndicator(
-                      color: WC.white,
+                      color: Theme.of(context).colorScheme.onPrimary,
                       strokeWidth: 2,
                     ),
                   ),
-                  SizedBox(width: 12),
-                  Text('Signing in'),
+                  const SizedBox(width: 12),
+                  const Flexible(
+                    child: Text('Signing in', textAlign: TextAlign.center),
+                  ),
                 ],
               )
             : const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    'Sign in',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  Flexible(
+                    child: Text(
+                      'Sign in',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                   SizedBox(width: 10),
-                  Icon(Icons.arrow_forward_rounded, size: 18),
+                  Icon(AppIcons.arrowRight, size: 24),
                 ],
               ),
-      ),
-    );
-  }
-}
-
-class _HintChip extends StatelessWidget {
-  const _HintChip({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(color: WC.surface, borderRadius: WC.r8),
-      child: Row(
-        children: [
-          const Icon(Icons.info_outline_rounded, size: 16, color: WC.muted),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(
-                color: WC.muted,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                height: 1.4,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

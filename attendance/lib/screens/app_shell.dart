@@ -41,7 +41,19 @@ class AppShellState extends State<AppShell> {
       // The dock floats over the page; extendBody lets pages run underneath it
       // and gives them the dock's height as bottom MediaQuery padding.
       extendBody: true,
-      body: IndexedStack(index: _currentIndex, children: pages),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: IndexedStack(index: _currentIndex, children: pages),
+          ),
+          const Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: NavigationFooterBackdrop(),
+          ),
+        ],
+      ),
       bottomNavigationBar: BottomNav(
         currentIndex: _currentIndex,
         onTap: (idx) => setState(() {

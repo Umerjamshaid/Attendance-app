@@ -1,5 +1,4 @@
 import 'package:attendance/config/app_theme.dart';
-import 'package:attendance/config/wc_tokens.dart';
 import 'package:attendance/models/employees_model.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
@@ -33,7 +32,7 @@ class AttendanceStatsCard extends StatelessWidget {
                 child: _StatItem(
                   value: isLoading ? null : employee.totalPresents,
                   label: 'Presents',
-                  color: WC.present,
+                  color: context.attendancePresent,
                 ),
               ),
               const _StatDivider(),
@@ -41,7 +40,7 @@ class AttendanceStatsCard extends StatelessWidget {
                 child: _StatItem(
                   value: isLoading ? null : employee.totalAbsents,
                   label: 'Absents',
-                  color: WC.absent,
+                  color: context.attendanceAbsent,
                 ),
               ),
               const _StatDivider(),
@@ -49,7 +48,7 @@ class AttendanceStatsCard extends StatelessWidget {
                 child: _StatItem(
                   value: employee.totalLeaves,
                   label: 'Leaves',
-                  color: ProfileUi.warning,
+                  color: context.attendanceWarning,
                 ),
               ),
             ],
@@ -65,7 +64,11 @@ class _StatDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(width: 1, height: 36, color: ProfileUi.hairline);
+    return Container(
+      width: 1,
+      height: 36,
+      color: context.colors.outlineVariant,
+    );
   }
 }
 
@@ -81,11 +84,11 @@ class _StatItem extends StatelessWidget {
   final String label;
   final Color color;
 
-  TextStyle get _numberStyle => GoogleFonts.inter(
+  TextStyle _numberStyle(BuildContext context) => GoogleFonts.inter(
     fontSize: 24,
     height: 1.2,
     fontWeight: FontWeight.w600,
-    color: AppTheme.textPrimary,
+    color: context.colors.onSurface,
     fontFeatures: const [FontFeature.tabularFigures()],
   );
 
@@ -101,7 +104,7 @@ class _StatItem extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (v == null)
-            Text('—', style: _numberStyle)
+            Text('—', style: _numberStyle(context))
           else
             // Counts up once on first build and animates from the current
             // value whenever the number changes afterwards.
@@ -112,7 +115,7 @@ class _StatItem extends StatelessWidget {
                   : const Duration(milliseconds: 600),
               curve: Curves.easeOutCubic,
               builder: (_, animated, _) =>
-                  Text('$animated', style: _numberStyle),
+                  Text('$animated', style: _numberStyle(context)),
             ),
           const SizedBox(height: 4),
           Row(
@@ -129,7 +132,7 @@ class _StatItem extends StatelessWidget {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: ProfileUi.caption(),
+                  style: ProfileUi.caption(context),
                 ),
               ),
             ],
