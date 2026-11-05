@@ -1,11 +1,14 @@
+import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/config/app_theme.dart';
-import 'package:attendance/config/wc_tokens.dart';
 import 'package:attendance/models/attendance_record_model.dart';
 import 'package:attendance/models/employees_model.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../screens/admin/attendance_evidence_screen.dart';
 
 /// One employee row in the admin roster.
 ///
@@ -20,11 +23,13 @@ class EmployeeCard extends StatelessWidget {
     required this.data,
     this.isFirst = true,
     this.isLast = true,
+    this.checkInLog = false,
   });
 
   final EmployeeAttendance data;
   final bool isFirst;
   final bool isLast;
+  final bool checkInLog;
 
   static const double _avatarSize = 40;
 
@@ -59,6 +64,11 @@ class EmployeeCard extends StatelessWidget {
   String get _statusLine {
     final employee = data.employee;
     final record = data.latestRecord;
+    if (checkInLog) {
+      return record == null
+          ? 'Not checked in today'
+          : 'In at ${_formatTime(record.timestamp)} · ${record.device}';
+    }
     final totals = '${employee.totalPresents}P / ${employee.totalAbsents}A';
 
     if (data.isPresent) {
@@ -72,13 +82,21 @@ class EmployeeCard extends StatelessWidget {
   }
 
   void _openDetails(BuildContext context) {
+    if (checkInLog && context.read<AuthProvider>().isPublicBuild) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => EmployeeCheckInsScreen(employee: data.employee),
+        ),
+      );
+      return;
+    }
     HapticFeedback.selectionClick();
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
-      backgroundColor: ProfileUi.page,
+      backgroundColor: context.colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(ProfileUi.sheetRadius),
@@ -100,11 +118,13 @@ class EmployeeCard extends StatelessWidget {
         ? 'Unnamed employee'
         : employee.name.trim();
     final isPresent = data.isPresent;
-    final statusColor = isPresent ? WC.present : AppTheme.textSecondary;
+    final statusColor = isPresent
+        ? context.attendancePresent
+        : context.colors.onSurfaceVariant;
     final roleLine = _roleLine;
 
     return Material(
-      color: ProfileUi.cardFill,
+      color: context.colors.surfaceContainerLow,
       borderRadius: BorderRadius.vertical(
         top: isFirst
             ? const Radius.circular(ProfileUi.cardRadius)
@@ -124,7 +144,7 @@ class EmployeeCard extends StatelessWidget {
               thickness: 1,
               indent: _dividerIndent,
               endIndent: ProfileUi.rowInset,
-              color: ProfileUi.hairline,
+              color: context.colors.outlineVariant,
             ),
           MergeSemantics(
             child: Semantics(
@@ -144,7 +164,7 @@ class EmployeeCard extends StatelessWidget {
                         height: _avatarSize,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryNavy.withValues(alpha: 0.1),
+                          color: context.colors.primary.withValues(alpha: 0.1),
                           shape: BoxShape.circle,
                         ),
                         child: Text(
@@ -152,7 +172,7 @@ class EmployeeCard extends StatelessWidget {
                           style: GoogleFonts.inter(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: AppTheme.primaryNavy,
+                            color: context.colors.primary,
                           ),
                         ),
                       ),
@@ -165,7 +185,10 @@ class EmployeeCard extends StatelessWidget {
                               name,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: ProfileUi.body(weight: FontWeight.w600),
+                              style: ProfileUi.body(
+                                context,
+                                weight: FontWeight.w600,
+                              ),
                             ),
                             if (roleLine.isNotEmpty) ...[
                               const SizedBox(height: 2),
@@ -173,7 +196,7 @@ class EmployeeCard extends StatelessWidget {
                                 roleLine,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: ProfileUi.caption(),
+                                style: ProfileUi.caption(context),
                               ),
                             ],
                             const SizedBox(height: 2),
@@ -182,6 +205,7 @@ class EmployeeCard extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: ProfileUi.caption(
+                                context,
                                 color: statusColor,
                                 weight: FontWeight.w600,
                               ),
@@ -190,7 +214,7 @@ class EmployeeCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      _StatusPill(isPresent: isPresent),
+                      _StatusPill(isPresent: isPresent, checkInLog: checkInLog),
                     ],
                   ),
                 ),
@@ -204,13 +228,16 @@ class EmployeeCard extends StatelessWidget {
 }
 
 class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.isPresent});
+  const _StatusPill({required this.isPresent, this.checkInLog = false});
 
   final bool isPresent;
+  final bool checkInLog;
 
   @override
   Widget build(BuildContext context) {
-    final color = isPresent ? WC.present : AppTheme.textSecondary;
+    final color = isPresent
+        ? context.attendancePresent
+        : context.colors.onSurfaceVariant;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
@@ -218,7 +245,9 @@ class _StatusPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        isPresent ? 'Present' : 'Absent',
+        checkInLog
+            ? (isPresent ? 'Checked in' : 'Not yet')
+            : (isPresent ? 'Present' : 'Absent'),
         style: GoogleFonts.inter(
           fontSize: 11,
           height: 1.2,
@@ -275,7 +304,7 @@ class _EmployeeDetailsSheet extends StatelessWidget {
                   height: 56,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryNavy.withValues(alpha: 0.1),
+                    color: context.colors.primary.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Text(
@@ -283,7 +312,7 @@ class _EmployeeDetailsSheet extends StatelessWidget {
                     style: GoogleFonts.inter(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
-                      color: AppTheme.primaryNavy,
+                      color: context.colors.primary,
                     ),
                   ),
                 ),
@@ -302,13 +331,13 @@ class _EmployeeDetailsSheet extends StatelessWidget {
                             fontSize: 20,
                             height: 1.25,
                             fontWeight: FontWeight.w600,
-                            color: AppTheme.textPrimary,
+                            color: context.colors.onSurface,
                           ),
                         ),
                       ),
                       if (roleLine.isNotEmpty) ...[
                         const SizedBox(height: 2),
-                        Text(roleLine, style: ProfileUi.small()),
+                        Text(roleLine, style: ProfileUi.small(context)),
                       ],
                     ],
                   ),
@@ -321,15 +350,15 @@ class _EmployeeDetailsSheet extends StatelessWidget {
                     onPressed: () => Navigator.of(context).pop(),
                     style: IconButton.styleFrom(
                       padding: EdgeInsets.zero,
-                      backgroundColor: ProfileUi.cardFill,
-                      foregroundColor: AppTheme.textPrimary,
+                      backgroundColor: context.colors.surfaceContainerLow,
+                      foregroundColor: context.colors.onSurface,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(
                           ProfileUi.sheetRadius,
                         ),
                       ),
                     ),
-                    icon: const Icon(Icons.close_rounded, size: 22),
+                    icon: const Icon(AppIcons.x, size: 24),
                   ),
                 ),
               ],
@@ -343,22 +372,24 @@ class _EmployeeDetailsSheet extends StatelessWidget {
               _DetailRow(
                 label: 'Today',
                 value: isPresent ? 'Present' : 'Absent',
-                color: isPresent ? WC.present : AppTheme.textSecondary,
+                color: isPresent
+                    ? context.attendancePresent
+                    : context.colors.onSurfaceVariant,
               ),
               _DetailRow(
                 label: 'Total presents',
                 value: '${employee.totalPresents}',
-                color: WC.present,
+                color: context.attendancePresent,
               ),
               _DetailRow(
                 label: 'Total absents',
                 value: '${employee.totalAbsents}',
-                color: WC.absent,
+                color: context.attendanceAbsent,
               ),
               _DetailRow(
                 label: 'Attendance rate',
                 value: _rate,
-                color: AppTheme.primaryNavy,
+                color: context.colors.primary,
               ),
             ],
           ),
@@ -395,13 +426,13 @@ class _DetailRow extends StatelessWidget {
               decoration: BoxDecoration(color: color, shape: BoxShape.circle),
             ),
             const SizedBox(width: 12),
-            Expanded(child: Text(label, style: ProfileUi.body())),
+            Expanded(child: Text(label, style: ProfileUi.body(context))),
             Text(
               value,
               style: GoogleFonts.inter(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
+                color: context.colors.onSurface,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),

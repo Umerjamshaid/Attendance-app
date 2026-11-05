@@ -1,5 +1,5 @@
+import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/config/app_theme.dart';
-import 'package:attendance/config/wc_tokens.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
 
@@ -46,7 +46,7 @@ class CheckInStatusCard extends StatelessWidget {
                   label: '$title. Verified and logged.',
                   excludeSemantics: true,
                   child: Material(
-                    color: ProfileUi.cardFill,
+                    color: context.colors.surfaceContainerLow,
                     borderRadius: BorderRadius.circular(ProfileUi.cardRadius),
                     child: Padding(
                       padding: const EdgeInsets.all(16),
@@ -56,13 +56,14 @@ class CheckInStatusCard extends StatelessWidget {
                             width: 40,
                             height: 40,
                             decoration: BoxDecoration(
-                              color: WC.present.withValues(alpha: 0.15),
+                              color: context.attendancePresent.withValues(
+                                alpha: 0.15,
+                              ),
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(
-                              Icons.verified_rounded,
-                              size: 22,
-                              color: WC.present,
+                            child: Icon(
+                              AppIcons.rosetteDiscountCheck,
+                              size: 24,
                             ),
                           ),
                           const SizedBox(width: 14),
@@ -75,6 +76,7 @@ class CheckInStatusCard extends StatelessWidget {
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   style: ProfileUi.body(
+                                    context,
                                     weight: FontWeight.w600,
                                   ),
                                 ),
@@ -82,7 +84,8 @@ class CheckInStatusCard extends StatelessWidget {
                                 Text(
                                   'Verified and logged',
                                   style: ProfileUi.small(
-                                    color: AppTheme.textSecondary,
+                                    context,
+                                    color: context.colors.onSurfaceVariant,
                                   ),
                                 ),
                               ],

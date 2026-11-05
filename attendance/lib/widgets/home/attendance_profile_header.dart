@@ -1,4 +1,4 @@
-import 'dart:io';
+import '../profile_image.dart';
 
 import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/models/employees_model.dart';
@@ -57,7 +57,7 @@ class AttendanceProfileHeader extends StatelessWidget {
                       fontSize: 20,
                       height: 1.25,
                       fontWeight: FontWeight.w600,
-                      color: AppTheme.textPrimary,
+                      color: context.colors.onSurface,
                     ),
                   ),
                 ),
@@ -67,7 +67,7 @@ class AttendanceProfileHeader extends StatelessWidget {
                     department,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: ProfileUi.small(),
+                    style: ProfileUi.small(context),
                   ),
                 ],
               ],
@@ -114,7 +114,7 @@ class _HeaderAvatar extends StatelessWidget {
       dimension: size,
       child: ClipOval(
         child: ColoredBox(
-          color: AppTheme.primaryNavy.withValues(alpha: 0.1),
+          color: context.colors.primary.withValues(alpha: 0.1),
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -124,15 +124,17 @@ class _HeaderAvatar extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: 20,
                     fontWeight: FontWeight.w500,
-                    color: AppTheme.primaryNavy,
+                    color: context.colors.primary,
                   ),
                 ),
               ),
               if (path != null)
-                Image.file(
-                  File(path),
+                Image(
+                  image: ResizeImage(
+                    profileImageProvider(path),
+                    width: _decodeWidth,
+                  ),
                   fit: BoxFit.cover,
-                  cacheWidth: _decodeWidth,
                   errorBuilder: (_, _, _) => _network(),
                 )
               else

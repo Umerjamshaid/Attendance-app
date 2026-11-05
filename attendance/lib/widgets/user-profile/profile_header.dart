@@ -1,7 +1,7 @@
-import 'dart:io';
+import 'package:attendance/config/app_icons.dart';
+import '../profile_image.dart';
 
 import 'package:attendance/config/app_theme.dart';
-import 'package:attendance/config/wc_tokens.dart';
 import 'package:attendance/models/employees_model.dart';
 import 'package:attendance/providers/auth_provider.dart';
 import 'package:attendance/providers/profile_provider.dart';
@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import '../../screens/profile/account_edit_screen.dart';
 
 /// Whether the employee has checked in today, as derived by the screen from
 /// the attendance history.
@@ -85,12 +86,33 @@ class ProfileHeader extends StatelessWidget {
     final auth = context.read<AuthProvider>();
     final messenger = ScaffoldMessenger.of(context);
 
+    if (auth.isPreview) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Profile editing is unavailable in the preview.'),
+        ),
+      );
+      return;
+    }
+    if (auth.isPublicBuild) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => AccountEditScreen(
+            title: 'Display name',
+            label: 'Display name',
+            initialValue: employee.name,
+            onSave: (value) => auth.updateProfile(name: value),
+          ),
+        ),
+      );
+      return;
+    }
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
-      backgroundColor: ProfileUi.page,
+      backgroundColor: context.colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(ProfileUi.sheetRadius),
@@ -108,7 +130,6 @@ class ProfileHeader extends StatelessWidget {
         SnackBar(
           content: const Text('Profile updated'),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: WC.present,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -117,48 +138,19 @@ class ProfileHeader extends StatelessWidget {
     }
   }
 
-  String? get _headline {
-    final custom = employee.headline?.trim();
-    if (custom != null && custom.isNotEmpty) return custom;
-    final role = employee.role.trim();
-    final department = employee.department.trim();
-    if (role.isNotEmpty && department.isNotEmpty) return '$role at $department';
-    final single = role.isNotEmpty ? role : department;
-    return single.isEmpty ? null : single;
-  }
-
-  List<_ChipData> get _chips {
-    final custom = employee.chips
-        .map((c) => c.trim())
-        .where((c) => c.isNotEmpty)
-        .map((c) => _ChipData(label: c))
-        .toList();
-    if (custom.isNotEmpty) return custom;
-
-    final department = employee.department.trim();
-    final role = employee.role.trim();
-    final joined = employee.time.split(' ').first.trim();
-    return [
-      if (department.isNotEmpty)
-        _ChipData(label: department, icon: Icons.business_center_outlined),
-      if (role.isNotEmpty)
-        _ChipData(
-          label: role.toUpperCase(),
-          icon: Icons.verified_user_outlined,
-        ),
-      // `time` defaults to an em dash when the join date is unknown.
-      if (joined.isNotEmpty && joined != '—')
-        _ChipData(label: 'Joined $joined', icon: Icons.calendar_month_outlined),
-    ];
-  }
-
   @override
   Widget build(BuildContext context) {
     final profile = context.watch<ProfileProvider>();
     final name = employee.name.trim();
     final handle = employee.id.trim().toLowerCase();
-    final headline = _headline;
-    final chips = _chips;
+    final headline = employee.headline?.trim() ?? '';
+    final role = employee.role.trim();
+    final department = employee.department.trim();
+    final seen = {role.toLowerCase(), department.toLowerCase()};
+    final tags = employee.chips
+        .map((tag) => tag.trim())
+        .where((tag) => tag.isNotEmpty && seen.add(tag.toLowerCase()))
+        .toList();
 
     return Column(
       children: [
@@ -222,7 +214,7 @@ class ProfileHeader extends StatelessWidget {
                     fontSize: 22,
                     height: 1.25,
                     fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
+                    color: context.colors.onSurface,
                   ),
                 ),
               ),
@@ -233,48 +225,59 @@ class ProfileHeader extends StatelessWidget {
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: ProfileUi.small(),
+                  style: ProfileUi.small(context),
                 ),
               ],
-              const SizedBox(height: 12),
-              _StatusPill(status: todayStatus),
-              if (headline != null) ...[
+              if (department.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  department,
+                  textAlign: TextAlign.center,
+                  style: ProfileUi.small(context),
+                ),
+              ],
+              const SizedBox(height: 10),
+              _ProfileChipGroup(
+                children: [
+                  if (role.isNotEmpty)
+                    _InfoChip(
+                      label: role[0].toUpperCase() + role.substring(1),
+                      icon: AppIcons.idBadge2,
+                    ),
+                  _StatusPill(status: todayStatus),
+                ],
+              ),
+              if (headline.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Text(
                   headline,
                   textAlign: TextAlign.center,
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
-                  style: ProfileUi.small(color: AppTheme.textPrimary),
+                  style: ProfileUi.small(
+                    context,
+                    color: context.colors.onSurface,
+                  ),
                 ),
               ],
-              if (chips.isNotEmpty) ...[
+              if (tags.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                LayoutBuilder(
-                  builder: (context, constraints) => Wrap(
-                    alignment: WrapAlignment.center,
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final chip in chips)
-                        ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxWidth: constraints.maxWidth,
-                          ),
-                          child: _InfoChip(data: chip),
-                        ),
-                    ],
+                Semantics(
+                  container: true,
+                  label: 'Profile tags',
+                  child: _ProfileChipGroup(
+                    children: [for (final tag in tags) _InfoChip(label: tag)],
                   ),
                 ),
               ],
               const SizedBox(height: 16),
               FilledButton.icon(
                 onPressed: () => _openEditSheet(context),
-                icon: const Icon(Icons.edit_outlined, size: 18),
+                icon: const Icon(AppIcons.edit, size: 24),
                 label: const Text('Edit profile'),
                 style: FilledButton.styleFrom(
-                  backgroundColor: ProfileUi.cardFill,
-                  foregroundColor: AppTheme.textPrimary,
+                  backgroundColor: context.colors.surfaceContainerLow,
+                  foregroundColor: context.colors.onSurface,
                   elevation: 0,
                   minimumSize: const Size(0, 44),
                   padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -294,11 +297,27 @@ class ProfileHeader extends StatelessWidget {
   }
 }
 
-class _ChipData {
-  const _ChipData({required this.label, this.icon});
+class _ProfileChipGroup extends StatelessWidget {
+  const _ProfileChipGroup({required this.children});
 
-  final String label;
-  final IconData? icon;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final child in children)
+          ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: constraints.maxWidth),
+            child: child,
+          ),
+      ],
+    ),
+  );
 }
 
 class _Banner extends StatelessWidget {
@@ -333,10 +352,12 @@ class _Banner extends StatelessWidget {
                   ? const _BannerGradient(key: ValueKey('default-banner'))
                   : SizedBox.expand(
                       key: ValueKey(image),
-                      child: Image.file(
-                        File(image),
+                      child: Image(
+                        image: ResizeImage(
+                          profileImageProvider(image),
+                          width: _decodeWidth,
+                        ),
                         fit: BoxFit.cover,
-                        cacheWidth: _decodeWidth,
                         // The picked file can disappear (cache cleared). The
                         // remove action stays available to clear the stale path.
                         errorBuilder: (_, _, _) => const _BannerGradient(),
@@ -388,7 +409,7 @@ class _BannerPrompt extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.add_photo_alternate_outlined, size: 18, color: color),
+        Icon(AppIcons.photoPlus, size: 24, color: color),
         const SizedBox(width: 8),
         Flexible(
           child: Text(
@@ -436,11 +457,7 @@ class _RemoveBannerButton extends StatelessWidget {
               color: Colors.black.withValues(alpha: 0.35),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.delete_outline_rounded,
-              size: 16,
-              color: Colors.white,
-            ),
+            child: const Icon(AppIcons.trash, size: 24, color: Colors.white),
           ),
         ),
       ),
@@ -479,11 +496,7 @@ class _CameraChip extends StatelessWidget {
         color: Colors.black.withValues(alpha: 0.35),
         shape: BoxShape.circle,
       ),
-      child: const Icon(
-        Icons.camera_alt_rounded,
-        size: 16,
-        color: Colors.white,
-      ),
+      child: const Icon(AppIcons.camera, size: 24, color: Colors.white),
     );
   }
 }
@@ -507,7 +520,7 @@ class _Avatar extends StatelessWidget {
 
   static const int _decodeWidth = 336;
 
-  Widget _buildImage() {
+  Widget _buildImage(BuildContext context) {
     final url = networkUrl;
     final path = localPath;
 
@@ -539,15 +552,14 @@ class _Avatar extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: 36,
               fontWeight: FontWeight.w500,
-              color: AppTheme.primaryNavy,
+              color: context.colors.primary,
             ),
           ),
         ),
         if (path != null)
-          Image.file(
-            File(path),
+          Image(
+            image: ResizeImage(profileImageProvider(path), width: _decodeWidth),
             fit: BoxFit.cover,
-            cacheWidth: _decodeWidth,
             errorBuilder: (_, _, _) => network(),
           )
         else
@@ -573,18 +585,18 @@ class _Avatar extends StatelessWidget {
                 width: outer,
                 height: outer,
                 padding: EdgeInsets.all(ring),
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: ProfileUi.page,
+                  color: context.colors.surface,
                 ),
                 child: ClipOval(
                   child: ColoredBox(
-                    color: AppTheme.primaryNavy.withValues(alpha: 0.1),
+                    color: context.colors.primary.withValues(alpha: 0.1),
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 250),
                       child: SizedBox.expand(
                         key: ValueKey('${localPath ?? ''}|${networkUrl ?? ''}'),
-                        child: _buildImage(),
+                        child: _buildImage(context),
                       ),
                     ),
                   ),
@@ -597,14 +609,14 @@ class _Avatar extends StatelessWidget {
                   width: 32,
                   height: 32,
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryNavy,
+                    color: context.colors.primary,
                     shape: BoxShape.circle,
-                    border: Border.all(color: ProfileUi.page, width: 3),
+                    border: Border.all(color: context.colors.surface, width: 3),
                   ),
-                  child: const Icon(
-                    Icons.add_a_photo_rounded,
-                    size: 14,
-                    color: Colors.white,
+                  child: Icon(
+                    AppIcons.cameraPlus,
+                    size: 24,
+                    color: context.colors.onPrimary,
                   ),
                 ),
               ),
@@ -663,13 +675,19 @@ class _StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, color) = switch (status) {
-      TodayStatus.present => ('Present today', WC.present),
-      TodayStatus.loading => ('Checking status…', AppTheme.textSecondary),
+      TodayStatus.present => ('Present today', context.attendancePresent),
+      TodayStatus.loading => (
+        'Checking status…',
+        context.colors.onSurfaceVariant,
+      ),
       TodayStatus.notCheckedIn => (
         'Not checked in yet',
-        AppTheme.textSecondary,
+        context.colors.onSurfaceVariant,
       ),
-      TodayStatus.unknown => ('Status unavailable', AppTheme.textSecondary),
+      TodayStatus.unknown => (
+        'Status unavailable',
+        context.colors.onSurfaceVariant,
+      ),
     };
 
     return Semantics(
@@ -697,35 +715,32 @@ class _StatusPill extends StatelessWidget {
 }
 
 class _InfoChip extends StatelessWidget {
-  const _InfoChip({required this.data});
+  const _InfoChip({required this.label, this.icon});
 
-  final _ChipData data;
+  final String label;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: AppTheme.textPrimary.withValues(alpha: 0.06),
+        color: context.colors.onSurface.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (data.icon != null) ...[
-            Icon(data.icon, size: 14, color: AppTheme.textSecondary),
-            const SizedBox(width: 6),
-          ],
+          if (icon != null) ...[Icon(icon, size: 24), const SizedBox(width: 6)],
           Flexible(
             child: Text(
-              data.label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              label,
+              textAlign: TextAlign.center,
               style: GoogleFonts.inter(
                 fontSize: 12.5,
                 height: 1.2,
                 fontWeight: FontWeight.w500,
-                color: AppTheme.textPrimary.withValues(alpha: 0.8),
+                color: context.colors.onSurface.withValues(alpha: 0.8),
               ),
             ),
           ),

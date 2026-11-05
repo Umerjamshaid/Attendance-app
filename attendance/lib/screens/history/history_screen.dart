@@ -1,11 +1,12 @@
+import 'package:attendance/config/app_icons.dart';
 import 'dart:math' as math;
 
 import 'package:attendance/config/app_theme.dart';
-import 'package:attendance/config/wc_tokens.dart';
 import 'package:attendance/models/attendance_record_model.dart';
 import 'package:attendance/providers/attendance_history_provider.dart';
 import 'package:attendance/providers/auth_provider.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
+import 'package:attendance/widgets/demo_mode_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -97,10 +98,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
         : 0.0;
 
     return Scaffold(
-      backgroundColor: ProfileUi.page,
+      backgroundColor: context.colors.surface,
       body: RefreshIndicator(
-        color: AppTheme.primaryNavy,
-        backgroundColor: Colors.white,
+        color: context.colors.primary,
+        backgroundColor: context.colors.surfaceContainerLow,
         // Start the spinner below the pinned app bar.
         edgeOffset: MediaQuery.paddingOf(context).top + kToolbarHeight,
         onRefresh: _onRefresh,
@@ -111,13 +112,25 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
           slivers: [
             _buildSliverAppBar(),
+            if (historyProvider.isDemoMode)
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(
+                  sidePad + ProfileUi.gutter,
+                  12,
+                  sidePad + ProfileUi.gutter,
+                  0,
+                ),
+                sliver: const SliverToBoxAdapter(child: DemoModeNotice()),
+              ),
             SliverPadding(
               padding: EdgeInsets.symmetric(horizontal: sidePad),
               sliver: SliverToBoxAdapter(
                 child: _HistoryOverview(
                   present: historyProvider.presentCount,
                   absent: historyProvider.absentCount,
-                  total: historyProvider.totalCount,
+                  total:
+                      historyProvider.presentCount +
+                      historyProvider.absentCount,
                   streak: historyProvider.currentStreak,
                   monthlyRate: historyProvider.monthlyRate,
                   isLoading: historyProvider.isLoading,
@@ -129,7 +142,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 hasScrollBody: false,
                 child: Center(
                   child: CircularProgressIndicator(
-                    color: AppTheme.primaryNavy,
                     strokeWidth: 3,
                     semanticsLabel: 'Loading history',
                   ),
@@ -139,7 +151,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               SliverFillRemaining(
                 hasScrollBody: false,
                 child: _EmptyState(
-                  icon: Icons.error_outline_rounded,
+                  icon: AppIcons.alertCircle,
                   title: 'Something went wrong',
                   subtitle: historyProvider.error!,
                   isError: true,
@@ -150,7 +162,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               SliverFillRemaining(
                 hasScrollBody: false,
                 child: _EmptyState(
-                  icon: Icons.history_rounded,
+                  icon: AppIcons.history,
                   title: 'No history yet',
                   subtitle: 'Your attendance activity will show up here.',
                   onRefresh: _onRefresh,
@@ -181,12 +193,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return SliverAppBar(
       pinned: true,
       automaticallyImplyLeading: false,
-      backgroundColor: ProfileUi.page,
+      backgroundColor: context.colors.surface,
       surfaceTintColor: Colors.transparent,
       scrolledUnderElevation: 0,
       elevation: 0,
       centerTitle: true,
-      title: Text('History', style: ProfileUi.body(weight: FontWeight.w600)),
+      title: Text(
+        'History',
+        style: ProfileUi.body(context, weight: FontWeight.w600),
+      ),
       bottom: PreferredSize(
         preferredSize: const Size.fromHeight(1),
         child: ValueListenableBuilder<bool>(
@@ -194,7 +209,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
           builder: (_, scrolled, _) => AnimatedOpacity(
             opacity: scrolled ? 1 : 0,
             duration: const Duration(milliseconds: 150),
-            child: Divider(height: 1, thickness: 1, color: ProfileUi.hairline),
+            child: Divider(
+              height: 1,
+              thickness: 1,
+              color: context.colors.outlineVariant,
+            ),
           ),
         ),
       ),
@@ -233,30 +252,62 @@ class _HistoryOverview extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.all(20),
-          child: Row(
-            children: [
-              _MonthRing(progress: monthlyRate, isLoading: isLoading),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final scale = math.max(
+                1.0,
+                MediaQuery.textScalerOf(context).scale(18) / 18,
+              );
+              final ringSize = math.min(constraints.maxWidth, 84 * scale);
+              final ring = _MonthRing(
+                progress: monthlyRate,
+                isLoading: isLoading,
+                dimension: ringSize,
+              );
+              final streakFact = _Fact(
+                value: isLoading ? null : _days(streak),
+                label: 'Current streak',
+                color: context.attendanceWarning,
+              );
+              final rateFact = _Fact(
+                value: isLoading ? null : '$rate%',
+                label: 'Overall rate',
+                color: context.colors.primary,
+              );
+              if (constraints.maxWidth < ringSize + 20 + 120 * scale) {
+                return Column(
                   children: [
-                    _Fact(
-                      value: isLoading ? null : _days(streak),
-                      label: 'Current streak',
-                      color: ProfileUi.warning,
-                    ),
-                    const SizedBox(height: 14),
-                    _Fact(
-                      value: isLoading ? null : '$rate%',
-                      label: 'Overall rate',
-                      color: AppTheme.primaryNavy,
+                    ring,
+                    const SizedBox(height: 20),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: streakFact),
+                        const SizedBox(width: 20),
+                        Expanded(child: rateFact),
+                      ],
                     ),
                   ],
-                ),
-              ),
-            ],
+                );
+              }
+              return Row(
+                children: [
+                  ring,
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        streakFact,
+                        const SizedBox(height: 14),
+                        rateFact,
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
         Padding(
@@ -267,15 +318,19 @@ class _HistoryOverview extends StatelessWidget {
                 child: _Count(
                   value: isLoading ? null : present,
                   label: 'Days present',
-                  color: WC.present,
+                  color: context.attendancePresent,
                 ),
               ),
-              Container(width: 1, height: 36, color: ProfileUi.hairline),
+              Container(
+                width: 1,
+                height: 36,
+                color: context.colors.outlineVariant,
+              ),
               Expanded(
                 child: _Count(
                   value: isLoading ? null : absent,
                   label: 'Days absent',
-                  color: WC.absent,
+                  color: context.attendanceAbsent,
                 ),
               ),
             ],
@@ -302,16 +357,18 @@ class _Fact extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            value ?? '—',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.inter(
-              fontSize: 20,
-              height: 1.2,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimary,
-              fontFeatures: const [FontFeature.tabularFigures()],
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value ?? '—',
+              style: GoogleFonts.inter(
+                fontSize: 20,
+                height: 1.2,
+                fontWeight: FontWeight.w600,
+                color: context.colors.onSurface,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
             ),
           ),
           const SizedBox(height: 4),
@@ -326,9 +383,8 @@ class _Fact extends StatelessWidget {
               Expanded(
                 child: Text(
                   label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: ProfileUi.caption(),
+                  maxLines: 2,
+                  style: ProfileUi.caption(context),
                 ),
               ),
             ],
@@ -347,11 +403,11 @@ class _Count extends StatelessWidget {
 
   const _Count({required this.value, required this.label, required this.color});
 
-  TextStyle get _numberStyle => GoogleFonts.inter(
+  TextStyle _numberStyle(BuildContext context) => GoogleFonts.inter(
     fontSize: 24,
     height: 1.2,
     fontWeight: FontWeight.w600,
-    color: AppTheme.textPrimary,
+    color: context.colors.onSurface,
     fontFeatures: const [FontFeature.tabularFigures()],
   );
 
@@ -366,18 +422,20 @@ class _Count extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (v == null)
-            Text('—', style: _numberStyle)
-          else
-            TweenAnimationBuilder<int>(
-              tween: IntTween(begin: 0, end: v),
-              duration: reduceMotion
-                  ? Duration.zero
-                  : const Duration(milliseconds: 600),
-              curve: Curves.easeOutCubic,
-              builder: (_, animated, _) =>
-                  Text('$animated', style: _numberStyle),
-            ),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: v == null
+                ? Text('—', style: _numberStyle(context))
+                : TweenAnimationBuilder<int>(
+                    tween: IntTween(begin: 0, end: v),
+                    duration: reduceMotion
+                        ? Duration.zero
+                        : const Duration(milliseconds: 600),
+                    curve: Curves.easeOutCubic,
+                    builder: (_, animated, _) =>
+                        Text('$animated', style: _numberStyle(context)),
+                  ),
+          ),
           const SizedBox(height: 4),
           Row(
             mainAxisSize: MainAxisSize.min,
@@ -391,9 +449,9 @@ class _Count extends StatelessWidget {
               Flexible(
                 child: Text(
                   label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: ProfileUi.caption(),
+                  maxLines: 2,
+                  textAlign: TextAlign.center,
+                  style: ProfileUi.caption(context),
                 ),
               ),
             ],
@@ -408,8 +466,13 @@ class _Count extends StatelessWidget {
 class _MonthRing extends StatelessWidget {
   final double progress;
   final bool isLoading;
+  final double dimension;
 
-  const _MonthRing({required this.progress, required this.isLoading});
+  const _MonthRing({
+    required this.progress,
+    required this.isLoading,
+    required this.dimension,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -421,7 +484,7 @@ class _MonthRing extends StatelessWidget {
           'This month: ${isLoading ? 'loading' : '${(target * 100).round()} percent'}',
       excludeSemantics: true,
       child: SizedBox.square(
-        dimension: 84,
+        dimension: dimension,
         child: TweenAnimationBuilder<double>(
           tween: Tween<double>(begin: 0, end: target),
           duration: reduceMotion
@@ -431,28 +494,34 @@ class _MonthRing extends StatelessWidget {
           builder: (_, value, _) => CustomPaint(
             painter: _RingPainter(
               progress: value,
-              color: AppTheme.primaryNavy,
-              trackColor: AppTheme.textPrimary.withValues(alpha: 0.08),
+              color: context.colors.primary,
+              trackColor: context.colors.onSurface.withValues(alpha: 0.08),
             ),
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    isLoading ? '—' : '${(value * 100).round()}%',
-                    style: GoogleFonts.inter(
-                      fontSize: 18,
-                      height: 1.2,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textPrimary,
-                      fontFeatures: const [FontFeature.tabularFigures()],
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      isLoading ? '—' : '${(value * 100).round()}%',
+                      style: GoogleFonts.inter(
+                        fontSize: 18,
+                        height: 1.2,
+                        fontWeight: FontWeight.w600,
+                        color: context.colors.onSurface,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
                     ),
-                  ),
-                  Text(
-                    'This month',
-                    style: ProfileUi.caption().copyWith(fontSize: 10.5),
-                  ),
-                ],
+                    Text(
+                      'This month',
+                      style: ProfileUi.caption(
+                        context,
+                      ).copyWith(fontSize: 10.5),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -496,7 +565,9 @@ class _AttendanceRecordRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isPresent = record.isPresent;
-    final color = isPresent ? WC.present : WC.absent;
+    final color = isPresent
+        ? context.attendancePresent
+        : context.attendanceAbsent;
     final timeStr = _formatTime(record.timestamp);
     final title = isPresent ? 'Present' : 'Absent';
     final device = record.device.isEmpty || record.device == 'unknown'
@@ -514,13 +585,7 @@ class _AttendanceRecordRow extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(
-              isPresent
-                  ? Icons.check_circle_outline_rounded
-                  : Icons.highlight_off_rounded,
-              color: color,
-              size: 18,
-            ),
+            Icon(isPresent ? AppIcons.circleCheck : AppIcons.circleX, size: 24),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -530,6 +595,7 @@ class _AttendanceRecordRow extends StatelessWidget {
                   Text(
                     title,
                     style: ProfileUi.small(
+                      context,
                       color: color,
                       weight: FontWeight.w600,
                     ),
@@ -540,7 +606,7 @@ class _AttendanceRecordRow extends StatelessWidget {
                       device,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: ProfileUi.caption(),
+                      style: ProfileUi.caption(context),
                     ),
                   ],
                 ],
@@ -553,7 +619,7 @@ class _AttendanceRecordRow extends StatelessWidget {
                 fontSize: 14,
                 height: 1.2,
                 fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
+                color: context.colors.onSurface,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
@@ -594,15 +660,11 @@ class _EmptyState extends StatelessWidget {
           Container(
             width: 72,
             height: 72,
-            decoration: const BoxDecoration(
-              color: ProfileUi.cardFill,
+            decoration: BoxDecoration(
+              color: context.colors.surfaceContainerLow,
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              icon,
-              size: 32,
-              color: isError ? AppTheme.errorRed : AppTheme.textSecondary,
-            ),
+            child: Icon(icon, size: 24),
           ),
           const SizedBox(height: 20),
           Semantics(
@@ -614,7 +676,7 @@ class _EmptyState extends StatelessWidget {
                 fontSize: 18,
                 height: 1.3,
                 fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
+                color: context.colors.onSurface,
               ),
             ),
           ),
@@ -624,18 +686,18 @@ class _EmptyState extends StatelessWidget {
             child: Text(
               subtitle,
               textAlign: TextAlign.center,
-              style: ProfileUi.small().copyWith(height: 1.45),
+              style: ProfileUi.small(context).copyWith(height: 1.45),
             ),
           ),
           if (onRefresh != null) ...[
             const SizedBox(height: 20),
             FilledButton.icon(
               onPressed: onRefresh,
-              icon: const Icon(Icons.refresh_rounded, size: 18),
+              icon: const Icon(AppIcons.refresh, size: 24),
               label: const Text('Refresh'),
               style: FilledButton.styleFrom(
-                backgroundColor: ProfileUi.cardFill,
-                foregroundColor: AppTheme.textPrimary,
+                backgroundColor: context.colors.surfaceContainerLow,
+                foregroundColor: context.colors.onSurface,
                 elevation: 0,
                 minimumSize: const Size(0, 44),
                 padding: const EdgeInsets.symmetric(horizontal: 20),

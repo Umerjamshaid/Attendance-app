@@ -18,6 +18,7 @@ class AdminFilterBar extends StatelessWidget {
     required this.total,
     required this.present,
     required this.absent,
+    this.checkInLog = false,
   });
 
   /// One of `'all'`, `'present'` or `'absent'`.
@@ -26,6 +27,7 @@ class AdminFilterBar extends StatelessWidget {
   final int total;
   final int present;
   final int absent;
+  final bool checkInLog;
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +49,7 @@ class AdminFilterBar extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: _Chip(
-              label: 'Present',
+              label: checkInLog ? 'Checked in' : 'Present',
               count: present,
               isSelected: selected == 'present',
               onTap: () => onSelected('present'),
@@ -56,7 +58,7 @@ class AdminFilterBar extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: _Chip(
-              label: 'Absent',
+              label: checkInLog ? 'Not yet' : 'Absent',
               count: absent,
               isSelected: selected == 'absent',
               onTap: () => onSelected('absent'),
@@ -94,8 +96,8 @@ class _Chip extends StatelessWidget {
       side: BorderSide.none,
       elevation: 0,
       pressElevation: 0,
-      backgroundColor: ProfileUi.cardFill,
-      selectedColor: AppTheme.primaryNavy,
+      backgroundColor: context.colors.surfaceContainerLow,
+      selectedColor: context.colors.primary,
       labelPadding: EdgeInsets.zero,
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
       // Keeps the full 48dp touch target even though the chip looks smaller.
@@ -111,7 +113,9 @@ class _Chip extends StatelessWidget {
             fontSize: 13,
             height: 1.2,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-            color: isSelected ? Colors.white : AppTheme.textSecondary,
+            color: isSelected
+                ? context.colors.onPrimary
+                : context.colors.onSurfaceVariant,
           ),
         ),
       ),

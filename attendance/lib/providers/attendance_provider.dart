@@ -1,9 +1,23 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:uuid/uuid.dart';
+import '../models/attendance_record_model.dart';
+import '../services/company_backend.dart';
 import '../services/device_service.dart';
 import '../services/local_storage_service.dart';
 
 class AttendanceProvider extends ChangeNotifier {
-  final DeviceService _deviceService = DeviceService();
+  AttendanceProvider({this.backend})
+    : _deviceService = DeviceService(
+        useRealInfo: backend != null && !backend.isPreview,
+      );
+  final CompanyBackend? backend;
+  final DeviceService _deviceService;
+  bool _disposed = false;
+  bool get isCompanyMode => backend != null;
+  bool get isPreview => backend?.isPreview ?? false;
+  String get companyTimezone => _timezone;
+  String _timezone = 'Asia/Karachi';
   final LocalStorageService _storageService = LocalStorageService();
 
   bool _isLoading = false;
@@ -30,7 +44,7 @@ class AttendanceProvider extends ChangeNotifier {
 
   bool isUploadWindowOpen() {
     if (_windowMode == 'always') return true;
-    final hour = DateTime.now().hour;
+    final hour = (backend?.companyNow ?? DateTime.now()).hour;
     return hour >= _windowStartHour && hour < _windowEndHour;
   }
 
@@ -52,6 +66,15 @@ class AttendanceProvider extends ChangeNotifier {
   bool get isUploadEnabled => isUploadWindowOpen();
 
   Future<void> loadWindowConfig() async {
+    if (backend != null) {
+      final policy = await backend!.policy();
+      _windowMode = policy.mode;
+      _windowStartHour = policy.startHour;
+      _windowEndHour = policy.endHour;
+      _timezone = policy.timezone;
+      notifyListeners();
+      return;
+    }
     final cfg = await _storageService.getAttendanceWindow();
     if (cfg != null) {
       _windowMode = (cfg['mode'] as String?) ?? 'period';
@@ -66,7 +89,9 @@ class AttendanceProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _deviceModel = await _deviceService.getDeviceModel();
+      _deviceModel = isPreview
+          ? 'Sample Android device'
+          : await _deviceService.getDeviceModel();
       await loadWindowConfig();
     } catch (e) {
       _error = 'Initialization failed';
@@ -75,6 +100,62 @@ class AttendanceProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  Future<void> saveWindowConfig({
+    required String mode,
+    required int startHour,
+    required int endHour,
+  }) async {
+    if (backend == null) {
+      await _storageService.saveAttendanceWindow(
+        mode: mode,
+        startHour: startHour,
+        endHour: endHour,
+      );
+    } else {
+      await backend!.savePolicy(
+        AttendancePolicy(
+          mode: mode,
+          startHour: startHour,
+          endHour: endHour,
+          timezone: _timezone,
+        ),
+      );
+    }
+    await loadWindowConfig();
+  }
+
+  Future<AttendanceRecord> submitPhoto({
+    required String requestId,
+    required String base64Image,
+    required double latitude,
+    required double longitude,
+    required double accuracy,
+    required DateTime capturedAt,
+  }) async {
+    if (backend == null) {
+      throw const CompanyException('Company connection unavailable.');
+    }
+    if (isPreview) throw PreviewUnavailable();
+    final record = await backend!.submit(
+      requestId: requestId,
+      base64Image: base64Image,
+      latitude: latitude,
+      longitude: longitude,
+      accuracy: accuracy,
+      capturedAt: capturedAt,
+      installationId: await _deviceService.getDeviceId(),
+      deviceModel: _deviceModel,
+      platform: Platform.isIOS ? 'ios' : 'android',
+    );
+    _isCheckedIn = true;
+    _checkInTime =
+        '${record.timestamp.hour.toString().padLeft(2, '0')}:${record.timestamp.minute.toString().padLeft(2, '0')}';
+    notifyListeners();
+    return record;
+  }
+
+  String newRequestId() => const Uuid().v4();
 
   Future<bool> attemptCheckIn(String userId) async {
     _isLoading = true;
@@ -105,4 +186,20 @@ class AttendanceProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
   }
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+}
+
+class PreviewUnavailable extends CompanyException {
+  PreviewUnavailable()
+    : super('Read-only preview. Request an invitation to submit attendance.');
 }

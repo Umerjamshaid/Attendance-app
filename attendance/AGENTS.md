@@ -39,6 +39,7 @@ cd android; .\gradlew.bat assembleDebug; cd ..
 - Local persistence: `SharedPreferences` via `local_storage_service.dart`.
 
 5) Conventions & small gotchas
+- UI preservation: read [docs/ui-handoff.md](docs/ui-handoff.md) before editing Home or History. Preserve their original summaries across public/demo/legacy modes; do not redesign other screens without an explicit request. Admin was deliberately deferred in the 2026-11-06 restoration.
 - Minimal mocking/stubs: many services return mock data (see `attendance_service.dart`, `employees_service.dart`). Before integrating a real backend, locate and replace these stubs.
 - Sensitive token: `api.md` contains a value that looks like a key on line 1 — treat as secret; do NOT commit or echo it in public outputs. Remove or rotate before publishing.
 - Prefer changing service implementations over directly mutating providers for external integration changes.

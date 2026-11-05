@@ -1,3 +1,4 @@
+import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/widgets/notification_tile.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
@@ -15,22 +16,22 @@ class AdminNotificationScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: ProfileUi.page,
+      backgroundColor: context.colors.surface,
       appBar: AppBar(
-        backgroundColor: ProfileUi.page,
+        backgroundColor: context.colors.surface,
         surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 0,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
           tooltip: 'Back',
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          color: AppTheme.textPrimary,
+          icon: const Icon(AppIcons.chevronLeft, size: 24),
+          color: context.colors.onSurface,
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           'Notifications',
-          style: ProfileUi.body(weight: FontWeight.w600),
+          style: ProfileUi.body(context, weight: FontWeight.w600),
         ),
       ),
       body: _items.isEmpty
@@ -46,7 +47,7 @@ class AdminNotificationScreen extends StatelessWidget {
                 thickness: 1,
                 indent: ProfileUi.gutter,
                 endIndent: ProfileUi.gutter,
-                color: ProfileUi.hairline,
+                color: context.colors.outlineVariant,
               ),
               itemBuilder: (_, index) => _items[index],
             ),
@@ -73,15 +74,11 @@ class _EmptyNotifications extends StatelessWidget {
             Container(
               width: 72,
               height: 72,
-              decoration: const BoxDecoration(
-                color: ProfileUi.cardFill,
+              decoration: BoxDecoration(
+                color: context.colors.surfaceContainerLow,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.notifications_none_rounded,
-                size: 32,
-                color: AppTheme.textSecondary,
-              ),
+              child: Icon(AppIcons.bell, size: 24),
             ),
             const SizedBox(height: 20),
             Semantics(
@@ -93,7 +90,7 @@ class _EmptyNotifications extends StatelessWidget {
                   fontSize: 18,
                   height: 1.3,
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
+                  color: context.colors.onSurface,
                 ),
               ),
             ),
@@ -101,7 +98,7 @@ class _EmptyNotifications extends StatelessWidget {
             Text(
               'New notifications will appear here.',
               textAlign: TextAlign.center,
-              style: ProfileUi.small().copyWith(height: 1.45),
+              style: ProfileUi.small(context).copyWith(height: 1.45),
             ),
           ],
         ),

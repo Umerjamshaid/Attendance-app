@@ -1,5 +1,4 @@
 import 'package:attendance/config/app_theme.dart';
-import 'package:attendance/config/wc_tokens.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -15,12 +14,14 @@ class AdminOverviewCard extends StatelessWidget {
     required this.present,
     required this.absent,
     this.isLoading = false,
+    this.checkInLog = false,
   });
 
   final int total;
   final int present;
   final int absent;
   final bool isLoading;
+  final bool checkInLog;
 
   @override
   Widget build(BuildContext context) {
@@ -35,23 +36,23 @@ class AdminOverviewCard extends StatelessWidget {
                 child: _Metric(
                   value: isLoading ? null : total,
                   label: 'Employees',
-                  color: AppTheme.primaryNavy,
+                  color: context.colors.primary,
                 ),
               ),
               const _MetricDivider(),
               Expanded(
                 child: _Metric(
                   value: isLoading ? null : present,
-                  label: 'Present',
-                  color: WC.present,
+                  label: checkInLog ? 'Checked in' : 'Present',
+                  color: context.attendancePresent,
                 ),
               ),
               const _MetricDivider(),
               Expanded(
                 child: _Metric(
                   value: isLoading ? null : absent,
-                  label: 'Absent',
-                  color: WC.absent,
+                  label: checkInLog ? 'Not checked in' : 'Absent',
+                  color: context.attendanceAbsent,
                 ),
               ),
             ],
@@ -67,7 +68,11 @@ class _MetricDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(width: 1, height: 36, color: ProfileUi.hairline);
+    return Container(
+      width: 1,
+      height: 36,
+      color: context.colors.outlineVariant,
+    );
   }
 }
 
@@ -83,11 +88,11 @@ class _Metric extends StatelessWidget {
   final String label;
   final Color color;
 
-  TextStyle get _numberStyle => GoogleFonts.inter(
+  TextStyle _numberStyle(BuildContext context) => GoogleFonts.inter(
     fontSize: 24,
     height: 1.2,
     fontWeight: FontWeight.w600,
-    color: AppTheme.textPrimary,
+    color: context.colors.onSurface,
     fontFeatures: const [FontFeature.tabularFigures()],
   );
 
@@ -103,7 +108,7 @@ class _Metric extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (v == null)
-            Text('—', style: _numberStyle)
+            Text('—', style: _numberStyle(context))
           else
             // Counts up on first build, then animates from the current value
             // whenever a refresh changes the number.
@@ -114,7 +119,7 @@ class _Metric extends StatelessWidget {
                   : const Duration(milliseconds: 600),
               curve: Curves.easeOutCubic,
               builder: (_, animated, _) =>
-                  Text('$animated', style: _numberStyle),
+                  Text('$animated', style: _numberStyle(context)),
             ),
           const SizedBox(height: 4),
           Row(
@@ -131,7 +136,7 @@ class _Metric extends StatelessWidget {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: ProfileUi.caption(),
+                  style: ProfileUi.caption(context),
                 ),
               ),
             ],

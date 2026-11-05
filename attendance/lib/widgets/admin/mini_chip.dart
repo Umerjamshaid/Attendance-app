@@ -17,7 +17,7 @@ class MiniChip extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(icon, size: 10, color: WC.muted),
+          Icon(icon, size: 24),
           const SizedBox(width: 4),
           Text(
             label,

@@ -1,9 +1,15 @@
 // ── 2B. EmployeeService
 //    Responsible for: fetching employee list
 import 'package:attendance/models/employees_model.dart';
+import 'company_backend.dart';
 
 class EmployeeService {
+  EmployeeService({this.backend});
+  final CompanyBackend? backend;
+  bool get isDemoMode => backend?.isPreview ?? true;
+
   Future<List<Employee>> getAllEmployees() async {
+    if (backend != null) return backend!.employees();
     // final snapshot = await FirebaseFirestore.instance
     //     .collection('employees')
     //     .get();

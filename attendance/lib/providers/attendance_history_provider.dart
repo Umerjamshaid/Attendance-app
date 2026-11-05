@@ -14,6 +14,10 @@ import '../services/attendance_service.dart';
 
 class AttendanceHistoryProvider extends ChangeNotifier {
   final AttendanceService _service;
+  bool _disposed = false;
+  int _generation = 0;
+  bool get usesCheckInLog => _service.backend != null;
+  DateTime get _now => _service.backend?.companyNow ?? DateTime.now();
 
   AttendanceHistoryProvider({AttendanceService? service})
     : _service = service ?? AttendanceService();
@@ -27,24 +31,40 @@ class AttendanceHistoryProvider extends ChangeNotifier {
   List<AttendanceRecord> get records => _records;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  bool get isDemoMode => _service.isDemoMode;
 
   // ── Computed stats (derived from records, no extra storage needed)
-  int get presentCount => _records.where((r) => r.isPresent).length;
+  int get presentCount => usesCheckInLog
+      ? _records
+            .map(
+              (r) =>
+                  '${r.timestamp.year}-${r.timestamp.month}-${r.timestamp.day}',
+            )
+            .toSet()
+            .length
+      : _records.where((r) => r.isPresent).length;
   int get absentCount => _records.where((r) => !r.isPresent).length;
   int get totalCount => _records.length;
 
   int get currentStreak {
     if (_records.isEmpty) return 0;
-    final presentDays = _records
-        .where((r) => r.isPresent)
-        .map((r) => DateTime(r.timestamp.year, r.timestamp.month, r.timestamp.day))
-        .toSet()
-        .toList()
-      ..sort((a, b) => b.compareTo(a)); // sorted descending (newest first)
+    final presentDays =
+        _records
+            .where((r) => r.isPresent)
+            .map(
+              (r) => DateTime(
+                r.timestamp.year,
+                r.timestamp.month,
+                r.timestamp.day,
+              ),
+            )
+            .toSet()
+            .toList()
+          ..sort((a, b) => b.compareTo(a)); // sorted descending (newest first)
 
     if (presentDays.isEmpty) return 0;
 
-    final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    final today = DateTime(_now.year, _now.month, _now.day);
     final yesterday = today.subtract(const Duration(days: 1));
 
     // If neither today nor yesterday has a present record, the streak has been broken.
@@ -65,13 +85,17 @@ class AttendanceHistoryProvider extends ChangeNotifier {
 
   double get monthlyRate {
     if (_records.isEmpty) return 0.0;
-    final now = DateTime.now();
+    final now = _now;
     final presentThisMonth = _records
-        .where((r) =>
-            r.isPresent &&
-            r.timestamp.year == now.year &&
-            r.timestamp.month == now.month)
-        .map((r) => DateTime(r.timestamp.year, r.timestamp.month, r.timestamp.day))
+        .where(
+          (r) =>
+              r.isPresent &&
+              r.timestamp.year == now.year &&
+              r.timestamp.month == now.month,
+        )
+        .map(
+          (r) => DateTime(r.timestamp.year, r.timestamp.month, r.timestamp.day),
+        )
         .toSet()
         .length;
 
@@ -81,13 +105,17 @@ class AttendanceHistoryProvider extends ChangeNotifier {
   }
 
   int get presentThisMonthCount {
-    final now = DateTime.now();
+    final now = _now;
     return _records
-        .where((r) =>
-            r.isPresent &&
-            r.timestamp.year == now.year &&
-            r.timestamp.month == now.month)
-        .map((r) => DateTime(r.timestamp.year, r.timestamp.month, r.timestamp.day))
+        .where(
+          (r) =>
+              r.isPresent &&
+              r.timestamp.year == now.year &&
+              r.timestamp.month == now.month,
+        )
+        .map(
+          (r) => DateTime(r.timestamp.year, r.timestamp.month, r.timestamp.day),
+        )
         .toSet()
         .length;
   }
@@ -165,54 +193,82 @@ class AttendanceHistoryProvider extends ChangeNotifier {
   }
 
   // Inside AttendanceHistoryProvider class
-Future<void> addRecordOptimistically(AttendanceRecord record) async {
-  // 1. Insert at the beginning of the list (index 0)
-  _records.insert(0, record);
-  
-  // 2. Notify all listeners (like the HistoryScreen) to rebuild
-  notifyListeners();
-}
+  Future<void> addRecordOptimistically(AttendanceRecord record) async {
+    // 1. Insert at the beginning of the list (index 0)
+    _records.insert(0, record);
+
+    // 2. Notify all listeners (like the HistoryScreen) to rebuild
+    notifyListeners();
+  }
+
+  void acceptSubmittedRecord(AttendanceRecord record) {
+    ++_generation;
+    _isLoading = false;
+    _records.removeWhere((r) => r.id == record.id);
+    _records.insert(0, record);
+    _error = null;
+    notifyListeners();
+  }
 
   // ── Actions (UI calls these)
   Future<void> loadHistory(String userId, {bool force = false}) async {
     // Optimization: Don't reload if we already have data for THIS user, unless forced
-    if (_records.isNotEmpty && 
-        _records.every((r) => r.userId == userId) && 
-        !force && 
+    if (_records.isNotEmpty &&
+        _records.every((r) => r.userId == userId) &&
+        !force &&
         !_isLoading) {
       return;
     }
 
+    final generation = ++_generation;
     _isLoading = true;
     _error = null;
     // Clear old records so they don't show briefly for the new user
-    _records = []; 
-    notifyListeners(); 
+    if (_records.any((record) => record.userId != userId)) _records = [];
+    notifyListeners();
 
     try {
       final remoteRecords = await _service.getUserAttendance(userId);
+      if (_disposed || generation != _generation) return;
       _records = remoteRecords;
     } catch (e) {
-      _error = 'Failed to load attendance. Try again.';
+      if (!_disposed && generation == _generation) {
+        _error = 'Failed to load attendance. Try again.';
+      }
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (!_disposed && generation == _generation) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   // Check if the user has already checked in today
   bool get isPresentToday {
     if (_records.isEmpty) return false;
-    final now = DateTime.now();
-    return _records.any((r) =>
-        r.isPresent &&
-        r.timestamp.year == now.year &&
-        r.timestamp.month == now.month &&
-        r.timestamp.day == now.day);
+    final now = _now;
+    return _records.any(
+      (r) =>
+          r.isPresent &&
+          r.timestamp.year == now.year &&
+          r.timestamp.month == now.month &&
+          r.timestamp.day == now.day,
+    );
   }
 
   void clearError() {
     _error = null;
     notifyListeners();
+  }
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 }

@@ -8,13 +8,19 @@
 // ── 2A. AttendanceService
 //    Responsible for: fetching attendance records
 import 'package:attendance/models/attendance_record_model.dart';
+import 'company_backend.dart';
 
 class AttendanceService {
+  AttendanceService({this.backend});
+  final CompanyBackend? backend;
+  bool get isDemoMode => backend?.isPreview ?? true;
+
   // Replace these methods' internals with your Firebase/API calls.
   // The method signatures stay the same regardless of backend.
 
   // Get attendance history for one user (for History screen)
   Future<List<AttendanceRecord>> getUserAttendance(String userId) async {
+    if (backend != null) return backend!.history(employeeId: userId);
     // Example with Firebase:
     // final snapshot = await FirebaseFirestore.instance
     //     .collection('attendance')
@@ -47,6 +53,7 @@ class AttendanceService {
 
   // Get today's attendance for ALL employees (for Admin screen)
   Future<List<AttendanceRecord>> getTodayAllAttendance() async {
+    if (backend != null) return backend!.history(todayOnly: true);
     // final today = DateTime.now();
     // final startOfDay = DateTime(today.year, today.month, today.day);
     // final snapshot = await FirebaseFirestore.instance
@@ -56,7 +63,7 @@ class AttendanceService {
     //     .get();
 
     await Future.delayed(const Duration(seconds: 1));
-    
+
     // Returning mock data for today to show "presents" in the Admin dashboard
     final now = DateTime.now();
     return [
@@ -84,6 +91,9 @@ class AttendanceService {
     required bool isPresent,
     required String device,
   }) async {
+    if (backend != null) {
+      throw const CompanyException('Use photo check-in to submit attendance.');
+    }
     // await FirebaseFirestore.instance.collection('attendance').add({
     //   'userId': userId,
     //   'isPresent': isPresent,

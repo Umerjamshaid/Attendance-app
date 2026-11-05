@@ -39,12 +39,15 @@ P Attendance is a clean Flutter attendance app for mobile teams and portfolio de
 - Admin dashboard for team oversight
 - Profile, settings, and privacy screens
 - SharedPreferences-backed local app state
+- Supabase-backed company accounts and photo check-ins (requires backend setup)
+- A read-only demo that never accesses company records
 
 ## Tech Stack
 
 - Flutter
 - Dart
 - Provider
+- Supabase Auth, Postgres, Storage, and Edge Functions
 - Geolocator
 - image_picker
 - permission_handler
@@ -58,6 +61,14 @@ flutter pub get
 flutter run
 ```
 
+Choose **Explore demo** on the sign-in screen to browse sample data. No account,
+permission request, camera access, or location upload is needed. Demo edits and
+submissions are disabled.
+
+Real company trials are invite-only. Contact the project owner for an invitation;
+do not share employee credentials in issues. Developers can also run their own
+Supabase project using the [backend setup guide](docs/backend-setup.md).
+
 ## Build
 
 ```powershell
@@ -69,3 +80,4 @@ flutter build apk --debug
 - This repository is kept public and portfolio-friendly.
 - The screenshots in this README live inside the repo so GitHub can render them directly.
 - No private backend details are included here.
+- Company backend deployment and email delivery must be configured before real sign-in works.
