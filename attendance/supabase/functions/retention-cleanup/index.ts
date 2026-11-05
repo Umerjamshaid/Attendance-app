@@ -23,7 +23,8 @@ async function retentionCleanup(req: Request) {
     const paths = (orphans as { bucket_id: string; name: string }[]).filter((row) => row.bucket_id === bucket).map((row) => row.name);
     if (paths.length) { const { error } = await db.storage.from(bucket).remove(paths); if (error) throw error; }
   }
-  await db.from('submission_attempts').delete().lt('created_at', new Date(Date.now() - 86400_000).toISOString());
+  const { error: attemptsError } = await db.from('submission_attempts').delete().lt('created_at', new Date(Date.now() - 86400_000).toISOString());
+  if (attemptsError) throw attemptsError;
   return { ok: true, removed };
 }
 
