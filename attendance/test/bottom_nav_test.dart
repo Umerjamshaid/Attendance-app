@@ -23,7 +23,7 @@ void main() {
       expect(tester.getSize(button).height, 56);
       expect(tester.getSize(button).width, greaterThanOrEqualTo(48));
       final capsule = find.byKey(const ValueKey('floating-navigation'));
-      expect(tester.getTopLeft(capsule).dx, 20);
+      expect(tester.getCenter(capsule).dx, 195);
       expect(tester.getSize(capsule), const Size(264, 64));
       expect(find.text('Home'), findsNothing);
       final material = find
@@ -59,6 +59,12 @@ void main() {
         await tester.pump();
         expect(tester.takeException(), isNull);
         await tester.pumpAndSettle();
+        expect(
+          tester
+              .getCenter(find.byKey(const ValueKey('floating-navigation')))
+              .dx,
+          closeTo(width / 2, 0.01),
+        );
         for (final label in ['History', 'Admin', 'Profile', 'Home']) {
           final button = find.byTooltip(label);
           final size = tester.getSize(button);

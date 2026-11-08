@@ -1,6 +1,6 @@
 # Home And History UI Handoff
 
-Updated: 2026-11-06. Branch: `codex/backend-addition`.
+Updated: 2026-11-09. Current branch: `codex/centered-swipe-navigation`.
 Backend review fixes were already saved in `6bdb462` before this UI task.
 
 ## Explicit User Decisions
@@ -81,3 +81,28 @@ SHA-256: `59BD126D5C64C64B2BF245D25A4622B862067ADA05F4E62AEEB177344C5432EA`.
 The existing debug signing and shared application ID remain unchanged. This is
 a release-mode test artifact; installing it can replace the private app. Actual
 phone camera/upload verification is still separate from build verification.
+
+## Navigation Follow-up (2026-11-09)
+
+The user explicitly approved these navigation changes, superseding the earlier
+instruction to leave the dock's placement unchanged:
+
+- Center the existing floating dock. Keep its icons, size, styling, tooltip and
+  accessibility behavior. Do not add a separate action button.
+- Swipe left/right through the same role-dependent tabs while keeping bottom
+  navigation available. Both paths share the selected tab and `PageController`.
+- Dock taps retain immediate tab switching; swipe settling uses Flutter's page
+  physics with mass 0.5, stiffness 200, and damping 18. Reduced motion uses the
+  framework's standard non-bouncy physics and zero-duration dock animations.
+- Keep visited screens alive so scroll/form state survives tab changes. Disable
+  offscreen tickers and keep Home's existing active-tab signal synchronized.
+- Preserve Profile when gaining/losing Admin changes its index. If access to the
+  currently selected Admin page is removed, return to Home. Stale dock callbacks
+  must not jump beyond the new role's page count.
+- This task does not redesign Home, History, Admin or Profile content, or change
+  authentication, backend integrations, upload logic, packages or global themes.
+
+Navigation regression tests cover tap/swipe synchronization, rapid taps,
+interrupted drags, vertical scrolling, retained page/scroll state, admin refresh,
+role changes, RTL, reduced motion and dock centering. Only the two dock golden
+baselines change; the Home/History golden baselines must remain unchanged.

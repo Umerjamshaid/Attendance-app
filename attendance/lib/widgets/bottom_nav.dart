@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 import '../config/app_icons.dart';
 import '../config/app_theme.dart';
 
-/// A single, left-aligned floating capsule, with no separate action button.
+/// A single, centered floating capsule, with no separate action button.
 class BottomNav extends StatelessWidget {
   const BottomNav({
     super.key,
@@ -55,7 +55,7 @@ class BottomNav extends StatelessWidget {
           bottom: false,
           minimum: const EdgeInsets.symmetric(horizontal: 20),
           child: Align(
-            alignment: AlignmentDirectional.centerStart,
+            alignment: Alignment.center,
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final width = math.min(
