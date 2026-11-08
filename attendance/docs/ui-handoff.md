@@ -106,3 +106,18 @@ Navigation regression tests cover tap/swipe synchronization, rapid taps,
 interrupted drags, vertical scrolling, retained page/scroll state, admin refresh,
 role changes, RTL, reduced motion and dock centering. Only the two dock golden
 baselines change; the Home/History golden baselines must remain unchanged.
+
+Implementation reference: [Flutter PageView API](https://api.flutter.dev/flutter/widgets/PageView-class.html).
+
+Verification: 56 Flutter tests pass; `flutter analyze --no-pub` reports no issues.
+The untouched private entrypoint's Dart bundle also compiles. The branch is based
+on current `main` after PR #17 was merged, preserving its newer retention fix.
+No backend deployment or live settings changes were performed for navigation.
+
+A new public ARM64 release APK from navigation source commit `c16b968` replaces
+the earlier artifact at the same local path listed above (approximately 20.1 MB).
+Its pager and restored-summary markers are present, private integration markers
+are absent, and private source hashes remain unchanged.
+SHA-256: `8078CF193748841153FCD568145C0C9BB8F605D49927B4830F505C988997C194`.
+Signing/application-ID limitations are unchanged. Actual phone gesture feel was
+not verified here; automated touch and state-preservation tests were run.
