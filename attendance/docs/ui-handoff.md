@@ -159,3 +159,23 @@ not verified here; automated touch and state-preservation tests were run.
   performed for this follow-up. Owner-only source hashes remain unchanged.
 - Final verification: all 68 Flutter tests pass, analyzer reports no issues,
   isolated migration/RLS tests pass, and the hosted bucket metadata is verified.
+
+## Profile Release APK And Push (2026-11-10)
+
+The user subsequently approved committing, pushing, and rebuilding. Public source
+commit `919f66d` was pushed to `codex/centered-swipe-navigation` and PR #18 was
+updated. The PR remains open; `main` was not merged.
+
+The updated public ARM64 release APK replaces the earlier artifact at the same
+isolated-build path listed above. Size: 21,186,927 bytes (approximately 20.2 MB).
+SHA-256: `9029DD7A740F7340472D9D5FB2BDFEB0C44449D236982BC2C7490E85626A7E01`.
+
+The public-only copy exactly matches the committed Dart sources, assets and
+dependency files. Packaged image-format/navigation markers are present, and
+private-service markers are absent. The bundled DM Sans font matches the source
+asset byte-for-byte. Both owner-only source hashes remain unchanged.
+
+The build succeeds with existing Gradle/AGP/Kotlin future-compatibility warnings;
+this task does not upgrade that toolchain. Existing debug signing and the shared
+application ID remain unchanged, so installing this public APK can replace the
+private app. No physical-device upload test or GitHub APK release was performed.
