@@ -23,6 +23,11 @@ await db.exec(`
 for (const file of (await readdir(new URL('../supabase/migrations/', import.meta.url))).filter((name) => name.endsWith('.sql')).sort()) {
   await db.exec(await readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), 'utf8'));
 }
+const buckets = (await db.query('select id, public, file_size_limit, allowed_mime_types from storage.buckets order by id')).rows;
+assert.deepEqual(buckets, [
+  { id: 'attendance-evidence', public: false, file_size_limit: 2097152, allowed_mime_types: ['image/jpeg', 'image/png'] },
+  { id: 'profile-media', public: false, file_size_limit: 2097152, allowed_mime_types: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'] },
+]);
 const company = '10000000-0000-4000-8000-000000000001';
 const otherCompany = '10000000-0000-4000-8000-000000000002';
 const admin = '20000000-0000-4000-8000-000000000001';

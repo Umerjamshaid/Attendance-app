@@ -4,7 +4,6 @@ import 'package:attendance/widgets/user-profile/profile_menu_item.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -15,7 +14,12 @@ class PrivacyScreen extends StatelessWidget {
   static const double _contentMaxWidth = 560;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Theme(
+    data: ProfileUi.themeOf(context),
+    child: Builder(builder: _buildContent),
+  );
+
+  Widget _buildContent(BuildContext context) {
     final publicBuild = context.read<AuthProvider>().isPublicBuild;
     return Scaffold(
       backgroundColor: context.colors.surface,
@@ -157,7 +161,8 @@ class _Intro extends StatelessWidget {
             child: Text(
               'Your data, handled with care',
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
+              style: TextStyle(
+                fontFamily: ProfileUi.fontFamily,
                 fontSize: 22,
                 height: 1.25,
                 fontWeight: FontWeight.w600,

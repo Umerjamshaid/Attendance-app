@@ -148,6 +148,11 @@ and must be addressed in the company's deployment/privacy policy.
 
 ## Validation And Release Gates
 
+Profile avatars and cover photos accept JPEG/JPG, PNG, GIF (including animation),
+WebP, and BMP, up to 2 MB. The profile-media-formats migration expands only the
+private `profile-media` bucket. Attendance evidence retains its separate
+JPEG/PNG restrictions and existing permissions.
+
 ```powershell
 flutter analyze
 flutter test

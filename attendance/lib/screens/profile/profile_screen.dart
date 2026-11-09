@@ -128,7 +128,12 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Theme(
+    data: ProfileUi.themeOf(context),
+    child: Builder(builder: _buildContent),
+  );
+
+  Widget _buildContent(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final historyProvider = context.watch<AttendanceHistoryProvider>();
     final Employee? user = auth.currentUser;
@@ -154,7 +159,17 @@ class _ProfileScreenState extends State<ProfileScreen>
         todayStatus: _statusFor(historyProvider),
       ),
       if (auth.isPublicBuild)
-        const CheckInSummary()
+        Theme(
+          data: Theme.of(context).copyWith(
+            textTheme: Theme.of(context).textTheme.copyWith(
+              headlineSmall: GoogleFonts.inter(
+                textStyle: Theme.of(context).textTheme.headlineSmall,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+          child: const CheckInSummary(),
+        )
       else
         AttendanceStatsCard(employee: updatedUser, isLoading: historyLoading),
       ProfileSectionCard(
@@ -256,7 +271,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   children: [
                     for (var i = 0; i < sections.length; i++)
                       _Reveal(animation: _reveals[i], child: sections[i]),
-                    _buildFooter(),
+                    _buildFooter(context),
                   ],
                 ),
               ),
@@ -326,7 +341,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Widget _buildFooter() {
+  Widget _buildFooter(BuildContext context) {
     final versionLabel = _buildNumber.isEmpty
         ? 'v$_version'
         : 'v$_version ($_buildNumber)';
@@ -380,7 +395,8 @@ class _ProfileScreenState extends State<ProfileScreen>
         ),
         title: Text(
           title,
-          style: GoogleFonts.inter(
+          style: TextStyle(
+            fontFamily: ProfileUi.fontFamily,
             fontSize: 18,
             fontWeight: FontWeight.w600,
             color: context.colors.onSurface,
@@ -409,7 +425,8 @@ class _ProfileScreenState extends State<ProfileScreen>
         ),
         title: Text(
           'Log out',
-          style: GoogleFonts.inter(
+          style: TextStyle(
+            fontFamily: ProfileUi.fontFamily,
             fontSize: 18,
             fontWeight: FontWeight.w600,
             color: context.colors.onSurface,

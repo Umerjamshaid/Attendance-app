@@ -13,6 +13,30 @@ abstract final class ProfileUi {
   static const double cardRadius = 22;
   static const double sheetRadius = 24;
   static const double iconSize = 24;
+  static const String fontFamily = 'DM Sans';
+
+  /// Keeps profile typography local without changing Home or History.
+  static ThemeData themeOf(BuildContext context) {
+    final theme = Theme.of(context);
+    return theme.copyWith(
+      textTheme: theme.textTheme.apply(
+        fontFamily: fontFamily,
+        letterSpacingFactor: 0,
+      ),
+      primaryTextTheme: theme.primaryTextTheme.apply(
+        fontFamily: fontFamily,
+        letterSpacingFactor: 0,
+      ),
+    );
+  }
+
+  static bool _usesProfileFont(BuildContext context) =>
+      Theme.of(context).textTheme.bodyLarge?.fontFamily == fontFamily;
+
+  static TextStyle _typeStyle(BuildContext context, FontWeight weight) =>
+      _usesProfileFont(context)
+      ? const TextStyle(fontFamily: fontFamily, letterSpacing: 0)
+      : GoogleFonts.inter(fontWeight: weight);
 
   /// Separators start after the leading icon so they align with row labels.
   static const double dividerIndent = rowInset + iconSize + rowInset;
@@ -21,9 +45,9 @@ abstract final class ProfileUi {
     BuildContext context, {
     Color? color,
     FontWeight weight = FontWeight.w400,
-  }) => GoogleFonts.inter(
+  }) => _typeStyle(context, weight).copyWith(
     fontSize: 16,
-    height: 1.25,
+    height: _usesProfileFont(context) ? 1.4 : 1.25,
     fontWeight: weight,
     color: color ?? context.colors.onSurface,
   );
@@ -32,9 +56,9 @@ abstract final class ProfileUi {
     BuildContext context, {
     Color? color,
     FontWeight weight = FontWeight.w400,
-  }) => GoogleFonts.inter(
+  }) => _typeStyle(context, weight).copyWith(
     fontSize: 14,
-    height: 1.3,
+    height: _usesProfileFont(context) ? 1.45 : 1.3,
     fontWeight: weight,
     color: color ?? context.colors.onSurfaceVariant,
   );
@@ -43,9 +67,9 @@ abstract final class ProfileUi {
     BuildContext context, {
     Color? color,
     FontWeight weight = FontWeight.w500,
-  }) => GoogleFonts.inter(
+  }) => _typeStyle(context, weight).copyWith(
     fontSize: 12,
-    height: 1.25,
+    height: _usesProfileFont(context) ? 1.4 : 1.25,
     fontWeight: weight,
     color: color ?? context.colors.onSurfaceVariant,
   );

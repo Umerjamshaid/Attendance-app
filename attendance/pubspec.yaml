@@ -52,6 +52,7 @@ dependencies:
   google_fonts: ^8.1.0
   tabler_icons_plus: ^3.50.0
   image_picker: ^1.1.2
+  mime: ^2.1.0
   # For handling permissions
   permission_handler: ^12.0.1
   #Versions
@@ -79,6 +80,11 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  fonts:
+    - family: DM Sans
+      fonts:
+        - asset: assets/fonts/DMSans.ttf
 
   # To add assets to your application, add an assets section, like this:
   # assets:

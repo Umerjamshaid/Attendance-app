@@ -121,3 +121,41 @@ are absent, and private source hashes remain unchanged.
 SHA-256: `8078CF193748841153FCD568145C0C9BB8F605D49927B4830F505C988997C194`.
 Signing/application-ID limitations are unchanged. Actual phone gesture feel was
 not verified here; automated touch and state-preservation tests were run.
+
+## Profile Media And Typography (2026-11-10)
+
+- The user approved common profile image formats, smaller compact icons, and a
+  typography refresh using the three newly installed design skills. Keep the
+  logo, palette, screen layouts, navigation, Home and History summaries intact.
+- Avatar/cover selection no longer requests resizing or compression, preserving
+  animated GIF/WebP bytes. Public uploads identify JPEG, PNG, GIF, WebP and BMP
+  from bytes, assign matching MIME types/extensions, and retain the 2 MB limit.
+  Unsupported/oversized selections show useful errors without replacing the
+  previous image. The legacy local-only preference flow remains unchanged.
+- The profile-media format migration was applied to the configured hosted
+  project and read back successfully. Both image buckets remain private and
+  limited to 2 MB; attendance-evidence still allows only JPEG/PNG. Existing RLS,
+  storage ownership paths and upload cleanup are unchanged.
+- Compact camera/remove icons are 16-18dp, inline edit and chevrons 20dp, and
+  notification thumb icons 18dp. Existing interactive hit areas stay intact.
+- Profile/Settings/Privacy use bundled DM Sans with natural line spacing and
+  zero letter spacing. Shared type helpers retain their original Inter styles
+  outside that scoped theme, preserving Home/History/Admin typography.
+- DM Sans has no tabular numerals. Attendance counters deliberately keep Inter
+  with tabular figures; do not replace them with DM Sans. The font audits pass
+  English base coverage/licensing and the data font's tabular-number gate.
+  Both fonts have a heuristic I/l similarity warning. DM Sans lacks the optional
+  English auxiliary character U+02BB; system fallback remains available. WOFF2
+  size estimation was skipped because it is not an app-format requirement.
+- The unmodified DM Sans asset and OFL license are under assets/fonts. Font
+  source/provenance is recorded there. No new launcher icon was requested or
+  generated; icon-skill guidance was used for small-size clarity only.
+- Added regression tests for signatures, upload MIME/bytes/path ownership,
+  animated frames, cancellation, invalid input, preview restrictions, legacy
+  local media, compact icon hit areas, scoped fonts and tabular counter widths.
+  Profile and Settings have updated light/dark reference images; Home/History
+  golden baselines must remain unchanged.
+- No real-account photo was uploaded, no APK was rebuilt, and no Git push was
+  performed for this follow-up. Owner-only source hashes remain unchanged.
+- Final verification: all 68 Flutter tests pass, analyzer reports no issues,
+  isolated migration/RLS tests pass, and the hosted bucket metadata is verified.

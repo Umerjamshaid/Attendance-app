@@ -2,7 +2,6 @@ import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 /// Bottom-sheet editor for the signed-in employee's name and email.
 ///
@@ -145,7 +144,8 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
                           header: true,
                           child: Text(
                             'Edit profile',
-                            style: GoogleFonts.inter(
+                            style: TextStyle(
+                              fontFamily: ProfileUi.fontFamily,
                               fontSize: 20,
                               height: 1.3,
                               fontWeight: FontWeight.w600,
@@ -236,7 +236,8 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  textStyle: GoogleFonts.inter(
+                  textStyle: const TextStyle(
+                    fontFamily: ProfileUi.fontFamily,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
