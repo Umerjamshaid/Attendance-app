@@ -35,6 +35,9 @@ and [placemark components](https://pub.dev/documentation/geocoding/5.0.1/geocodi
   as addresses. Components from different candidates are never merged.
 - Loading, no-result, unsupported-platform, invalid-coordinate and temporary-error
   states are explicit. Retry location retries only the address request.
+- Address language follows the platform's primary preferred locale, independent
+  of the English UI fallback. Runtime locale changes reload the label and reuse
+  the existing locale-keyed cache; the observer is removed when the view closes.
 - An existing evidence Retry callback returned a Future from `setState`; it now
   creates the request separately and assigns it in a synchronous state callback.
   The same endpoint, record ID and original retry text are retained.
@@ -118,7 +121,7 @@ attendance evidence. No schema, edge-function or live backend changes were made.
 
 ## Verification
 
-`flutter analyze --no-pub` reports no issues. All 110 Flutter tests pass,
+`flutter analyze --no-pub` reports no issues. All 119 Flutter tests pass,
 including existing authentication, history, media,
 navigation and attendance UI tests. The 12 existing non-Login golden images match
 the previous palette build byte-for-byte. New Login/evidence light/dark renders
@@ -127,15 +130,20 @@ The evidence image in the test fixture deliberately exercises the existing photo
 failure fallback, not a real employee photo.
 
 Private source hashes are unchanged. No real employee location/photo was sent
-during tests, no live attendance was submitted, and no commit/push was performed.
+during tests and no live attendance was submitted. Review fixes were published
+to PR #18 as 4adbc47. A dedicated public-only CodeRabbit CLI review of that
+commit completed with zero findings, and all four original threads are resolved.
+The GitHub bot's automatic review was separately rate-limited (neutral/skipped)
+at publication; this was not a compiler or test failure.
 Native address accuracy/network behavior and physical camera/GPS uploads still
 need testing on a phone. iOS native compilation has not been verified here.
 
-The public ARM64 release build succeeds with the pinned native adapter. It
+The public ARM64 release build from review-fix source 4adbc47 succeeds with the
+pinned native adapter. It
 replaces the previous APK at
 `.dart_tool/public-verification/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`.
 Size: 21,400,859 bytes (approximately 20.4 MB). SHA-256:
-`17037C1FBBF60B0187D7D5FBF7C12D7A6E5F3538F1D61145B6B55CC72D2A73B8`.
+`08096EFBF755A6284953A6A44F7E09846A13EB5F98C9253CB50A0637D2F9FD6E`.
 All isolated public Dart sources matched the tested working files. Packaged new
 address/Login markers and the bundled font are present; private integration and
 fixture-address markers are absent. Private source hashes match their previous

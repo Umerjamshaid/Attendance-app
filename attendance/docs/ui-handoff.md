@@ -328,3 +328,30 @@ provided four low-risk review findings; all four were verified against the code.
 - Final flutter analyze --no-pub reports no issues.
 - These follow-up changes remain local. No APK rebuild, commit/push, live
   backend change, real-device test or CodeRabbit CLI review was performed.
+
+## Review Publication And Rebuilt APK (2026-11-11)
+
+The user subsequently requested completing publication, APK rebuild and the
+optional CLI review. Review-fix source 4adbc47 was pushed to the existing PR #18;
+main was not merged. All four original review threads are resolved, with a
+consumer-side contrast explanation recorded for the footer finding.
+
+The expired CodeRabbit CLI session was renewed through user-completed browser
+authentication. Review ran in a shallow public-only checkout, comparing 4adbc47
+to c4e7d65. It completed successfully with zero findings across the six changed
+public files. No ignored private source, API notes or unrelated local notes were
+available in that checkout. No additional review credits were explicitly enabled.
+The GitHub bot's automatic check was separately neutral/skipped because of a
+service rate limit; no check configuration was changed or bypassed.
+
+The existing public ARM64 release APK was rebuilt from the pushed fixes and
+replaced at the same isolated-build path. Size: 21,400,859 bytes. SHA-256:
+`08096EFBF755A6284953A6A44F7E09846A13EB5F98C9253CB50A0637D2F9FD6E`.
+Public sources matched the working files. The packaged invalid-coordinate fix,
+other current UI markers and bundled font are present; private integration and
+fixture-address markers are absent. Both private source hashes are unchanged.
+
+The source retains the verified 119 passing tests and clean analyzer result.
+Existing test signing, shared application ID and Gradle/AGP/Kotlin warnings
+remain. Physical-device and iOS testing are still outstanding. The APK is local,
+ignored and not uploaded as a GitHub release asset.
