@@ -340,7 +340,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     final versionLabel = _buildNumber.isEmpty
         ? 'v$_version'
         : 'v$_version ($_buildNumber)';
-    final muted = context.colors.onSurfaceVariant.withValues(alpha: 0.7);
+    final muted = context.colors.onSurfaceVariant;
 
     return SafeArea(
       top: false,

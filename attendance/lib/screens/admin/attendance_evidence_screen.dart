@@ -105,17 +105,35 @@ class _EvidenceLocation extends StatefulWidget {
   State<_EvidenceLocation> createState() => _EvidenceLocationState();
 }
 
-class _EvidenceLocationState extends State<_EvidenceLocation> {
-  Locale? _locale;
+class _EvidenceLocationState extends State<_EvidenceLocation>
+    with WidgetsBindingObserver {
+  late Locale _locale;
   late Future<EvidenceAddress> _address;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final locale = Localizations.localeOf(context);
-    if (_locale == locale) return;
-    _locale = locale;
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _locale =
+        WidgetsBinding.instance.platformDispatcher.locales.firstOrNull ??
+        const Locale('en');
     _load();
+  }
+
+  @override
+  void didChangeLocales(List<Locale>? locales) {
+    final locale = locales?.firstOrNull ?? const Locale('en');
+    if (!mounted || _locale == locale) return;
+    setState(() {
+      _locale = locale;
+      _load();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   @override
@@ -131,7 +149,7 @@ class _EvidenceLocationState extends State<_EvidenceLocation> {
     _address = context.read<EvidenceLocationService>().resolve(
       widget.latitude,
       widget.longitude,
-      locale: _locale!,
+      locale: _locale,
       refresh: refresh,
     );
   }
@@ -165,6 +183,8 @@ class _EvidenceLocationState extends State<_EvidenceLocation> {
                     EvidenceAddressStatus.found => address.text!,
                     EvidenceAddressStatus.notFound =>
                       'No address found. Coordinates are shown below.',
+                    EvidenceAddressStatus.invalid =>
+                      'Invalid coordinates. Saved values are shown below.',
                     EvidenceAddressStatus.unsupported =>
                       'Address lookup is unavailable on this platform. Coordinates are shown below.',
                     _ => 'Address unavailable. Coordinates are shown below.',

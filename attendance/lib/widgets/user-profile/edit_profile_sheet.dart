@@ -106,7 +106,12 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Theme(
+    data: ProfileUi.themeOf(context),
+    child: Builder(builder: _buildContent),
+  );
+
+  Widget _buildContent(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final nameError = _nameValid ? null : 'Name can’t be empty';
     final emailError = _email.text.trim().isEmpty || _emailValid

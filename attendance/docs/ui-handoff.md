@@ -302,3 +302,29 @@ are recorded in [evidence-location-and-login.md](evidence-location-and-login.md)
   New address/Login markers and the bundled font are packaged; private and
   fixture markers are absent. The exact checksum and signing limitations are
   recorded in the implementation notes. No commit or push was performed.
+
+## Review Follow-up (2026-11-11)
+
+The initial UI/location work was published to PR #18 as c4e7d65. The user then
+provided four low-risk review findings; all four were verified against the code.
+
+- EditProfileSheet now wraps its content with ProfileUi.themeOf and an inner
+  Builder. Helper text, fields, errors and buttons inherit the same profile font;
+  save/validation/navigation behavior is unchanged.
+- Profile footer labels use opaque onSurfaceVariant. This fixes the contrast
+  loss caused by their own 70% alpha without changing the shared palette. Tests
+  verify both footer labels exceed 4.5:1 in light and dark themes.
+- Invalid evidence coordinates have a specific message. Original latitude and
+  longitude strings remain visible, and invalid values do not call a geocoder.
+- Address lookup uses the device's primary preferred locale, independently of
+  the app's English-only UI fallback. A WidgetsBindingObserver reloads when that
+  primary locale changes and is removed on disposal. English is only the
+  fallback when the platform supplies no preferred locale.
+- Existing locale-keyed caching and in-flight deduplication are retained. Tests
+  cover Urdu/French preferences, unchanged primary preferences, cached locale
+  restoration, stale in-flight results and listener disposal.
+- All 119 Flutter tests pass, including nine new regression cases. No golden
+  images were regenerated. Private hashes and unrelated notes are unchanged.
+- Final flutter analyze --no-pub reports no issues.
+- These follow-up changes remain local. No APK rebuild, commit/push, live
+  backend change, real-device test or CodeRabbit CLI review was performed.

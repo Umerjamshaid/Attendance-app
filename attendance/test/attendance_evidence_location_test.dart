@@ -143,6 +143,122 @@ void main() {
     expect(backend.calls, 2);
   });
 
+  for (final coordinates in <(Object?, Object?)>[
+    (91.0, 74.3587),
+    (null, 74.3587),
+    (31.5204, 'invalid'),
+  ]) {
+    testWidgets(
+      'invalid evidence coordinates $coordinates remain visible without a lookup',
+      (tester) async {
+        var lookups = 0;
+        final service = EvidenceLocationService(
+          supported: true,
+          lookup: (_, _, _) async {
+            lookups++;
+            return [_place];
+          },
+        );
+        final backend = _Backend()
+          ..latitude = coordinates.$1
+          ..longitude = coordinates.$2;
+        await _mount(tester, service, backend);
+        await tester.pumpAndSettle();
+        expect(
+          find.text('Invalid coordinates. Saved values are shown below.'),
+          findsOneWidget,
+        );
+        expect(find.text('Latitude: ${coordinates.$1}'), findsOneWidget);
+        expect(find.text('Longitude: ${coordinates.$2}'), findsOneWidget);
+        expect(find.text('Retry location'), findsNothing);
+        expect(lookups, 0);
+      },
+    );
+  }
+
+  testWidgets(
+    'device locale overrides English UI fallback and reloads only for an effective change',
+    (tester) async {
+      final requested = <Locale>[];
+      final service = EvidenceLocationService(
+        supported: true,
+        lookup: (_, _, locale) async {
+          requested.add(locale);
+          return [Placemark(locality: locale.toLanguageTag())];
+        },
+      );
+      final backend = _Backend();
+      await _mount(
+        tester,
+        service,
+        backend,
+        deviceLocale: const Locale('ur', 'PK'),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        Localizations.localeOf(
+          tester.element(find.text('Location')),
+        ).languageCode,
+        'en',
+      );
+      expect(requested, [const Locale('ur', 'PK')]);
+      expect(find.text('ur-PK'), findsOneWidget);
+
+      tester.platformDispatcher.localesTestValue = [const Locale('fr', 'CA')];
+      await tester.pumpAndSettle();
+      expect(requested, [const Locale('ur', 'PK'), const Locale('fr', 'CA')]);
+      expect(find.text('fr-CA'), findsOneWidget);
+      tester.platformDispatcher.localesTestValue = [
+        const Locale('fr', 'CA'),
+        const Locale('ur', 'PK'),
+      ];
+      await tester.pumpAndSettle();
+      expect(requested.length, 2);
+      tester.platformDispatcher.localesTestValue = [const Locale('ur', 'PK')];
+      await tester.pumpAndSettle();
+      expect(find.text('ur-PK'), findsOneWidget);
+      expect(
+        requested.length,
+        2,
+      ); // Reuse the existing locale-keyed cache entry.
+      expect(backend.calls, 1);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      tester.platformDispatcher.localesTestValue = [const Locale('de')];
+      await tester.pump();
+      expect(requested.length, 2);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'an in-flight previous locale cannot replace the current address',
+    (tester) async {
+      final english = Completer<List<Placemark>>();
+      final urdu = Completer<List<Placemark>>();
+      final requested = <Locale>[];
+      final service = EvidenceLocationService(
+        supported: true,
+        lookup: (_, _, locale) {
+          requested.add(locale);
+          return locale.languageCode == 'en' ? english.future : urdu.future;
+        },
+      );
+      await _mount(tester, service, _Backend());
+      await tester.pump();
+      tester.platformDispatcher.localesTestValue = [const Locale('ur', 'PK')];
+      await tester.pump();
+      english.complete([const Placemark(locality: 'Previous locale address')]);
+      await tester.pump();
+      expect(find.text('Previous locale address'), findsNothing);
+      expect(requested, [const Locale('en'), const Locale('ur', 'PK')]);
+      urdu.complete([const Placemark(locality: 'Current locale address')]);
+      await tester.pumpAndSettle();
+      expect(find.text('Current locale address'), findsOneWidget);
+      expect(find.text('Previous locale address'), findsNothing);
+    },
+  );
+
   for (final brightness in Brightness.values) {
     testWidgets(
       'readable evidence fits ${brightness.name}, wide/narrow and 2x text',
@@ -201,7 +317,10 @@ Future<void> _mount(
   EvidenceLocationService service,
   _Backend backend, {
   Brightness brightness = Brightness.light,
+  Locale deviceLocale = const Locale('en'),
 }) async {
+  tester.platformDispatcher.localesTestValue = [deviceLocale];
+  addTearDown(tester.platformDispatcher.clearLocalesTestValue);
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = const Size(390, 1000);
   addTearDown(tester.view.reset);
@@ -231,14 +350,16 @@ Future<void> _mount(
 class _Backend extends PreviewCompanyBackend {
   int calls = 0;
   bool fail = false;
+  Object? latitude = 31.5204;
+  Object? longitude = 74.3587;
   @override
   Future<Map<String, dynamic>> evidence(String recordId) async {
     calls++;
     if (fail) throw Exception('Evidence unavailable');
     return {
       'photo_url': 'https://example.invalid/photo.jpg',
-      'latitude': 31.5204,
-      'longitude': 74.3587,
+      'latitude': latitude,
+      'longitude': longitude,
       'accuracy': 8.0,
     };
   }
