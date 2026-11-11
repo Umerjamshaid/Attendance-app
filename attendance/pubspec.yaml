@@ -44,6 +44,9 @@ dependencies:
   http: ^1.2.2
   # Location
   geolocator: ^14.0.2
+  geocoding: ^5.0.1
+  # Keep the current Android toolchain; adapter 5.1 declares AGP 9.
+  geocoding_android: 5.0.0
   # Local storage
   shared_preferences: ^2.5.5
   # Date and time handling

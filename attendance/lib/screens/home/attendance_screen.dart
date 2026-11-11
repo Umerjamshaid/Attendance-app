@@ -385,7 +385,6 @@ class _AttendanceScreenState extends State<AttendanceScreen>
         historyProvider.isLoading && historyProvider.records.isEmpty;
 
     return Scaffold(
-      backgroundColor: context.colors.surface,
       body: RefreshIndicator(
         color: context.colors.primary,
         backgroundColor: context.colors.surfaceContainerLow,
@@ -473,7 +472,6 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     return SliverAppBar(
       pinned: true,
       automaticallyImplyLeading: false,
-      backgroundColor: context.colors.surface,
       surfaceTintColor: Colors.transparent,
       scrolledUnderElevation: 0,
       elevation: 0,

@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 
 import '../config/app_icons.dart';
 import '../config/app_theme.dart';
+import '../config/ui_tokens.dart';
+import 'spring_scale.dart';
 
 /// A single, centered floating capsule, with no separate action button.
 class BottomNav extends StatelessWidget {
@@ -23,9 +25,7 @@ class BottomNav extends StatelessWidget {
   static const double dockHeight = 64;
 
   static Color controlSurface(BuildContext context) =>
-      Theme.of(context).brightness == Brightness.dark
-      ? context.colors.surfaceContainerHighest
-      : const Color(0xFFF0F0F0);
+      context.colors.primaryContainer;
 
   @override
   Widget build(BuildContext context) {
@@ -40,9 +40,7 @@ class BottomNav extends StatelessWidget {
         : 0;
     final bottom = math.max(12.0, MediaQuery.viewPaddingOf(context).bottom);
     final reducedMotion = MediaQuery.disableAnimationsOf(context);
-    final duration = reducedMotion
-        ? Duration.zero
-        : const Duration(milliseconds: 220);
+    final duration = reducedMotion ? Duration.zero : AppMotion.standard;
     final colors = context.colors;
     final glass = Theme.of(context).platform == TargetPlatform.iOS;
 
@@ -195,11 +193,8 @@ class _DockItemState extends State<_DockItem> {
         onHighlightChanged: (pressed) => setState(() => _pressed = pressed),
         customBorder: const StadiumBorder(),
         child: Center(
-          child: AnimatedScale(
-            scale: _pressed ? .92 : 1,
-            duration: MediaQuery.disableAnimationsOf(context)
-                ? Duration.zero
-                : const Duration(milliseconds: 150),
+          child: SpringScale(
+            pressed: _pressed,
             child: Icon(
               widget.icon,
               size: 24,
@@ -229,7 +224,9 @@ class NavigationFooterBackdrop extends StatelessWidget {
               stops: const [0, .18, .38, .6, .8, 1],
               colors: [
                 for (final alpha in const [0.0, .03, .12, .34, .7, 1.0])
-                  context.colors.surface.withValues(alpha: alpha),
+                  Theme.of(
+                    context,
+                  ).scaffoldBackgroundColor.withValues(alpha: alpha),
               ],
             ),
           ),

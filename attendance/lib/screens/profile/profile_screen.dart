@@ -139,10 +139,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     final Employee? user = auth.currentUser;
 
     if (user == null) {
-      return Scaffold(
-        backgroundColor: context.colors.surface,
-        body: const Center(child: CircularProgressIndicator()),
-      );
+      return Scaffold(body: const Center(child: CircularProgressIndicator()));
     }
 
     // Show the user with live counts from the attendance history.
@@ -256,7 +253,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     ];
 
     return Scaffold(
-      backgroundColor: context.colors.surface,
       body: CustomScrollView(
         controller: _scroll,
         slivers: [
@@ -287,7 +283,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     return SliverAppBar(
       pinned: true,
       automaticallyImplyLeading: false,
-      backgroundColor: context.colors.surface,
       surfaceTintColor: Colors.transparent,
       scrolledUnderElevation: 0,
       elevation: 0,

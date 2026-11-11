@@ -486,7 +486,7 @@ class _BannerGradient extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [AppTheme.darkNavy, AppTheme.primaryNavy],
+            colors: [AppTheme.darkPetrol, AppTheme.primaryPetrol],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -565,7 +565,7 @@ class _Avatar extends StatelessWidget {
               fontFamily: ProfileUi.fontFamily,
               fontSize: 36,
               fontWeight: FontWeight.w500,
-              color: context.colors.primary,
+              color: context.colors.onPrimaryContainer,
             ),
           ),
         ),
@@ -604,7 +604,7 @@ class _Avatar extends StatelessWidget {
                 ),
                 child: ClipOval(
                   child: ColoredBox(
-                    color: context.colors.primary.withValues(alpha: 0.1),
+                    color: context.colors.primaryContainer,
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 250),
                       child: SizedBox.expand(

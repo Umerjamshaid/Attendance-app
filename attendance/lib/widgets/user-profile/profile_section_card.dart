@@ -1,4 +1,5 @@
 import 'package:attendance/config/app_theme.dart';
+import 'package:attendance/config/ui_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -8,27 +9,16 @@ import 'package:google_fonts/google_fonts.dart';
 /// separators and the restrained 400/500/600 type weights follow the Block
 /// Buzz profile/settings screens, mapped onto the Attendance [AppTheme].
 abstract final class ProfileUi {
-  static const double gutter = 20;
+  static const double gutter = AppLayout.gutter;
   static const double rowInset = 16;
   static const double cardRadius = 22;
-  static const double sheetRadius = 24;
-  static const double iconSize = 24;
-  static const String fontFamily = 'DM Sans';
+  static const double sheetRadius = AppLayout.sheetRadius;
+  static const double iconSize = AppLayout.iconSize;
+  static const String fontFamily = AppTypography.fontFamily;
 
   /// Keeps profile typography local without changing Home or History.
-  static ThemeData themeOf(BuildContext context) {
-    final theme = Theme.of(context);
-    return theme.copyWith(
-      textTheme: theme.textTheme.apply(
-        fontFamily: fontFamily,
-        letterSpacingFactor: 0,
-      ),
-      primaryTextTheme: theme.primaryTextTheme.apply(
-        fontFamily: fontFamily,
-        letterSpacingFactor: 0,
-      ),
-    );
-  }
+  static ThemeData themeOf(BuildContext context) =>
+      AppTypography.themeOf(context);
 
   static bool _usesProfileFont(BuildContext context) =>
       Theme.of(context).textTheme.bodyLarge?.fontFamily == fontFamily;

@@ -179,3 +179,126 @@ The build succeeds with existing Gradle/AGP/Kotlin future-compatibility warnings
 this task does not upgrade that toolchain. Existing debug signing and the shared
 application ID remain unchanged, so installing this public APK can replace the
 private app. No physical-device upload test or GitHub APK release was performed.
+
+## Admin Check-in Logs Sheet (2026-11-10)
+
+The user explicitly requested a modal bottom sheet instead of the separate
+employee Check-in Logs page. Do not redesign or restructure the Admin dashboard.
+
+- Only the public employee log action in EmployeeCard changes. The legacy
+  employee attendance/totals sheet, filters, dashboard layout, attendance window,
+  and evidence screen remain unchanged.
+- employee_check_ins_sheet.dart owns this specific modal and loads the same
+  backend history with the same employee ID. No API, authorization, schema,
+  evidence retention, or private-service behavior changes.
+- The modal retains Material's barrier/focus/drag behavior and uses a
+  DraggableScrollableSheet with its supplied scroll controller. Logs are lazy
+  rows grouped by date. Native scrolling and resizing share one gesture flow;
+  the header and close action stay reachable while scrolling.
+- Entrance/exit use critically damped spring simulations via the sheet route.
+  Material still handles drag/fling dismissal; reduced motion has zero-duration
+  transitions. The supplied non-scrolling spring-route example was deliberately
+  not pasted over a growing list.
+- Use existing DM Sans for sheet text, Inter tabular figures for times, and
+  semantic Tabler icons sized 18-20dp. Refresh/close have explicit 48dp hit areas.
+  The sheet is capped at 560dp on wide screens. Large text can wrap the title.
+- Loading, refresh, retry and empty states remain inside the modal. A log opens
+  the existing evidence page; Back returns to the same sheet without re-fetching.
+  Date headings and evidence buttons have separate accessible semantics.
+- The obsolete EmployeeCheckInsScreen wrapper was removed from
+  attendance_evidence_screen.dart; AttendanceEvidenceScreen itself is unchanged.
+- Ten focused tests cover modal vs page routing, both themes, 320dp/2x text,
+  scrolling/resize, all dismissal paths, pending requests, refresh/retry/empty
+  states, evidence return navigation, semantics, RTL/reduced motion, and legacy
+  totals. Only two new sheet reference images were added; do not regenerate
+  existing Home/History/navigation/profile references for this change.
+- This follow-up does not build another APK or push/merge Git changes. Actual
+  phone gesture feel remains unverified. All 78 Flutter tests pass and analyzer
+  reports no issues. Existing reference images and private source hashes are
+  unchanged; the two new sheet images were visually inspected.
+
+Implementation references:
+[Flutter DraggableScrollableSheet](https://api.flutter.dev/flutter/widgets/DraggableScrollableSheet-class.html)
+and [TransitionRoute.createSimulation](https://api.flutter.dev/flutter/widgets/TransitionRoute/createSimulation.html).
+
+## Petrol And Graphite Palette (2026-11-10)
+
+The user approved applying the researched Petrol + Graphite palette. This is a
+color-only update to the shared theme, not permission to redesign any screen.
+Existing typography, geometry, Home summaries, History overview, navigation,
+Admin structure, and the new Check-in Logs modal are preserved.
+
+- app_theme.dart owns the palette. Light mode uses primary #167D8D, selected
+  container #DFF1F3, page background #F7F9FA, white surfaces, body #202326 and
+  secondary text #5D6368. Dark mode uses primary #67D5E5 with #102B31 ink,
+  selected container #16343A, page #141719, surface #1F2327, body #F1F3F5 and
+  secondary text #ADB5BD. Container and border roles use neutral graphite steps.
+- Page Scaffolds and app bars in Home, History, Admin, Profile, Privacy,
+  Notifications, Login and Splash now inherit the theme background. The shared
+  Settings layout and navigation footer use that same background. Sheets and
+  dialogs retain their surface roles. No layout or interaction changes.
+- The dock's selected fill uses primaryContainer. Avatar initials use the
+  primaryContainer/onPrimaryContainer pair across Home, Profile and employee
+  cards/sheets. The existing fallback profile banner uses deep petrol rather
+  than navy. Old public color constant names remain available for compatibility.
+- Small text actions use the darker petrol ink in light mode, rather than the
+  main fill color on tinted surfaces. Light card fill is #F0F3F5 so the unchanged
+  green attendance text still meets 4.5:1 on the base card. The original green,
+  red and amber attendance colors are unchanged in both modes.
+- app_theme_test.dart adds six tests covering exact palette roles, text contrast
+  pairs and unchanged attendance colors with base-surface contrast. The login
+  widget test now checks its rendered Material background when toggling themes,
+  instead of requiring an explicit Scaffold color override.
+- User approval supersedes earlier color-baseline restrictions for this task:
+  14 light/dark reference images cover Home summary, History, dock, Login,
+  Profile, Settings and Check-in Logs. Only palette-driven appearance changed;
+  existing layout, scaling, state and navigation assertions remain in force.
+- All 84 Flutter tests pass and analyzer reports no issues. Light/dark renders
+  were visually inspected. The private entrypoint and service retain their
+  previous SHA-256 hashes. No API,
+  provider, storage, dependency, authentication or backend settings changed.
+- This update remains local on the existing branch. No commit, push or APK
+  rebuild was requested. Actual-device appearance/upload testing was not done.
+
+### Requested APK Follow-up
+
+The user then requested an APK. Built one public ARM64 release from the current
+working sources, including the palette and Check-in Logs sheet. It replaces the
+previous APK at the isolated-build path above: 21,252,463 bytes, SHA-256
+`128D017343BACA88ACEC948331F1C0168727EA8297EF79197414CCA8A25DE4C7`.
+The source copy excludes both private Dart files. Its package root and current
+theme hash were verified; the packaged new-sheet marker and bundled font are
+present, and private integration markers are absent. Owner-only hashes remain
+unchanged. No commit or push was performed. Existing signing/application-ID
+limitations still apply, and physical-device testing remains outstanding.
+
+## Evidence Addresses And Login (2026-11-11)
+
+The user explicitly approved adding readable evidence locations and redesigning
+Login, with the supplied parent-folder block-analysis.md as reference. Details,
+package comparison, modified-file map and historical-address storage decision
+are recorded in [evidence-location-and-login.md](evidence-location-and-login.md).
+
+- Address lookup is isolated from check-in verification/submission and resolves
+  only the evidence endpoint's saved coordinates. Existing evidence fields and
+  strings are retained. No backend/schema/private-service changes were made.
+- Native geocoding uses a bounded, account-scoped memory cache and serialized
+  requests with UI timeouts and fallback/retry. Addresses are not persisted or
+  promoted to verified historical evidence; a server snapshot is a future task.
+- Shared tokens reuse bundled DM Sans, the approved palette and Tabler icons.
+  Login has consistent fields, keyboard/autofill, password visibility and short
+  reduced-motion-aware transitions. Authentication/validation behavior remains.
+- Spring press feedback is local to controls, with unchanged layout/hit areas.
+  The existing page spring values and synchronized navigation are preserved.
+- Fixed the existing evidence Retry callback returning a Future from setState.
+- All 110 tests pass. Only the two existing Login reference images were updated;
+  four new company-Login/evidence references were added. All 12 non-Login
+  reference images still match the prior palette build. Private hashes match.
+- Final flutter analyze --no-pub reports no issues.
+- Changes remain local. No live records or backend settings were changed, and
+  no real-device upload/geocoding or iOS build has been verified.
+- Public ARM64 release compilation succeeds with the compatible geocoding
+  adapter. The existing isolated APK was replaced (approximately 20.4 MB).
+  New address/Login markers and the bundled font are packaged; private and
+  fixture markers are absent. The exact checksum and signing limitations are
+  recorded in the implementation notes. No commit or push was performed.

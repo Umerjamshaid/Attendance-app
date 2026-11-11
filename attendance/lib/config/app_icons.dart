@@ -22,6 +22,8 @@ abstract final class AppIcons {
   static const currentLocation = TablerIcons.currentLocation;
   static const deviceMobile = TablerIcons.deviceMobile;
   static const edit = TablerIcons.edit;
+  static const eye = TablerIcons.eye;
+  static const eyeOff = TablerIcons.eyeOff;
   static const fileCertificate = TablerIcons.fileCertificate;
   static const fingerprint = TablerIcons.fingerprint;
   static const help = TablerIcons.help;

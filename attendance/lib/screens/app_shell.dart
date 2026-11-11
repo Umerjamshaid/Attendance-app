@@ -7,6 +7,7 @@ import 'package:attendance/widgets/bottom_nav.dart';
 import 'package:attendance/widgets/loading.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../config/ui_tokens.dart';
 import '../providers/attendance_provider.dart';
 import '../providers/attendance_history_provider.dart';
 import '../providers/profile_provider.dart';
@@ -200,8 +201,7 @@ class _NavigationPagePhysics extends PageScrollPhysics {
   const _NavigationPagePhysics({super.parent});
 
   @override
-  SpringDescription get spring =>
-      const SpringDescription(mass: 0.5, stiffness: 200, damping: 18);
+  SpringDescription get spring => AppMotion.pageSpring;
 
   @override
   _NavigationPagePhysics applyTo(ScrollPhysics? ancestor) =>

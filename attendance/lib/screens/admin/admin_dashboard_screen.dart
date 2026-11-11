@@ -114,7 +114,6 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
         : 0.0;
 
     return Scaffold(
-      backgroundColor: context.colors.surface,
       body: RefreshIndicator(
         color: context.colors.primary,
         backgroundColor: context.colors.surfaceContainerLow,
@@ -228,7 +227,6 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return SliverAppBar(
       pinned: true,
       automaticallyImplyLeading: false,
-      backgroundColor: context.colors.surface,
       surfaceTintColor: Colors.transparent,
       scrolledUnderElevation: 0,
       elevation: 0,
@@ -300,7 +298,7 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 'Edit',
                 style: ProfileUi.small(
                   context,
-                  color: context.colors.primary,
+                  color: context.colors.onPrimaryContainer,
                   weight: FontWeight.w600,
                 ),
               ),
@@ -398,7 +396,7 @@ class _InlineError extends StatelessWidget {
                 'Retry',
                 style: ProfileUi.small(
                   context,
-                  color: context.colors.primary,
+                  color: context.colors.onPrimaryContainer,
                   weight: FontWeight.w600,
                 ),
               ),

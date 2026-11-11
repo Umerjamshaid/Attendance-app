@@ -24,7 +24,6 @@ class SettingsLayout extends StatelessWidget {
     return Theme(
       data: theme,
       child: Scaffold(
-        backgroundColor: colors.surface,
         extendBodyBehindAppBar: true,
         appBar: AppBar(
           centerTitle: true,
@@ -44,7 +43,7 @@ class SettingsLayout extends StatelessWidget {
               filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: colors.surface.withValues(alpha: .92),
+                  color: theme.scaffoldBackgroundColor.withValues(alpha: .92),
                   border: Border(
                     bottom: BorderSide(color: colors.outlineVariant),
                   ),

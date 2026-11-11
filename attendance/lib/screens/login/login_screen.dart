@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../config/app_theme.dart';
+import '../../config/ui_tokens.dart';
+import '../../widgets/spring_scale.dart';
 import '../profile/account_edit_screen.dart';
 
 class UpperCaseTextFormatter extends TextInputFormatter {
@@ -32,6 +34,8 @@ class _LoginScreenState extends State<LoginScreen>
   final _controller = TextEditingController();
   final _password = TextEditingController();
   final _idFocus = FocusNode();
+  final _passwordFocus = FocusNode();
+  bool _obscurePassword = true;
   String? _idError;
   late final AnimationController _animationController;
   late final Animation<double> _fadeIn;
@@ -43,17 +47,17 @@ class _LoginScreenState extends State<LoginScreen>
     super.initState();
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 420),
+      duration: AppMotion.entrance,
     );
     _fadeIn = CurvedAnimation(
       parent: _animationController,
-      curve: Curves.easeOut,
+      curve: AppMotion.enterCurve,
     );
-    _riseIn = Tween<Offset>(begin: const Offset(0, 0.025), end: Offset.zero)
+    _riseIn = Tween<Offset>(begin: const Offset(0, 0.015), end: Offset.zero)
         .animate(
           CurvedAnimation(
             parent: _animationController,
-            curve: Curves.easeOutCubic,
+            curve: AppMotion.enterCurve,
           ),
         );
   }
@@ -61,12 +65,11 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_animationStarted) return;
-    _animationStarted = true;
-
-    if (MediaQuery.of(context).disableAnimations) {
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _animationStarted = true;
       _animationController.value = 1;
-    } else {
+    } else if (!_animationStarted) {
+      _animationStarted = true;
       _animationController.forward();
     }
   }
@@ -76,6 +79,7 @@ class _LoginScreenState extends State<LoginScreen>
     _controller.dispose();
     _password.dispose();
     _idFocus.dispose();
+    _passwordFocus.dispose();
     _animationController.dispose();
     super.dispose();
   }
@@ -112,14 +116,19 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => AutofillGroup(
+    child: Theme(
+      data: AppTypography.themeOf(context),
+      child: Builder(builder: _buildContent),
+    ),
+  );
+
+  Widget _buildContent(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final company = auth.isPublicBuild;
-    final isLoading =
-        context.watch<AuthProvider>().status == AuthStatus.authenticating;
+    final isLoading = auth.status == AuthStatus.authenticating;
 
     return Scaffold(
-      backgroundColor: context.colors.surface,
       resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: Align(
@@ -140,34 +149,27 @@ class _LoginScreenState extends State<LoginScreen>
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             const _BrandHeader(),
-                            const SizedBox(height: 32),
+                            const SizedBox(height: 40),
                             Semantics(
                               header: true,
                               namesRoute: true,
                               child: Text(
                                 'Sign in',
-                                style: TextStyle(
+                                style: AppTypography.heading.copyWith(
                                   color: context.colors.onSurface,
-                                  fontSize: 30,
-                                  fontWeight: FontWeight.w400,
-                                  height: 1.2,
-                                  letterSpacing: 0,
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 12),
                             Text(
                               company
                                   ? 'Sign in with your company account.'
                                   : 'Enter your employee ID to continue.',
-                              style: TextStyle(
+                              style: AppTypography.body.copyWith(
                                 color: context.colors.onSurfaceVariant,
-                                fontSize: 16,
-                                height: 1.5,
-                                letterSpacing: 0,
                               ),
                             ),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 32),
                             if (company) ...[
                               TextField(
                                 controller: _controller,
@@ -179,25 +181,58 @@ class _LoginScreenState extends State<LoginScreen>
                                   AutofillHints.email,
                                 ],
                                 textInputAction: TextInputAction.next,
+                                onSubmitted: (_) =>
+                                    _passwordFocus.requestFocus(),
+                                onChanged: (_) {
+                                  if (_idError != null) {
+                                    setState(() => _idError = null);
+                                  }
+                                },
+                                style: AppTypography.body,
                                 decoration: InputDecoration(
                                   labelText: 'Work email',
                                   errorText: _idError,
-                                  prefixIcon: const Icon(AppIcons.mail),
+                                  prefixIcon: const Icon(
+                                    AppIcons.mail,
+                                    size: AppLayout.compactIconSize,
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 16),
                               TextField(
                                 controller: _password,
+                                focusNode: _passwordFocus,
                                 readOnly: isLoading,
-                                obscureText: true,
+                                obscureText: _obscurePassword,
                                 enableSuggestions: false,
                                 autocorrect: false,
                                 autofillHints: const [AutofillHints.password],
                                 textInputAction: TextInputAction.done,
                                 onSubmitted: (_) => _signIn(),
-                                decoration: const InputDecoration(
+                                style: AppTypography.body,
+                                decoration: InputDecoration(
                                   labelText: 'Password',
-                                  prefixIcon: Icon(AppIcons.lock),
+                                  prefixIcon: const Icon(
+                                    AppIcons.lock,
+                                    size: AppLayout.compactIconSize,
+                                  ),
+                                  suffixIcon: IconButton(
+                                    tooltip: _obscurePassword
+                                        ? 'Show password'
+                                        : 'Hide password',
+                                    onPressed: isLoading
+                                        ? null
+                                        : () => setState(
+                                            () => _obscurePassword =
+                                                !_obscurePassword,
+                                          ),
+                                    icon: Icon(
+                                      _obscurePassword
+                                          ? AppIcons.eye
+                                          : AppIcons.eyeOff,
+                                      size: AppLayout.compactIconSize,
+                                    ),
+                                  ),
                                 ),
                               ),
                               Align(
@@ -258,10 +293,9 @@ class _LoginScreenState extends State<LoginScreen>
                               const SizedBox(height: 12),
                               Text(
                                 'Demo IDs: EMP001 – EMP003 · Admin: EMP001',
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(
-                                      color: context.colors.onSurfaceVariant,
-                                    ),
+                                style: AppTypography.caption.copyWith(
+                                  color: context.colors.onSurfaceVariant,
+                                ),
                               ),
                             ],
                             const Spacer(),
@@ -281,10 +315,8 @@ class _LoginScreenState extends State<LoginScreen>
                                   ? 'Company access is by invitation.'
                                   : 'Your Employee ID was provided when your account was created.',
                               textAlign: TextAlign.center,
-                              style: TextStyle(
+                              style: AppTypography.caption.copyWith(
                                 color: context.colors.onSurfaceVariant,
-                                fontSize: 13,
-                                height: 1.5,
                               ),
                             ),
                           ],
@@ -315,7 +347,7 @@ class _BrandHeader extends StatelessWidget {
           height: 44,
           decoration: BoxDecoration(
             color: context.colors.primary,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppLayout.fieldRadius),
           ),
           child: Icon(
             AppIcons.fingerprint,
@@ -330,20 +362,15 @@ class _BrandHeader extends StatelessWidget {
             children: [
               Text(
                 'WorkCheck',
-                style: TextStyle(
+                style: AppTypography.title.copyWith(
                   color: context.colors.onSurface,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
-                'OFFICE ATTENDANCE',
-                style: TextStyle(
+                'Office attendance',
+                style: AppTypography.caption.copyWith(
                   color: context.colors.onSurfaceVariant,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0,
                 ),
               ),
             ],
@@ -383,89 +410,106 @@ class _EmployeeIdField extends StatelessWidget {
       textInputAction: TextInputAction.done,
       onSubmitted: onSubmitted,
       inputFormatters: [UpperCaseTextFormatter()],
-      style: TextStyle(
-        color: context.colors.onSurface,
-        fontSize: 16,
-        fontWeight: FontWeight.w600,
-      ),
+      style: AppTypography.body.copyWith(color: context.colors.onSurface),
       decoration: InputDecoration(
         labelText: 'Employee ID',
         errorText: errorText,
         hintText: 'e.g. EMP001',
-        prefixIcon: Icon(AppIcons.idBadge2),
-        filled: true,
-        fillColor: context.colors.surfaceContainerLow,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 18,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: context.colors.outlineVariant),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: context.colors.outlineVariant),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: context.colors.primary, width: 1.5),
+        prefixIcon: const Icon(
+          AppIcons.idBadge2,
+          size: AppLayout.compactIconSize,
         ),
       ),
     );
   }
 }
 
-class _SignInButton extends StatelessWidget {
+class _SignInButton extends StatefulWidget {
   const _SignInButton({required this.loading, required this.onPressed});
 
   final bool loading;
   final VoidCallback onPressed;
 
   @override
+  State<_SignInButton> createState() => _SignInButtonState();
+}
+
+class _SignInButtonState extends State<_SignInButton> {
+  final _states = WidgetStatesController();
+  bool _pressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _states.addListener(_updatePress);
+  }
+
+  void _updatePress() {
+    final pressed = _states.value.contains(WidgetState.pressed);
+    if (pressed != _pressed) setState(() => _pressed = pressed);
+  }
+
+  @override
+  void dispose() {
+    _states.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 52),
-      child: FilledButton(
-        onPressed: loading ? null : onPressed,
-        style: FilledButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-          shape: const StadiumBorder(),
-        ),
-        child: loading
-            ? Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      color: Theme.of(context).colorScheme.onPrimary,
-                      strokeWidth: 2,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Flexible(
-                    child: Text('Signing in', textAlign: TextAlign.center),
-                  ),
-                ],
-              )
-            : const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Flexible(
-                    child: Text(
-                      'Sign in',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
+    return SpringScale(
+      pressed: _pressed,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: AppLayout.controlHeight),
+        child: FilledButton(
+          statesController: _states,
+          onPressed: widget.loading ? null : widget.onPressed,
+          style: FilledButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            textStyle: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
+            disabledBackgroundColor: context.colors.surfaceContainerHighest,
+            disabledForegroundColor: context.colors.onSurfaceVariant,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppLayout.fieldRadius),
+            ),
+          ),
+          child: AnimatedSwitcher(
+            duration: AppMotion.duration(context, AppMotion.fast),
+            switchInCurve: AppMotion.enterCurve,
+            switchOutCurve: AppMotion.exitCurve,
+            child: widget.loading
+                ? Row(
+                    key: const ValueKey('signing-in'),
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          color: context.colors.onSurfaceVariant,
+                          strokeWidth: 2,
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      const Flexible(
+                        child: Text('Signing in', textAlign: TextAlign.center),
+                      ),
+                    ],
+                  )
+                : const Row(
+                    key: ValueKey('sign-in'),
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(child: Text('Sign in')),
+                      SizedBox(width: 10),
+                      Icon(
+                        AppIcons.arrowRight,
+                        size: AppLayout.compactIconSize,
+                      ),
+                    ],
                   ),
-                  SizedBox(width: 10),
-                  Icon(AppIcons.arrowRight, size: 24),
-                ],
-              ),
+          ),
+        ),
       ),
     );
   }

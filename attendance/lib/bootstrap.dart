@@ -11,6 +11,7 @@ import 'app.dart';
 import 'services/company_backend.dart';
 import 'services/attendance_service.dart';
 import 'services/employees_service.dart';
+import 'services/evidence_location_service.dart';
 
 void runAttendanceApp({CompanyBackend? backend}) {
   runApp(
@@ -27,6 +28,10 @@ void runAttendanceApp({CompanyBackend? backend}) {
               '${identityHashCode(active)}:${auth.currentUser?.id ?? "signed-out"}',
             ),
             providers: [
+              Provider(
+                create: (_) => EvidenceLocationService(),
+                dispose: (_, service) => service.dispose(),
+              ),
               ChangeNotifierProvider(
                 create: (_) => AttendanceProvider(backend: active),
               ),
