@@ -60,15 +60,18 @@ void main() {
       of: login,
       matching: find.byType(Scaffold),
     );
+    final background = find
+        .descendant(of: scaffold, matching: find.byType(Material))
+        .first;
     expect(
-      tester.widget<Scaffold>(scaffold).backgroundColor,
-      AppTheme.darkTheme.colorScheme.surface,
+      tester.widget<Material>(background).color,
+      AppTheme.darkTheme.scaffoldBackgroundColor,
     );
     await tester.element(login).read<ThemeProvider>().select(ThemeMode.light);
     await tester.pumpAndSettle();
     expect(
-      tester.widget<Scaffold>(scaffold).backgroundColor,
-      AppTheme.theme.colorScheme.surface,
+      tester.widget<Material>(background).color,
+      AppTheme.theme.scaffoldBackgroundColor,
     );
     expect(tester.takeException(), isNull);
   });

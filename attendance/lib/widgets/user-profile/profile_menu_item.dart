@@ -79,7 +79,7 @@ class ProfileMenuItem extends StatelessWidget {
             trailing!,
           ] else if (tap != null) ...[
             const SizedBox(width: 8),
-            Icon(AppIcons.chevronRight, size: 24),
+            Icon(AppIcons.chevronRight, size: 20),
           ],
         ],
       ),
@@ -145,8 +145,8 @@ class ProfileSwitchItem extends StatelessWidget {
                 thumbIcon: switch (Theme.of(context).platform) {
                   TargetPlatform.iOS || TargetPlatform.macOS => null,
                   _ => const WidgetStateProperty<Icon?>.fromMap({
-                    WidgetState.selected: Icon(AppIcons.check),
-                    WidgetState.any: Icon(AppIcons.x),
+                    WidgetState.selected: Icon(AppIcons.check, size: 18),
+                    WidgetState.any: Icon(AppIcons.x, size: 18),
                   }),
                 },
               ),

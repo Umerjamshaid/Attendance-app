@@ -8,7 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../screens/admin/attendance_evidence_screen.dart';
+import '../../screens/admin/employee_check_ins_sheet.dart';
 
 /// One employee row in the admin roster.
 ///
@@ -83,11 +83,7 @@ class EmployeeCard extends StatelessWidget {
 
   void _openDetails(BuildContext context) {
     if (checkInLog && context.read<AuthProvider>().isPublicBuild) {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => EmployeeCheckInsScreen(employee: data.employee),
-        ),
-      );
+      showEmployeeCheckInsSheet(context, data.employee);
       return;
     }
     HapticFeedback.selectionClick();
@@ -164,7 +160,7 @@ class EmployeeCard extends StatelessWidget {
                         height: _avatarSize,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: context.colors.primary.withValues(alpha: 0.1),
+                          color: context.colors.primaryContainer,
                           shape: BoxShape.circle,
                         ),
                         child: Text(
@@ -172,7 +168,7 @@ class EmployeeCard extends StatelessWidget {
                           style: GoogleFonts.inter(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: context.colors.primary,
+                            color: context.colors.onPrimaryContainer,
                           ),
                         ),
                       ),
@@ -304,7 +300,7 @@ class _EmployeeDetailsSheet extends StatelessWidget {
                   height: 56,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: context.colors.primary.withValues(alpha: 0.1),
+                    color: context.colors.primaryContainer,
                     shape: BoxShape.circle,
                   ),
                   child: Text(
@@ -312,7 +308,7 @@ class _EmployeeDetailsSheet extends StatelessWidget {
                     style: GoogleFonts.inter(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
-                      color: context.colors.primary,
+                      color: context.colors.onPrimaryContainer,
                     ),
                   ),
                 ),
@@ -389,7 +385,7 @@ class _EmployeeDetailsSheet extends StatelessWidget {
               _DetailRow(
                 label: 'Attendance rate',
                 value: _rate,
-                color: context.colors.primary,
+                color: context.colors.onPrimaryContainer,
               ),
             ],
           ),

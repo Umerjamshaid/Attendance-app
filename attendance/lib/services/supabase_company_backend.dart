@@ -10,6 +10,7 @@ import '../config/backend_config.dart';
 import '../models/attendance_record_model.dart';
 import '../models/employees_model.dart';
 import 'company_backend.dart';
+import 'profile_media.dart';
 
 class SupabaseCompanyBackend extends CompanyBackend {
   SupabaseCompanyBackend(this.client);
@@ -299,20 +300,15 @@ class SupabaseCompanyBackend extends CompanyBackend {
     }
     String? path;
     if (bytes != null) {
-      if (bytes.length > 2 * 1024 * 1024) {
-        throw const CompanyException('Choose an image smaller than 2 MB.');
-      }
-      final png = bytes.length > 8 && bytes[0] == 137 && bytes[1] == 80;
+      final format = ProfileImageFormat.fromBytes(bytes);
       path =
-          '${client.auth.currentUser!.id}/$kind-${const Uuid().v4()}.${png ? 'png' : 'jpg'}';
+          '${client.auth.currentUser!.id}/$kind-${const Uuid().v4()}.${format.extension}';
       await client.storage
           .from('profile-media')
           .uploadBinary(
             path,
             bytes,
-            fileOptions: FileOptions(
-              contentType: png ? 'image/png' : 'image/jpeg',
-            ),
+            fileOptions: FileOptions(contentType: format.contentType),
           );
     }
     try {

@@ -2,14 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/company_backend.dart';
+import '../services/profile_media.dart';
 
 class ProfileProvider extends ChangeNotifier {
-  ProfileProvider({this.backend});
+  ProfileProvider({this.backend, ImagePicker? picker})
+    : _picker = picker ?? ImagePicker();
   final CompanyBackend? backend;
   bool _disposed = false;
   String? _pfpPath;
   String? _bannerPath;
-  final ImagePicker _picker = ImagePicker();
+  final ImagePicker _picker;
 
   String? get pfpPath => _pfpPath;
   String? get bannerPath => _bannerPath;
@@ -40,12 +42,14 @@ class ProfileProvider extends ChangeNotifier {
     }
     final XFile? image = await _picker.pickImage(
       source: ImageSource.gallery,
-      maxWidth: backend == null ? null : 1200,
-      imageQuality: backend == null ? null : 85,
+      // Resizing/re-encoding can flatten animated profile images.
+      requestFullMetadata: false,
     );
     if (image != null) {
       if (backend != null) {
-        await backend!.saveMedia('avatar', await image.readAsBytes());
+        final bytes = await image.readAsBytes();
+        ProfileImageFormat.fromBytes(bytes);
+        await backend!.saveMedia('avatar', bytes);
         await loadProfileData(userId);
         return;
       }
@@ -64,12 +68,13 @@ class ProfileProvider extends ChangeNotifier {
     }
     final XFile? image = await _picker.pickImage(
       source: ImageSource.gallery,
-      maxWidth: backend == null ? null : 1600,
-      imageQuality: backend == null ? null : 85,
+      requestFullMetadata: false,
     );
     if (image != null) {
       if (backend != null) {
-        await backend!.saveMedia('banner', await image.readAsBytes());
+        final bytes = await image.readAsBytes();
+        ProfileImageFormat.fromBytes(bytes);
+        await backend!.saveMedia('banner', bytes);
         await loadProfileData(userId);
         return;
       }

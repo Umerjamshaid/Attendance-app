@@ -1,4 +1,5 @@
 import 'package:attendance/config/app_theme.dart';
+import 'package:attendance/config/ui_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -8,11 +9,24 @@ import 'package:google_fonts/google_fonts.dart';
 /// separators and the restrained 400/500/600 type weights follow the Block
 /// Buzz profile/settings screens, mapped onto the Attendance [AppTheme].
 abstract final class ProfileUi {
-  static const double gutter = 20;
+  static const double gutter = AppLayout.gutter;
   static const double rowInset = 16;
   static const double cardRadius = 22;
-  static const double sheetRadius = 24;
-  static const double iconSize = 24;
+  static const double sheetRadius = AppLayout.sheetRadius;
+  static const double iconSize = AppLayout.iconSize;
+  static const String fontFamily = AppTypography.fontFamily;
+
+  /// Keeps profile typography local without changing Home or History.
+  static ThemeData themeOf(BuildContext context) =>
+      AppTypography.themeOf(context);
+
+  static bool _usesProfileFont(BuildContext context) =>
+      Theme.of(context).textTheme.bodyLarge?.fontFamily == fontFamily;
+
+  static TextStyle _typeStyle(BuildContext context, FontWeight weight) =>
+      _usesProfileFont(context)
+      ? const TextStyle(fontFamily: fontFamily, letterSpacing: 0)
+      : GoogleFonts.inter(fontWeight: weight);
 
   /// Separators start after the leading icon so they align with row labels.
   static const double dividerIndent = rowInset + iconSize + rowInset;
@@ -21,9 +35,9 @@ abstract final class ProfileUi {
     BuildContext context, {
     Color? color,
     FontWeight weight = FontWeight.w400,
-  }) => GoogleFonts.inter(
+  }) => _typeStyle(context, weight).copyWith(
     fontSize: 16,
-    height: 1.25,
+    height: _usesProfileFont(context) ? 1.4 : 1.25,
     fontWeight: weight,
     color: color ?? context.colors.onSurface,
   );
@@ -32,9 +46,9 @@ abstract final class ProfileUi {
     BuildContext context, {
     Color? color,
     FontWeight weight = FontWeight.w400,
-  }) => GoogleFonts.inter(
+  }) => _typeStyle(context, weight).copyWith(
     fontSize: 14,
-    height: 1.3,
+    height: _usesProfileFont(context) ? 1.45 : 1.3,
     fontWeight: weight,
     color: color ?? context.colors.onSurfaceVariant,
   );
@@ -43,9 +57,9 @@ abstract final class ProfileUi {
     BuildContext context, {
     Color? color,
     FontWeight weight = FontWeight.w500,
-  }) => GoogleFonts.inter(
+  }) => _typeStyle(context, weight).copyWith(
     fontSize: 12,
-    height: 1.25,
+    height: _usesProfileFont(context) ? 1.4 : 1.25,
     fontWeight: weight,
     color: color ?? context.colors.onSurfaceVariant,
   );

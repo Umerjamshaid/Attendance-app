@@ -167,7 +167,7 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
                       ),
                       child: InputChip(
                         label: Text(_tags[index]),
-                        deleteIcon: const Icon(AppIcons.x, size: 24),
+                        deleteIcon: const Icon(AppIcons.x, size: 18),
                         backgroundColor: colors.surfaceContainerLow,
                         side: BorderSide(color: colors.outlineVariant),
                         shape: RoundedRectangleBorder(

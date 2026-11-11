@@ -128,16 +128,18 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Theme(
+    data: ProfileUi.themeOf(context),
+    child: Builder(builder: _buildContent),
+  );
+
+  Widget _buildContent(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final historyProvider = context.watch<AttendanceHistoryProvider>();
     final Employee? user = auth.currentUser;
 
     if (user == null) {
-      return Scaffold(
-        backgroundColor: context.colors.surface,
-        body: const Center(child: CircularProgressIndicator()),
-      );
+      return Scaffold(body: const Center(child: CircularProgressIndicator()));
     }
 
     // Show the user with live counts from the attendance history.
@@ -154,7 +156,17 @@ class _ProfileScreenState extends State<ProfileScreen>
         todayStatus: _statusFor(historyProvider),
       ),
       if (auth.isPublicBuild)
-        const CheckInSummary()
+        Theme(
+          data: Theme.of(context).copyWith(
+            textTheme: Theme.of(context).textTheme.copyWith(
+              headlineSmall: GoogleFonts.inter(
+                textStyle: Theme.of(context).textTheme.headlineSmall,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+          child: const CheckInSummary(),
+        )
       else
         AttendanceStatsCard(employee: updatedUser, isLoading: historyLoading),
       ProfileSectionCard(
@@ -241,7 +253,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     ];
 
     return Scaffold(
-      backgroundColor: context.colors.surface,
       body: CustomScrollView(
         controller: _scroll,
         slivers: [
@@ -256,7 +267,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   children: [
                     for (var i = 0; i < sections.length; i++)
                       _Reveal(animation: _reveals[i], child: sections[i]),
-                    _buildFooter(),
+                    _buildFooter(context),
                   ],
                 ),
               ),
@@ -272,7 +283,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     return SliverAppBar(
       pinned: true,
       automaticallyImplyLeading: false,
-      backgroundColor: context.colors.surface,
       surfaceTintColor: Colors.transparent,
       scrolledUnderElevation: 0,
       elevation: 0,
@@ -326,11 +336,11 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Widget _buildFooter() {
+  Widget _buildFooter(BuildContext context) {
     final versionLabel = _buildNumber.isEmpty
         ? 'v$_version'
         : 'v$_version ($_buildNumber)';
-    final muted = context.colors.onSurfaceVariant.withValues(alpha: 0.7);
+    final muted = context.colors.onSurfaceVariant;
 
     return SafeArea(
       top: false,
@@ -380,7 +390,8 @@ class _ProfileScreenState extends State<ProfileScreen>
         ),
         title: Text(
           title,
-          style: GoogleFonts.inter(
+          style: TextStyle(
+            fontFamily: ProfileUi.fontFamily,
             fontSize: 18,
             fontWeight: FontWeight.w600,
             color: context.colors.onSurface,
@@ -409,7 +420,8 @@ class _ProfileScreenState extends State<ProfileScreen>
         ),
         title: Text(
           'Log out',
-          style: GoogleFonts.inter(
+          style: TextStyle(
+            fontFamily: ProfileUi.fontFamily,
             fontSize: 18,
             fontWeight: FontWeight.w600,
             color: context.colors.onSurface,

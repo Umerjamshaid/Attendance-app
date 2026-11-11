@@ -114,7 +114,7 @@ class _HeaderAvatar extends StatelessWidget {
       dimension: size,
       child: ClipOval(
         child: ColoredBox(
-          color: context.colors.primary.withValues(alpha: 0.1),
+          color: context.colors.primaryContainer,
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -124,7 +124,7 @@ class _HeaderAvatar extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: 20,
                     fontWeight: FontWeight.w500,
-                    color: context.colors.primary,
+                    color: context.colors.onPrimaryContainer,
                   ),
                 ),
               ),

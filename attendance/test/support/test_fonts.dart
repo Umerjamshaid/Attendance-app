@@ -34,4 +34,7 @@ Future<void> loadTestFonts() async {
         ),
       ))
       .load();
+  await (FontLoader(
+    'DM Sans',
+  )..addFont(rootBundle.load('assets/fonts/DMSans.ttf'))).load();
 }

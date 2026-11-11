@@ -9,9 +9,9 @@ import 'package:attendance/widgets/user-profile/edit_profile_sheet.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../screens/profile/account_edit_screen.dart';
+import '../../services/company_backend.dart';
 
 /// Whether the employee has checked in today, as derived by the screen from
 /// the attendance history.
@@ -47,10 +47,14 @@ class ProfileHeader extends StatelessWidget {
     final messenger = ScaffoldMessenger.of(context);
     try {
       await pick(provider);
-    } catch (_) {
+    } catch (error) {
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Couldn’t update the photo. Try again.'),
+        SnackBar(
+          content: Text(
+            error is CompanyException
+                ? error.message
+                : 'Could not update the photo. Try again.',
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -139,7 +143,12 @@ class ProfileHeader extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Theme(
+    data: ProfileUi.themeOf(context),
+    child: Builder(builder: _buildContent),
+  );
+
+  Widget _buildContent(BuildContext context) {
     final profile = context.watch<ProfileProvider>();
     final name = employee.name.trim();
     final handle = employee.id.trim().toLowerCase();
@@ -210,7 +219,8 @@ class ProfileHeader extends StatelessWidget {
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
+                  style: TextStyle(
+                    fontFamily: ProfileUi.fontFamily,
                     fontSize: 22,
                     height: 1.25,
                     fontWeight: FontWeight.w600,
@@ -273,7 +283,7 @@ class ProfileHeader extends StatelessWidget {
               const SizedBox(height: 16),
               FilledButton.icon(
                 onPressed: () => _openEditSheet(context),
-                icon: const Icon(AppIcons.edit, size: 24),
+                icon: const Icon(AppIcons.edit, size: 20),
                 label: const Text('Edit profile'),
                 style: FilledButton.styleFrom(
                   backgroundColor: context.colors.surfaceContainerLow,
@@ -282,7 +292,8 @@ class ProfileHeader extends StatelessWidget {
                   minimumSize: const Size(0, 44),
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   shape: const StadiumBorder(),
-                  textStyle: GoogleFonts.inter(
+                  textStyle: const TextStyle(
+                    fontFamily: ProfileUi.fontFamily,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
@@ -409,14 +420,15 @@ class _BannerPrompt extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(AppIcons.photoPlus, size: 24, color: color),
+        Icon(AppIcons.photoPlus, size: 18, color: color),
         const SizedBox(width: 8),
         Flexible(
           child: Text(
             'Tap to select banner',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.inter(
+            style: TextStyle(
+              fontFamily: ProfileUi.fontFamily,
               fontSize: 13,
               height: 1.2,
               fontWeight: FontWeight.w500,
@@ -457,7 +469,7 @@ class _RemoveBannerButton extends StatelessWidget {
               color: Colors.black.withValues(alpha: 0.35),
               shape: BoxShape.circle,
             ),
-            child: const Icon(AppIcons.trash, size: 24, color: Colors.white),
+            child: const Icon(AppIcons.trash, size: 18, color: Colors.white),
           ),
         ),
       ),
@@ -474,7 +486,7 @@ class _BannerGradient extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [AppTheme.darkNavy, AppTheme.primaryNavy],
+            colors: [AppTheme.darkPetrol, AppTheme.primaryPetrol],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -496,7 +508,7 @@ class _CameraChip extends StatelessWidget {
         color: Colors.black.withValues(alpha: 0.35),
         shape: BoxShape.circle,
       ),
-      child: const Icon(AppIcons.camera, size: 24, color: Colors.white),
+      child: const Icon(AppIcons.camera, size: 18, color: Colors.white),
     );
   }
 }
@@ -549,10 +561,11 @@ class _Avatar extends StatelessWidget {
         Center(
           child: Text(
             initial,
-            style: GoogleFonts.inter(
+            style: TextStyle(
+              fontFamily: ProfileUi.fontFamily,
               fontSize: 36,
               fontWeight: FontWeight.w500,
-              color: context.colors.primary,
+              color: context.colors.onPrimaryContainer,
             ),
           ),
         ),
@@ -591,7 +604,7 @@ class _Avatar extends StatelessWidget {
                 ),
                 child: ClipOval(
                   child: ColoredBox(
-                    color: context.colors.primary.withValues(alpha: 0.1),
+                    color: context.colors.primaryContainer,
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 250),
                       child: SizedBox.expand(
@@ -615,7 +628,7 @@ class _Avatar extends StatelessWidget {
                   ),
                   child: Icon(
                     AppIcons.cameraPlus,
-                    size: 24,
+                    size: 16,
                     color: context.colors.onPrimary,
                   ),
                 ),
@@ -702,7 +715,8 @@ class _StatusPill extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: GoogleFonts.inter(
+          style: TextStyle(
+            fontFamily: ProfileUi.fontFamily,
             fontSize: 13,
             height: 1.2,
             fontWeight: FontWeight.w500,
@@ -731,12 +745,13 @@ class _InfoChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null) ...[Icon(icon, size: 24), const SizedBox(width: 6)],
+          if (icon != null) ...[Icon(icon, size: 16), const SizedBox(width: 6)],
           Flexible(
             child: Text(
               label,
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
+              style: TextStyle(
+                fontFamily: ProfileUi.fontFamily,
                 fontSize: 12.5,
                 height: 1.2,
                 fontWeight: FontWeight.w500,

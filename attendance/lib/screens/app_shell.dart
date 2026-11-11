@@ -7,6 +7,7 @@ import 'package:attendance/widgets/bottom_nav.dart';
 import 'package:attendance/widgets/loading.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../config/ui_tokens.dart';
 import '../providers/attendance_provider.dart';
 import '../providers/attendance_history_provider.dart';
 import '../providers/profile_provider.dart';
@@ -21,12 +22,70 @@ class AppShell extends StatefulWidget {
 
 class AppShellState extends State<AppShell> {
   int _currentIndex = 0;
+  final PageController _pageController = PageController();
+  bool? _wasAdmin;
+  bool _roleJumpPending = false;
   late final AppLifecycleListener _lifecycle;
   @override
   void initState() {
     super.initState();
     _lifecycle = AppLifecycleListener(onResume: _refresh);
   }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final isAdmin = context.watch<AuthProvider>().currentUser?.isAdmin;
+    if (isAdmin == null) return;
+    final previous = _wasAdmin;
+    _wasAdmin = isAdmin;
+    if (previous == null || previous == isAdmin) return;
+
+    // Keep Profile selected when its index moves; leave a removed Admin page.
+    if (_currentIndex == (previous ? 3 : 2)) {
+      _currentIndex = isAdmin ? 3 : 2;
+    } else if (previous && _currentIndex == 2) {
+      _currentIndex = 0;
+    }
+    _roleJumpPending = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _roleJumpPending = false;
+      if (_pageController.hasClients) {
+        _pageController.jumpToPage(_currentIndex);
+      }
+    });
+  }
+
+  void _selectTab(int index) {
+    final auth = context.read<AuthProvider>();
+    final user = auth.currentUser;
+    if (_roleJumpPending ||
+        user == null ||
+        index < 0 ||
+        index >= (user.isAdmin ? 4 : 3) ||
+        index == _currentIndex) {
+      return;
+    }
+    setState(() => _currentIndex = index);
+    if (auth.isPublicBuild && user.isAdmin && index == 2) {
+      context.read<AdminProvider>().loadDashboard();
+    }
+  }
+
+  void _onTabTapped(int index) {
+    _selectTab(index);
+    if (!_roleJumpPending &&
+        index == _currentIndex &&
+        _pageController.hasClients) {
+      _pageController.jumpToPage(index);
+    }
+  }
+
+  Widget _tab(String id, int index, Widget child) => _KeptAliveTab(
+    key: ValueKey(id),
+    child: TickerMode(enabled: _currentIndex == index, child: child),
+  );
 
   Future<void> _refresh() async {
     final auth = context.read<AuthProvider>();
@@ -53,6 +112,7 @@ class AppShellState extends State<AppShell> {
 
   @override
   void dispose() {
+    _pageController.dispose();
     _lifecycle.dispose();
     super.dispose();
   }
@@ -70,14 +130,15 @@ class AppShellState extends State<AppShell> {
     final isAdmin = user.role == 'admin';
 
     final pages = [
-      AttendanceScreen(employee: user, isActive: _currentIndex == 0),
-      const HistoryScreen(),
-      if (isAdmin) const AdminDashboardScreen(),
-      const ProfileScreen(),
+      _tab(
+        'home-page',
+        0,
+        AttendanceScreen(employee: user, isActive: _currentIndex == 0),
+      ),
+      _tab('history-page', 1, const HistoryScreen()),
+      if (isAdmin) _tab('admin-page', 2, const AdminDashboardScreen()),
+      _tab('profile-page', isAdmin ? 3 : 2, const ProfileScreen()),
     ];
-    if (_currentIndex >= pages.length) {
-      _currentIndex = 0;
-    }
 
     return Scaffold(
       // The dock floats over the page; extendBody lets pages run underneath it
@@ -86,7 +147,15 @@ class AppShellState extends State<AppShell> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: IndexedStack(index: _currentIndex, children: pages),
+            child: PageView(
+              key: const PageStorageKey('main-pages'),
+              controller: _pageController,
+              physics: MediaQuery.disableAnimationsOf(context)
+                  ? const PageScrollPhysics()
+                  : const _NavigationPagePhysics(),
+              onPageChanged: _selectTab,
+              children: pages,
+            ),
           ),
           const Positioned(
             left: 0,
@@ -98,15 +167,43 @@ class AppShellState extends State<AppShell> {
       ),
       bottomNavigationBar: BottomNav(
         currentIndex: _currentIndex,
-        onTap: (idx) => setState(() {
-          _currentIndex = idx;
-          if (authProvider.isPublicBuild && user.isAdmin && idx == 2) {
-            context.read<AdminProvider>().loadDashboard();
-          }
-        }),
+        onTap: _onTabTapped,
         // Ensure the BottomNav knows which items to show
         isAdmin: isAdmin,
       ),
     );
   }
+}
+
+/// Preserves visited screens and their scroll/form state between swipes.
+class _KeptAliveTab extends StatefulWidget {
+  const _KeptAliveTab({super.key, required this.child});
+  final Widget child;
+
+  @override
+  State<_KeptAliveTab> createState() => _KeptAliveTabState();
+}
+
+class _KeptAliveTabState extends State<_KeptAliveTab>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
+  }
+}
+
+/// Settles swipes with a light spring while retaining normal page snapping.
+class _NavigationPagePhysics extends PageScrollPhysics {
+  const _NavigationPagePhysics({super.parent});
+
+  @override
+  SpringDescription get spring => AppMotion.pageSpring;
+
+  @override
+  _NavigationPagePhysics applyTo(ScrollPhysics? ancestor) =>
+      _NavigationPagePhysics(parent: buildParent(ancestor));
 }

@@ -1,63 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../models/employees_model.dart';
+import '../../config/app_icons.dart';
+import '../../config/app_theme.dart';
+import '../../config/ui_tokens.dart';
 import '../../models/attendance_record_model.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/evidence_location_service.dart';
 import '../profile/settings_layout.dart';
-
-class EmployeeCheckInsScreen extends StatefulWidget {
-  const EmployeeCheckInsScreen({super.key, required this.employee});
-  final Employee employee;
-  @override
-  State<EmployeeCheckInsScreen> createState() => _EmployeeCheckInsScreenState();
-}
-
-class _EmployeeCheckInsScreenState extends State<EmployeeCheckInsScreen> {
-  late Future<List<AttendanceRecord>> _records = context
-      .read<AuthProvider>()
-      .backend!
-      .history(employeeId: widget.employee.id);
-  @override
-  Widget build(BuildContext context) => SettingsLayout(
-    title: widget.employee.name,
-    children: [
-      FutureBuilder(
-        future: _records,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return TextButton(
-              onPressed: () => setState(
-                () => _records = context.read<AuthProvider>().backend!.history(
-                  employeeId: widget.employee.id,
-                ),
-              ),
-              child: const Text('Could not load check-ins. Retry'),
-            );
-          }
-          if (snapshot.data!.isEmpty) return const Text('No check-ins yet.');
-          return Column(
-            children: [
-              for (final record in snapshot.data!)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text('${record.timestamp}'.substring(0, 16)),
-                  subtitle: Text(record.device),
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => AttendanceEvidenceScreen(record: record),
-                    ),
-                  ),
-                ),
-            ],
-          );
-        },
-      ),
-    ],
-  );
-}
 
 class AttendanceEvidenceScreen extends StatefulWidget {
   const AttendanceEvidenceScreen({super.key, required this.record});
@@ -94,12 +43,15 @@ class _AttendanceEvidenceScreenState extends State<AttendanceEvidenceScreen> {
               children: [
                 Text(snapshot.error.toString()),
                 TextButton(
-                  onPressed: () => setState(
-                    () => _evidence = context
+                  onPressed: () {
+                    final request = context
                         .read<AuthProvider>()
                         .backend!
-                        .evidence(widget.record.id),
-                  ),
+                        .evidence(widget.record.id);
+                    setState(() {
+                      _evidence = request;
+                    });
+                  },
                   child: const Text('Retry'),
                 ),
               ],
@@ -122,6 +74,16 @@ class _AttendanceEvidenceScreenState extends State<AttendanceEvidenceScreen> {
               ),
               const SizedBox(height: 20),
               Text(widget.record.timestamp.toString()),
+              _EvidenceLocation(
+                latitude: switch (evidence['latitude']) {
+                  num value => value.toDouble(),
+                  _ => null,
+                },
+                longitude: switch (evidence['longitude']) {
+                  num value => value.toDouble(),
+                  _ => null,
+                },
+              ),
               Text('Latitude: ${evidence['latitude']}'),
               Text('Longitude: ${evidence['longitude']}'),
               Text('Accuracy: ${evidence['accuracy']} m'),
@@ -131,5 +93,156 @@ class _AttendanceEvidenceScreenState extends State<AttendanceEvidenceScreen> {
         },
       ),
     ],
+  );
+}
+
+class _EvidenceLocation extends StatefulWidget {
+  const _EvidenceLocation({required this.latitude, required this.longitude});
+  final double? latitude;
+  final double? longitude;
+
+  @override
+  State<_EvidenceLocation> createState() => _EvidenceLocationState();
+}
+
+class _EvidenceLocationState extends State<_EvidenceLocation>
+    with WidgetsBindingObserver {
+  late Locale _locale;
+  late Future<EvidenceAddress> _address;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _locale =
+        WidgetsBinding.instance.platformDispatcher.locales.firstOrNull ??
+        const Locale('en');
+    _load();
+  }
+
+  @override
+  void didChangeLocales(List<Locale>? locales) {
+    final locale = locales?.firstOrNull ?? const Locale('en');
+    if (!mounted || _locale == locale) return;
+    setState(() {
+      _locale = locale;
+      _load();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(_EvidenceLocation oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.latitude != widget.latitude ||
+        oldWidget.longitude != widget.longitude) {
+      _load();
+    }
+  }
+
+  void _load({bool refresh = false}) {
+    _address = context.read<EvidenceLocationService>().resolve(
+      widget.latitude,
+      widget.longitude,
+      locale: _locale,
+      refresh: refresh,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 16),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Icon(AppIcons.mapPin, size: AppLayout.compactIconSize),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Location', style: AppTypography.label),
+              const SizedBox(height: 4),
+              FutureBuilder<EvidenceAddress>(
+                future: _address,
+                builder: (context, snapshot) {
+                  final loading =
+                      snapshot.connectionState != ConnectionState.done;
+                  final address =
+                      snapshot.data ??
+                      const EvidenceAddress(EvidenceAddressStatus.unavailable);
+                  final message = switch (address.status) {
+                    EvidenceAddressStatus.found => address.text!,
+                    EvidenceAddressStatus.notFound =>
+                      'No address found. Coordinates are shown below.',
+                    EvidenceAddressStatus.invalid =>
+                      'Invalid coordinates. Saved values are shown below.',
+                    EvidenceAddressStatus.unsupported =>
+                      'Address lookup is unavailable on this platform. Coordinates are shown below.',
+                    _ => 'Address unavailable. Coordinates are shown below.',
+                  };
+                  return Semantics(
+                    liveRegion: true,
+                    child: AnimatedSwitcher(
+                      duration: AppMotion.duration(context, AppMotion.fast),
+                      switchInCurve: AppMotion.enterCurve,
+                      switchOutCurve: AppMotion.exitCurve,
+                      child: loading
+                          ? Row(
+                              key: const ValueKey('location-loading'),
+                              children: [
+                                const SizedBox.square(
+                                  dimension: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Resolving location...',
+                                    style: AppTypography.body.copyWith(
+                                      color: context.colors.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Column(
+                              key: ValueKey((address.status, address.text)),
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SelectableText(
+                                  message,
+                                  style: AppTypography.body,
+                                ),
+                                if (address.status ==
+                                        EvidenceAddressStatus.unavailable ||
+                                    address.status ==
+                                        EvidenceAddressStatus.notFound)
+                                  TextButton(
+                                    onPressed: () =>
+                                        setState(() => _load(refresh: true)),
+                                    child: const Text('Retry location'),
+                                  ),
+                              ],
+                            ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
   );
 }

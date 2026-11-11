@@ -2,6 +2,7 @@ import 'package:attendance/config/app_icons.dart';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import '../../widgets/user-profile/profile_section_card.dart';
 
 class SettingsLayout extends StatelessWidget {
   const SettingsLayout({
@@ -17,53 +18,56 @@ class SettingsLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final theme = ProfileUi.themeOf(context);
+    final colors = theme.colorScheme;
     final top = MediaQuery.paddingOf(context).top + kToolbarHeight;
-    return Scaffold(
-      backgroundColor: colors.surface,
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        centerTitle: true,
-        title: Text(title, style: Theme.of(context).textTheme.titleMedium),
-        leading: close
-            ? IconButton(
-                tooltip: 'Close settings',
-                onPressed: () => Navigator.maybePop(context),
-                icon: const Icon(AppIcons.x),
-              )
-            : const BackButton(),
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        scrolledUnderElevation: 0,
-        flexibleSpace: ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: colors.surface.withValues(alpha: .92),
-                border: Border(
-                  bottom: BorderSide(color: colors.outlineVariant),
+    return Theme(
+      data: theme,
+      child: Scaffold(
+        extendBodyBehindAppBar: true,
+        appBar: AppBar(
+          centerTitle: true,
+          title: Text(title, style: theme.textTheme.titleMedium),
+          leading: close
+              ? IconButton(
+                  tooltip: 'Close settings',
+                  onPressed: () => Navigator.maybePop(context),
+                  icon: const Icon(AppIcons.x),
+                )
+              : const BackButton(),
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          scrolledUnderElevation: 0,
+          flexibleSpace: ClipRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: theme.scaffoldBackgroundColor.withValues(alpha: .92),
+                  border: Border(
+                    bottom: BorderSide(color: colors.outlineVariant),
+                  ),
                 ),
               ),
             ),
           ),
         ),
-      ),
-      body: SafeArea(
-        top: false,
-        child: ListView(
-          padding: EdgeInsets.fromLTRB(20, top + 20, 20, 28),
-          children: [
-            Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 480),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: children,
+        body: SafeArea(
+          top: false,
+          child: ListView(
+            padding: EdgeInsets.fromLTRB(20, top + 20, 20, 28),
+            children: [
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 480),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: children,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -147,7 +151,7 @@ class SettingsRow extends StatelessWidget {
       ),
       subtitle: detail == null ? null : Text(detail!),
       trailing: onTap != null && !destructive
-          ? const Icon(AppIcons.chevronRight, size: 24)
+          ? const Icon(AppIcons.chevronRight, size: 20)
           : null,
       onTap: onTap,
     );
