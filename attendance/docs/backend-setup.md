@@ -42,8 +42,11 @@ With CLI v3, an unlinked project can be targeted explicitly using
 `functions deploy`. Use `--yes` only after reviewing the corresponding dry run
 or diff. Function deployment can use `--use-api` when Docker is not installed.
 
-Review the migration before applying it. It creates new company tables, explicit
-grants/RLS, and two private Storage buckets. It does not reset existing data.
+Review every pending migration before applying it. The pilot created company
+tables, explicit grants/RLS, and two private Storage buckets. The multi-office
+expansion adds an office-logo bucket and changes membership keys without resetting
+existing data. Follow [the coordinated rollout](multi-office.md) before applying
+that expansion or distributing its client; do not deploy old functions with it.
 
 In Auth settings, disable new public sign-ups, set minimum password length to 12,
 enable email confirmations and secure email changes, and allow the exact redirect
@@ -81,9 +84,12 @@ commit;
 ```
 
 Set a password through invitation/recovery. Admin invitations inside the app
-create employees only, never administrators. Additional admins must be explicitly
-provisioned by the project owner through administrative tooling. One account
-belongs to one company in this pilot. Deactivation immediately blocks new data
+create employees only, never administrators. With the multi-office migration,
+office owners can manage office-specific roles, and existing active admins can
+create another office. An account may have multiple authorized memberships;
+existing accounts accept additional invitations under Add Office. See
+[Multi-Office Handoff](multi-office.md) for owner backfill review and access rules.
+Deactivation immediately blocks new data
 access even with an existing JWT; it does not delete historical check-ins.
 
 Invitations do not contain a generated password. With the app installed, open

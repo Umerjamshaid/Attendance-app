@@ -202,6 +202,7 @@ class AttendanceHistoryProvider extends ChangeNotifier {
   }
 
   void acceptSubmittedRecord(AttendanceRecord record) {
+    if (_disposed) return;
     ++_generation;
     _isLoading = false;
     _records.removeWhere((r) => r.id == record.id);

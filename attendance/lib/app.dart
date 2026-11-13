@@ -1,4 +1,5 @@
 import 'package:attendance/providers/auth_provider.dart';
+import 'package:attendance/providers/office_provider.dart';
 import 'package:attendance/providers/theme_provider.dart';
 import 'package:attendance/screens/app_shell.dart';
 import 'package:attendance/screens/login/login_screen.dart';
@@ -22,6 +23,31 @@ class AttendanceApp extends StatelessWidget {
           ? Duration.zero
           : const Duration(milliseconds: 180),
       debugShowCheckedModeBanner: false,
+      builder: (context, child) {
+        final switching =
+            context.watch<OfficeProvider?>()?.isSwitching ?? false;
+        return Stack(
+          children: [
+            ExcludeSemantics(
+              excluding: switching,
+              child: AbsorbPointer(absorbing: switching, child: child!),
+            ),
+            if (switching)
+              Positioned.fill(
+                child: ColoredBox(
+                  key: const ValueKey('office-loading-overlay'),
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  child: Center(
+                    child: Semantics(
+                      label: 'Loading office',
+                      child: const CircularProgressIndicator(),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
       home: Consumer<AuthProvider>(
         builder: (context, auth, _) {
           return switch (auth.status) {

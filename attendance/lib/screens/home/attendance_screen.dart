@@ -12,7 +12,7 @@ import 'package:attendance/services/attendance_submission_service_factory.dart';
 import 'package:attendance/services/location_service.dart';
 import 'package:attendance/widgets/home/attendance_button.dart';
 import 'package:attendance/widgets/demo_mode_notice.dart';
-import 'package:attendance/widgets/home/attendance_profile_header.dart';
+import 'package:attendance/widgets/office/office_selector_header.dart';
 import 'package:attendance/widgets/home/attendance_summary_card.dart';
 import 'package:attendance/widgets/home/check_in_status_card.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
@@ -194,6 +194,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       }
 
       if (image == null) return; // User cancelled
+      if (!mounted) return;
       final capturedAt = DateTime.now();
 
       setState(() {
@@ -203,10 +204,13 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       try {
         // 3. Convert image to base64
         final bytes = await image.readAsBytes();
+        if (!mounted) return;
         final base64Image = base64Encode(bytes);
 
         // 4. Fetch verified GPS location
         final position = await LocationService().getVerifiedLocation();
+        if (!mounted) return;
+        attendanceProvider.backend?.validateContext();
 
         if (attendanceProvider.isCompanyMode) {
           final record = await attendanceProvider.submitPhoto(
@@ -415,7 +419,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      AttendanceProfileHeader(employee: widget.employee),
+                      const OfficeSelectorHeader(),
                       if (attendanceProvider.isPreview) const DemoModeNotice(),
                       const SizedBox(height: 24),
                       _LiveClockHero(isCheckedIn: isCheckedIn),

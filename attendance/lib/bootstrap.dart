@@ -3,6 +3,7 @@ import 'package:attendance/providers/attendance_history_provider.dart';
 import 'package:attendance/providers/attendance_provider.dart';
 import 'package:attendance/providers/auth_provider.dart';
 import 'package:attendance/providers/profile_provider.dart';
+import 'package:attendance/providers/office_provider.dart';
 import 'package:attendance/providers/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -19,38 +20,40 @@ void runAttendanceApp({CompanyBackend? backend}) {
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider(backend: backend)),
+        ChangeNotifierProvider(
+          create: (context) => OfficeProvider(context.read<AuthProvider>()),
+        ),
       ],
       child: Consumer<AuthProvider>(
         builder: (context, auth, _) {
           final active = auth.backend;
-          return MultiProvider(
-            key: ValueKey(
-              '${identityHashCode(active)}:${auth.currentUser?.id ?? "signed-out"}',
+          return ChangeNotifierProvider(
+            key: ValueKey(auth.accountScopeKey),
+            create: (_) => ProfileProvider(backend: auth.accountBackend),
+            child: MultiProvider(
+              key: ValueKey(auth.officeScopeKey),
+              providers: [
+                Provider(
+                  create: (_) => EvidenceLocationService(),
+                  dispose: (_, service) => service.dispose(),
+                ),
+                ChangeNotifierProvider(
+                  create: (_) => AttendanceProvider(backend: active),
+                ),
+                ChangeNotifierProvider(
+                  create: (_) => AttendanceHistoryProvider(
+                    service: AttendanceService(backend: active),
+                  ),
+                ),
+                ChangeNotifierProvider(
+                  create: (_) => AdminProvider(
+                    attendanceService: AttendanceService(backend: active),
+                    employeeService: EmployeeService(backend: active),
+                  ),
+                ),
+              ],
+              child: const AttendanceApp(),
             ),
-            providers: [
-              Provider(
-                create: (_) => EvidenceLocationService(),
-                dispose: (_, service) => service.dispose(),
-              ),
-              ChangeNotifierProvider(
-                create: (_) => AttendanceProvider(backend: active),
-              ),
-              ChangeNotifierProvider(
-                create: (_) => AttendanceHistoryProvider(
-                  service: AttendanceService(backend: active),
-                ),
-              ),
-              ChangeNotifierProvider(
-                create: (_) => AdminProvider(
-                  attendanceService: AttendanceService(backend: active),
-                  employeeService: EmployeeService(backend: active),
-                ),
-              ),
-              ChangeNotifierProvider(
-                create: (_) => ProfileProvider(backend: active),
-              ),
-            ],
-            child: const AttendanceApp(),
           );
         },
       ),

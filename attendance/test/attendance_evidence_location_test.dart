@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/models/attendance_record_model.dart';
+import 'package:attendance/models/employees_model.dart';
 import 'package:attendance/providers/auth_provider.dart';
 import 'package:attendance/screens/admin/attendance_evidence_screen.dart';
 import 'package:attendance/services/evidence_location_service.dart';
@@ -348,6 +349,9 @@ Future<void> _mount(
 }
 
 class _Backend extends PreviewCompanyBackend {
+  // This fixture supplies its own evidence behavior, independent of preview offices.
+  @override
+  PreviewCompanyBackend forOffice(Employee employee) => this;
   int calls = 0;
   bool fail = false;
   Object? latitude = 31.5204;
