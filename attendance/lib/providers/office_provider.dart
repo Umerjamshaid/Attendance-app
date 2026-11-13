@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/office_model.dart';
 import '../services/company_backend.dart';
 import 'auth_provider.dart';
@@ -15,6 +16,8 @@ class OfficeProvider extends ChangeNotifier {
   }
   final AuthProvider auth;
   List<Office> _offices = [];
+  Set<String> _hiddenIds = {};
+  bool _visibilityLoaded = false;
   List<OfficeInvitation> _invitations = [];
   late String _accountKey;
   late String _scopeKey;
@@ -22,7 +25,21 @@ class OfficeProvider extends ChangeNotifier {
   bool _loading = false, _busy = false, _disposed = false;
   int _generation = 0;
   String? _error;
-  List<Office> get offices => List.unmodifiable(_offices);
+  List<Office> get offices => List.unmodifiable(
+    _offices.where(
+      (office) =>
+          office.id == activeOfficeId || !_hiddenIds.contains(office.id),
+    ),
+  );
+  List<Office> get hiddenOffices => List.unmodifiable(
+    _offices.where(
+      (office) => office.id != activeOfficeId && _hiddenIds.contains(office.id),
+    ),
+  );
+  String? get _visibilityKey =>
+      isPreview || auth.currentUser?.authUserId == null
+      ? null
+      : 'office_switcher_hidden:${auth.currentUser!.authUserId}';
   List<OfficeInvitation> get invitations => List.unmodifiable(_invitations);
   String? get activeOfficeId => auth.currentUser?.organizationId;
   Office? get activeOffice =>
@@ -41,6 +58,8 @@ class OfficeProvider extends ChangeNotifier {
       _generation++;
       _offices = [];
       _invitations = [];
+      _hiddenIds = {};
+      _visibilityLoaded = false;
       _error = null;
       _busy = false;
       _accountKey = auth.accountScopeKey;
@@ -67,6 +86,16 @@ class OfficeProvider extends ChangeNotifier {
     _loading = true;
     notifyListeners();
     try {
+      if (!_visibilityLoaded) {
+        final key = _visibilityKey;
+        final hidden = key == null
+            ? <String>[]
+            : (await SharedPreferences.getInstance()).getStringList(key) ??
+                  <String>[];
+        if (_disposed || generation != _generation) return;
+        _hiddenIds = hidden.toSet();
+        _visibilityLoaded = true;
+      }
       final offices = await backend.offices();
       final invitations = await backend.officeInvitations();
       if (_disposed || generation != _generation) return;
@@ -141,6 +170,47 @@ class OfficeProvider extends ChangeNotifier {
   Future<bool> acceptInvitation(String invitationId) => _change(() async {
     final id = await _backend.acceptOfficeInvitation(invitationId);
     await auth.switchOffice(id);
+  });
+  Future<void> _saveVisibility(Set<String> hidden, String accountKey) async {
+    final key = _visibilityKey;
+    if (key != null) {
+      final preferences = await SharedPreferences.getInstance();
+      if (auth.accountScopeKey != accountKey) return;
+      if (!await preferences.setStringList(key, hidden.toList()..sort())) {
+        throw const CompanyException(
+          'Could not save your office list. Please try again.',
+        );
+      }
+    }
+    if (!_disposed && auth.accountScopeKey == accountKey) _hiddenIds = hidden;
+  }
+
+  /// Appearance preference only: never deletes an office or changes membership.
+  Future<bool> hideOffice(String officeId) => _change(() async {
+    final key = auth.accountScopeKey;
+    if (!offices.any((office) => office.id == officeId)) {
+      throw const CompanyException('This office is not in your switcher.');
+    }
+    if (offices.length <= 1) {
+      throw const CompanyException(
+        'Keep one office visible. Add or restore another office first.',
+      );
+    }
+    if (officeId == activeOfficeId) {
+      final replacement = offices.firstWhere((office) => office.id != officeId);
+      await auth.switchOffice(replacement.id);
+    }
+    if (auth.accountScopeKey != key) return;
+    await _saveVisibility({..._hiddenIds, officeId}, key);
+  });
+  Future<bool> restoreOffice(String officeId) => _change(() async {
+    if (!_offices.any((office) => office.id == officeId)) {
+      throw const CompanyException('This office is no longer available.');
+    }
+    await _saveVisibility(
+      {..._hiddenIds}..remove(officeId),
+      auth.accountScopeKey,
+    );
   });
   @override
   void notifyListeners() {

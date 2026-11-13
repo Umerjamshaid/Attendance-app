@@ -49,15 +49,15 @@ abstract final class AppTypography {
     letterSpacing: 0,
   );
 
-  static ThemeData themeOf(BuildContext context) {
+  static ThemeData themeOf(BuildContext context, {String family = fontFamily}) {
     final theme = Theme.of(context);
     return theme.copyWith(
       textTheme: theme.textTheme.apply(
-        fontFamily: fontFamily,
+        fontFamily: family,
         letterSpacingFactor: 0,
       ),
       primaryTextTheme: theme.primaryTextTheme.apply(
-        fontFamily: fontFamily,
+        fontFamily: family,
         letterSpacingFactor: 0,
       ),
     );

@@ -6,6 +6,8 @@ import 'package:attendance/providers/attendance_history_provider.dart';
 import 'package:attendance/providers/profile_provider.dart';
 import 'package:attendance/widgets/bottom_nav.dart';
 import 'package:attendance/widgets/office/office_selector_header.dart';
+import 'package:attendance/widgets/office/office_switcher_sheet.dart';
+import 'package:attendance/widgets/office/office_scope.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -32,6 +34,7 @@ void main() {
         buildSignature: '',
       );
       final backend = ControlledOfficeBackend();
+      await tester.pumpWidget(const SizedBox.shrink());
       runAttendanceApp(backend: backend);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
@@ -69,6 +72,72 @@ void main() {
       expect(tester.widget<BottomNav>(find.byType(BottomNav)).isAdmin, isFalse);
       expect(find.text('Office B'), findsOneWidget);
       expect(find.bySemanticsLabel('Loading office'), findsNothing);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets(
+    'the account switcher survives real office route invalidation and nested Back works',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final backend = ControlledOfficeBackend();
+      await tester.pumpWidget(const SizedBox.shrink());
+      runAttendanceApp(backend: backend);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      final home = tester.element(find.byType(OfficeSelectorHeader));
+      final rootNavigator = Navigator.of(home, rootNavigator: true);
+      final navigation = home.read<OfficeNavigatorController>();
+      final oldOfficeNavigator = navigation.navigator;
+      await tester.tap(find.byKey(const ValueKey('office-selector')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+      final switcher = tester.state(find.byType(OfficeSwitcherSheet));
+      backend.state.switchGate = Completer<void>();
+      await tester.tap(find.byKey(const ValueKey('office-option-b')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 220));
+      expect(
+        find.byKey(const ValueKey('office-loading-overlay')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('office-flying-avatar')),
+        findsOneWidget,
+      );
+      backend.state.switchGate!.complete();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump(const Duration(milliseconds: 650));
+      expect(tester.state(find.byType(OfficeSwitcherSheet)), same(switcher));
+      final next = tester.element(find.byType(OfficeSelectorHeader));
+      expect(Navigator.of(next, rootNavigator: true), same(rootNavigator));
+      expect(navigation.navigator, isNot(same(oldOfficeNavigator)));
+      expect(
+        next.read<AttendanceHistoryProvider>().records.single.id,
+        'record-b',
+      );
+      await tester.tap(find.byTooltip('Close'));
+      await tester.pump(const Duration(milliseconds: 350));
+      unawaited(
+        navigation.navigator!.push(
+          MaterialPageRoute<void>(
+            builder: (_) => const Scaffold(body: Text('Office B detail')),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(find.text('Office B detail'), findsOneWidget);
+      await tester.pump();
+      expect(navigation.navigator!.canPop(), isTrue);
+      await tester.binding.handlePopRoute();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      expect(navigation.navigator!.canPop(), isFalse);
+      expect(find.text('Office B detail'), findsNothing);
+      expect(find.byType(OfficeSelectorHeader), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
     },

@@ -98,6 +98,31 @@ void main() {
     expect(backend.calls, 1);
   });
 
+  testWidgets(
+    'photo retry refreshes evidence and reuses the resolved address',
+    (tester) async {
+      var lookups = 0;
+      final service = EvidenceLocationService(
+        supported: true,
+        lookup: (_, _, _) async {
+          lookups++;
+          return [_place];
+        },
+      );
+      final backend = _Backend();
+      await _mount(tester, service, backend);
+      await tester.pumpAndSettle();
+      expect(find.text('Retry photo'), findsOneWidget);
+      await tester.tap(find.text('Retry photo'));
+      await tester.pumpAndSettle();
+      expect(backend.calls, 2);
+      expect(lookups, 1);
+      expect(find.text(_address), findsOneWidget);
+      _expectOriginalEvidence(tester);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   for (final supported in [true, false]) {
     testWidgets(
       'empty or unsupported address lookup keeps GPS, supported: $supported',

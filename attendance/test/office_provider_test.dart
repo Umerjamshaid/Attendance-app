@@ -26,7 +26,7 @@ class ControlledOfficeBackend extends PreviewCompanyBackend {
   );
   Employee employee(String id) => Employee(
     id: 'SAME_CODE',
-    authUserId: 'account-1',
+    authUserId: state.authUserId,
     organizationId: id,
     officeName: id == 'a' ? 'Office A' : 'Office B',
     name: 'Global profile',
@@ -92,6 +92,7 @@ class ControlledOfficeBackend extends PreviewCompanyBackend {
 }
 
 class OfficeTestState {
+  String authUserId = 'account-1';
   String active = 'a';
   bool signedIn = true, revoked = false, failSwitch = false;
   int switchCalls = 0;
@@ -101,6 +102,98 @@ class OfficeTestState {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  test(
+    'hiding an office is account-scoped appearance only and can be restored',
+    () async {
+      final backend = ControlledOfficeBackend();
+      final auth = AuthProvider(backend: backend);
+      await Future<void>.delayed(Duration.zero);
+      var offices = OfficeProvider(auth);
+      await offices.reload();
+      expect(await offices.hideOffice('b'), isTrue);
+      expect(offices.offices.map((office) => office.id), ['a']);
+      expect(offices.hiddenOffices.single.id, 'b');
+      expect((await backend.offices()).length, 2);
+      expect(
+        backend.state.switchCalls,
+        0,
+        reason:
+            'inactive office visibility does not switch or revoke a membership',
+      );
+      offices.dispose();
+      offices = OfficeProvider(auth);
+      await offices.reload();
+      expect(
+        offices.hiddenOffices.single.id,
+        'b',
+        reason: 'visibility survives reopening',
+      );
+      expect(await offices.restoreOffice('b'), isTrue);
+      expect(offices.offices.length, 2);
+      expect(offices.hiddenOffices, isEmpty);
+      expect(await offices.hideOffice('b'), isTrue);
+      offices.dispose();
+      auth.dispose();
+      final otherBackend = ControlledOfficeBackend(
+        state: OfficeTestState()..authUserId = 'account-2',
+      );
+      final otherAuth = AuthProvider(backend: otherBackend);
+      await Future<void>.delayed(Duration.zero);
+      final other = OfficeProvider(otherAuth);
+      await other.reload();
+      expect(
+        other.offices.length,
+        2,
+        reason: 'another account does not inherit hidden offices',
+      );
+      other.dispose();
+      otherAuth.dispose();
+    },
+  );
+
+  test(
+    'hiding the active office reauthorizes a fallback and keeps one visible office',
+    () async {
+      final backend = ControlledOfficeBackend();
+      final auth = AuthProvider(backend: backend);
+      await Future<void>.delayed(Duration.zero);
+      final offices = OfficeProvider(auth);
+      await offices.reload();
+      backend.state.failSwitch = true;
+      expect(await offices.hideOffice('a'), isFalse);
+      expect(offices.hiddenOffices, isEmpty);
+      expect(offices.activeOfficeId, 'a');
+      backend.state.failSwitch = false;
+      expect(await offices.hideOffice('a'), isTrue);
+      expect(offices.activeOfficeId, 'b');
+      expect(offices.offices.single.id, 'b');
+      expect(offices.hiddenOffices.single.id, 'a');
+      expect(await offices.hideOffice('b'), isFalse);
+      expect(offices.error, contains('Keep one office visible'));
+      expect((await backend.offices()).length, 2);
+      offices.dispose();
+      auth.dispose();
+    },
+  );
+
+  test(
+    'Preview switcher visibility never writes preferences or company data',
+    () async {
+      final auth = AuthProvider(
+        backend: PreviewCompanyBackend(available: false),
+      );
+      await Future<void>.delayed(Duration.zero);
+      await auth.enterPreview();
+      final offices = OfficeProvider(auth);
+      await offices.reload();
+      expect(await offices.hideOffice('preview-hub'), isTrue);
+      expect(offices.hiddenOffices.single.id, 'preview-hub');
+      expect((await SharedPreferences.getInstance()).getKeys(), isEmpty);
+      offices.dispose();
+      auth.dispose();
+    },
+  );
 
   test(
     'office switch preserves account, changes office role and invalidates scope keys',

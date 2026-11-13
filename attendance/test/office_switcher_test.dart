@@ -71,14 +71,19 @@ void main() {
       expect(tester.takeException(), isNull);
       await tester.tap(find.text('Office B'));
       await tester.pumpAndSettle();
-      expect(find.byType(OfficeSwitcherSheet), findsNothing);
-      expect(find.text('Office B'), findsOneWidget);
+      expect(find.byType(OfficeSwitcherSheet), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(OfficeSwitcherSheet),
+          matching: find.text('Office B'),
+        ),
+        findsOneWidget,
+      );
       expect(auth.currentUser!.isAdmin, isFalse);
-      await tester.tap(find.byKey(const ValueKey('office-selector')));
-      await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Close'));
       await tester.pumpAndSettle();
       expect(find.byType(OfficeSwitcherSheet), findsNothing);
+      expect(find.text('Office B'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
     });

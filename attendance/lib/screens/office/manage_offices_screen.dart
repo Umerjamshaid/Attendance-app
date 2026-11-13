@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../config/app_icons.dart';
@@ -176,6 +177,26 @@ class ManageOfficesScreen extends StatelessWidget {
                   ],
                 ),
               ),
+            if (provider.hiddenOffices.isNotEmpty) ...[
+              Text('Hidden on this device', style: AppTypography.title),
+              const SizedBox(height: 12),
+              for (final office in provider.hiddenOffices)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: OfficeAvatar(office: office, size: 48),
+                  title: Text(office.name),
+                  trailing: TextButton(
+                    onPressed: provider.isSwitching
+                        ? null
+                        : () async {
+                            HapticFeedback.selectionClick();
+                            await provider.restoreOffice(office.id);
+                          },
+                    child: const Text('Restore'),
+                  ),
+                ),
+              const SizedBox(height: 20),
+            ],
             if (provider.activeOffice?.isAdmin == true &&
                 provider.activeOffice?.createdBy == userId &&
                 userId != null)

@@ -92,9 +92,15 @@ class OfficeSelectorHeader extends StatelessWidget {
 }
 
 class OfficeAvatar extends StatelessWidget {
-  const OfficeAvatar({super.key, required this.office, this.size = 104});
+  const OfficeAvatar({
+    super.key,
+    required this.office,
+    this.size = 104,
+    this.fontFamily = AppTypography.fontFamily,
+  });
   final Office office;
   final double size;
+  final String fontFamily;
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
@@ -103,7 +109,7 @@ class OfficeAvatar extends StatelessWidget {
         office.initials,
         maxLines: 1,
         style: TextStyle(
-          fontFamily: AppTypography.fontFamily,
+          fontFamily: fontFamily,
           fontSize: size > 60 ? 32 : 18,
           fontWeight: FontWeight.w600,
           color: colors.onSurface,

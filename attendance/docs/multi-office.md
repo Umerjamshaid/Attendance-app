@@ -113,6 +113,14 @@ including evidence and employee management, are disposed. Camera/file/GPS awaits
 check mounted/scope state before submitting. An already accepted server request
 can finish in its original office; it is never relabeled as another office.
 
+The root MaterialApp/Navigator now has account lifetime. `OfficeScope` owns a
+separate, disposable office navigator and the providers above. The switcher uses
+the root navigator, so it remains open while office routes/caches are discarded.
+The loading cover is inside the office navigator, not over the switcher. System
+Back still pops office detail pages before exiting the application. The current
+office navigator is resolved after dismissing the switcher for Manage Offices;
+the sheet never retains a previous office's navigator.
+
 Preview uses two isolated in-memory sample offices. Switching is demonstrable,
 but uploads, creation, invitations and editing stay read-only. Legacy startup
 without a company backend shows a non-interactive Local office header and keeps
@@ -123,6 +131,56 @@ The switcher uses the existing Tabler catalog and design tokens, 104 dp circular
 avatars, an active check, responsive wrapping, scroll/drag support, light/dark
 themes and reduced-motion modal animation. Office management reuses the existing
 employee invitation/activation screen; its layout is unchanged.
+
+## Switcher Motion And Local Visibility Follow-Up
+
+- Selection no longer dismisses the sheet. The selected avatar travels to the
+  sheet center (420 ms), then returns to its grid position (520 ms). The adapted
+  Buzz Bezier paths, easing, surface fade and scale run in sheet-local coordinates.
+  Success/failure leaves the grid open, with explicit status feedback.
+- Edit/Done morphs the active check into a remove bin over 220 ms. Its hit area
+  remains 48 dp as the visible badge changes size. Selection/Edit/Manage use
+  selection haptics, confirmed switching uses a light impact, and confirmed
+  Remove uses a medium impact. Reduced motion skips the large flight and morph,
+  including when that accessibility setting changes during animation.
+- Remove means **hide on this device only**. It does not delete an organization,
+  membership, check-in, photo, invitation or permission. Hidden IDs are stored
+  under an Auth-UUID-specific SharedPreferences key. Preview visibility remains
+  in memory and does not write production or persistent account data.
+- Hiding the active office first requires a server-confirmed switch to a visible
+  alternative. Failed switching never hides the active office; the last visible
+  office cannot be removed. A hidden active office is always shown if server
+  context later selects it. Manage Offices offers Restore for authorized hidden
+  offices. Visibility preferences never grant access.
+- Inter is bundled offline as `Office Inter` for this sheet only: 24 px / 600
+  title, 16 px / 600 office labels. Home, History, Profile, colors and branding
+  retain their existing typography/design. No packages were added. Adapted
+  animation code and font licenses are attributed in
+  [third-party-animations.md](third-party-animations.md) and Flutter's license list.
+- Evidence receives a limited visual refresh: uncropped framed photo, loading
+  and retry affordances, and separated time/location/device details. Existing
+  timestamp, coordinate, accuracy, device and address strings remain unchanged.
+  Photo retry requests fresh evidence without repeating cached address lookups.
+  Attendance verification and backend behavior are unchanged.
+
+Additional files: `lib/widgets/office/office_scope.dart`,
+`lib/widgets/office/office_action_badge.dart`, `test/office_switcher_motion_test.dart`,
+the bundled font/licenses and updated switcher/evidence light/dark goldens.
+No SQL, Edge Functions, hosted settings or private implementation changed in this
+follow-up. The original coordinated deployment gate below still applies.
+
+### APK Update Note
+
+After the initial feature commit, an ARM64 release APK was built separately at
+`build/app/outputs/flutter-apk/app-arm64-v8a-release.apk` (about 20.5 MB).
+`--split-per-abi --target-platform android-arm64 --build-number 7` gives Android
+versionCode **2007**, matching the existing signing certificate. The earlier
+universal APK had versionCode 6 while an older installed ARM64 build used 2006;
+that downgrade can prevent an update. Future ARM64 builds must use build number
+**8 or higher**, and retain the matching signing key. Do not uninstall or clear
+phone data to work around an update failure without the owner's approval.
+Installation on the user's phone has not been confirmed. No additional APK was
+requested or rebuilt for the animation follow-up.
 
 ### File Map
 
@@ -217,6 +275,22 @@ Recorded on 2026-11-13:
 Not verified here: a full disposable Supabase deployment, actual SMTP/email
 delivery, real-phone camera/GPS uploads, iOS behavior or production acceptance.
 No live office access is granted until the approved migration/functions rollout.
+
+Animation/local-visibility follow-up validation on 2026-11-13:
+
+- Flutter analysis and final evidence-test analysis: no issues.
+- Final full Flutter suite: **139 tests passed**. Coverage includes haptic calls,
+  morph geometry/stable touch targets, avatar motion, retained root sheet state,
+  nested Back, failure recovery, account-isolated hide/restore and photo retry.
+- Public `lib/main.dart` bundle compiled with the Inter font and both licenses.
+  Its compiler dependency file contains the office switcher and neither private
+  Dart file. Both private-file SHA-256 hashes are unchanged.
+- Switcher light/dark and Evidence goldens were inspected; existing Home,
+  History, Login, Profile, Settings and navigation regressions remain passing.
+- No additional APK, production deployment or device interaction was performed.
+  Real haptic feel and motion on a physical phone still require owner testing.
+  Database/Edge suites were not rerun for this UI-only follow-up; their earlier
+  isolated results above remain historical, not a hosted acceptance claim.
 
 ```powershell
 flutter analyze --no-pub
