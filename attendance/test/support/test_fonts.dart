@@ -37,4 +37,7 @@ Future<void> loadTestFonts() async {
   await (FontLoader(
     'DM Sans',
   )..addFont(rootBundle.load('assets/fonts/DMSans.ttf'))).load();
+  await (FontLoader(
+    'Office Inter',
+  )..addFont(rootBundle.load('assets/fonts/OfficeInter.ttf'))).load();
 }

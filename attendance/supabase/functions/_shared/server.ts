@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@2.119.0';
-import { ApiError } from './validation.ts';
+import { ApiError, uuid } from './validation.ts';
 export { ApiError } from './validation.ts';
 
 const headers = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
@@ -10,13 +10,21 @@ export function adminClient(): SupabaseClient {
   return createClient(Deno.env.get('SUPABASE_URL')!, key, { auth: { persistSession: false, autoRefreshToken: false } });
 }
 /** Validates the bearer token and active membership, optionally requiring an admin. */
-export async function actor(req: Request, adminOnly = false) {
+export async function actor(req: Request, adminOnly = false, organization?: unknown) {
   const token = req.headers.get('authorization')?.match(/^Bearer (.+)$/i)?.[1];
   if (!token) throw new ApiError(401, 'unauthorized');
   const db = adminClient();
   const { data, error } = await db.auth.getUser(token);
   if (error || !data.user) throw new ApiError(401, 'unauthorized');
-  const { data: membership } = await db.from('memberships').select('*').eq('user_id', data.user.id).eq('active', true).maybeSingle();
+  // Explicit context is never authority: independently verify user + office.
+  // Older single-office clients are supported; ambiguous requests fail closed.
+  const officeId = organization === undefined ? undefined : uuid(organization);
+  let query = db.from('memberships').select('*').eq('user_id', data.user.id).eq('active', true);
+  if (officeId !== undefined) query = query.eq('organization_id', officeId);
+  const { data: memberships, error: memberError } = await query.limit(2);
+  if (memberError) throw memberError;
+  if (memberships && memberships.length > 1) throw new ApiError(409, 'office_required');
+  const membership = memberships?.[0];
   if (!membership) throw new ApiError(403, 'inactive');
   if (adminOnly && membership.role !== 'admin') throw new ApiError(403, 'forbidden');
   return { db, user: data.user, membership };

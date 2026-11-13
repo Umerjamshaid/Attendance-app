@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'config/app_theme.dart';
 import 'screens/login/password_setup_screen.dart';
+import 'widgets/office/office_scope.dart';
 
 class AttendanceApp extends StatelessWidget {
   const AttendanceApp({super.key});
@@ -29,7 +30,7 @@ class AttendanceApp extends StatelessWidget {
             AuthStatus.authenticated =>
               auth.needsPasswordSetup
                   ? const PasswordSetupScreen()
-                  : const AppShell(),
+                  : const OfficeScope(child: AppShell()),
             _ => const LoginScreen(),
           };
         },

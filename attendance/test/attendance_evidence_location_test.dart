@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/models/attendance_record_model.dart';
+import 'package:attendance/models/employees_model.dart';
 import 'package:attendance/providers/auth_provider.dart';
 import 'package:attendance/screens/admin/attendance_evidence_screen.dart';
 import 'package:attendance/services/evidence_location_service.dart';
@@ -96,6 +97,31 @@ void main() {
     expect(calls, 2);
     expect(backend.calls, 1);
   });
+
+  testWidgets(
+    'photo retry refreshes evidence and reuses the resolved address',
+    (tester) async {
+      var lookups = 0;
+      final service = EvidenceLocationService(
+        supported: true,
+        lookup: (_, _, _) async {
+          lookups++;
+          return [_place];
+        },
+      );
+      final backend = _Backend();
+      await _mount(tester, service, backend);
+      await tester.pumpAndSettle();
+      expect(find.text('Retry photo'), findsOneWidget);
+      await tester.tap(find.text('Retry photo'));
+      await tester.pumpAndSettle();
+      expect(backend.calls, 2);
+      expect(lookups, 1);
+      expect(find.text(_address), findsOneWidget);
+      _expectOriginalEvidence(tester);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   for (final supported in [true, false]) {
     testWidgets(
@@ -348,6 +374,9 @@ Future<void> _mount(
 }
 
 class _Backend extends PreviewCompanyBackend {
+  // This fixture supplies its own evidence behavior, independent of preview offices.
+  @override
+  PreviewCompanyBackend forOffice(Employee employee) => this;
   int calls = 0;
   bool fail = false;
   Object? latitude = 31.5204;

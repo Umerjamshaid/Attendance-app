@@ -349,6 +349,8 @@ class _Observer extends NavigatorObserver {
 }
 
 class _Backend extends PreviewCompanyBackend {
+  @override
+  PreviewCompanyBackend forOffice(Employee employee) => this;
   List<AttendanceRecord> records = _samples;
   Completer<List<AttendanceRecord>>? pending;
   final employeeIds = <String?>[];
