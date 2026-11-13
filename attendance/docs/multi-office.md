@@ -8,9 +8,10 @@ office selector; Profile editing, Home/History summaries, the floating dock,
 camera/GPS verification, and the private startup/service are not redesigned.
 Broader Buzz/onboarding work remains on hold. No sub-agents were used.
 
-This change is local source plus a forward-only migration. **Nothing here has
-been deployed to a hosted Supabase database.** Do not distribute this client
-against the old schema/functions; complete the coordinated rollout below first.
+The initial implementation was local source plus a forward-only migration.
+After explicit owner approval, the migration and matching functions were deployed
+to the existing hosted pilot; see **Approved Live Rollout** below. Other projects
+must still complete the coordinated rollout before using this client.
 Feature branch: `codex/multi-office-switcher`. The existing unrelated handoff
 edits, prompts and design-analysis files are deliberately outside this commit.
 
@@ -252,8 +253,9 @@ No Flutter dependencies, versions, private files or unrelated dirty files were c
 8. Schedule the existing retention job. Roll forward to repair a failed rollout;
    do not remove memberships/attendance to recover an older client.
 
-No hosted deployment, real invitations, production writes, APK build, or
-production attendance submission is part of this implementation run.
+The initial implementation did not deploy or submit production attendance.
+The separately approved hosted deployment is recorded below; no test attendance
+or invitations were left in production.
 
 ## Validation
 
@@ -317,10 +319,92 @@ switcher goldens plus 320 dp/2x text/reduced-motion interaction checks. Existing
 evidence fixtures explicitly retain their injected test backend when scoped;
 their behavioral expectations were not weakened.
 
-Next handoff: keep the production deployment gate closed until the disposable
-full-stack and device tests above pass. Keep the ignored private startup/service
-and pre-existing unrelated work out of this feature commit. Do not resume the
-previously stopped security-audit workflow as part of this feature.
+## Approved Live Rollout
+
+Recorded on 2026-11-14, following the owner's explicit live-deployment approval
+and confirmation of the existing PIPFA owner account. No unrelated Auth settings,
+secrets, private SOAP files or application source were changed in this rollout.
+
+### Backup And Rehearsal
+
+- The live schema/FK inventory matched the expected single-office baseline. Dry
+  run listed only `20261113160313_multi_office.sql`; Vault updates and seed data
+  were excluded.
+- The project listed no physical backups and PITR was disabled. Docker was not
+  installed, so official portable PostgreSQL 17.12 client tools were used instead
+  of installing a database service or changing system settings.
+- A verified custom-format dump includes `public`, `auth`, `storage` and
+  `supabase_migrations`. It is encrypted with Windows DPAPI CurrentUser, verified
+  by decrypting in memory, and the plaintext dump was removed. It contains
+  sensitive account/evidence data and must never enter Git.
+- The durable recovery copy is outside Flutter/Git at
+  `%USERPROFILE%/Attendance-backups/office-rollout-2026-11-14-05baeba/before-multi-office.dump.dpapi`.
+  The same directory holds `previous-functions/`. Preserve this Windows account
+  and profile to decrypt the backup; it is not a portable password-encrypted file.
+  Storage object metadata is included, but Storage file contents are not backed
+  up by pg_dump. Existing media files were not modified or deleted.
+- The isolated PostgreSQL migration/RLS suite passed again, as did all 17 mocked
+  Edge tests. A bounded transaction on the actual hosted database then rehearsed
+  the exact migration, compared original row contents, tested office creation,
+  multi-membership selection, admin/employee role separation, policy denial and
+  evidence isolation, and ended with **ROLLBACK**. No rehearsal data persisted.
+  This was not a separately deployed disposable full Supabase stack; real-device
+  authenticated camera/GPS and invitation acceptance remain owner acceptance work.
+
+### Deployment And Checks
+
+- Applied the forward migration through CLI migration history with `--skip-vault`.
+- Deployed matching functions via the API: `submit-attendance` v4,
+  `manage-employees` v5, `attendance-evidence` v4 and `retention-cleanup` v4.
+  All four report ACTIVE. Existing manual JWT/cron-secret authorization and
+  gateway configuration were retained.
+- Assigned the legacy PIPFA organization owner only to the explicitly confirmed
+  original active admin account. A guarded transaction rejected ambiguous
+  matches or an existing different owner. No other roles were changed.
+- Preserved counts: 1 organization, 4 memberships, 4 profiles, 8 check-ins,
+  8 evidence rows, 3 invitations and 0 submission leases. Added 4 active-office
+  preferences and the private office-logo bucket. All public tables retain RLS.
+- Read-only SQL under the admin identity returned PIPFA/admin, one authorized
+  office, all 8 check-ins and 4 profiles. Live unauthenticated probes of all four
+  Edge Functions and `my_offices` returned HTTP 401. No login session was minted,
+  attendance uploaded or invitation email sent by these checks.
+- Built-in security advisors reported no ERROR findings, but 20 warnings remain:
+  18 authenticated SECURITY DEFINER API advisories, a pre-existing
+  `rls_auto_enable` event-trigger exposure advisory, and disabled leaked-password
+  protection. These are documented, not silently changed or presented as a clean
+  comprehensive audit. The previously stopped multi-agent audit was not resumed.
+
+### Delivery And Remaining Checks
+
+- Feature and handoff updates are pushed on `codex/multi-office-switcher` to
+  [draft PR #19](https://github.com/Umerjamshaid/Attendance-app/pull/19). Main was
+  not merged or modified by this rollout.
+- Final live-connected public ARM64 release APK:
+  `build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`, about 20.9 MB,
+  versionName `1.1.0`, versionCode **2009** (`--build-number 9`). This replaces
+  the intermediate preview-only versionCode 2008 at the same output path.
+  It includes only the public Supabase URL/publishable key, not a server secret
+  or the ignored private SOAP implementation.
+- APK signature and 16 KiB alignment verification pass. Existing test signing
+  certificate is retained to allow updates; this is a release-mode pilot APK,
+  not a Play Store production-signing setup. SHA-256:
+  `5AC6AB1D45F44B4EABBBE5D2B028FD8C1A4485858F84186C1919CD61F2806926`.
+  Future ARM64 builds should use build number **10 or higher**.
+- Compiler dependencies include the office switcher/Supabase backend and exclude
+  both private Dart files. Their pre-feature hashes remain unchanged. The latest
+  application-source validation is still 139 passing Flutter tests and clean
+  analysis; this delivery only adds documentation after that source validation.
+- The owner postponed physical-phone testing. No connected ADB device was found;
+  actual animation/haptic feel, camera/GPS upload, login/invite acceptance and iOS
+  remain unverified. Do not uninstall or clear phone data to test an update.
+- Shutdown was requested for 28 historical sub-agent IDs recovered from this
+  chat; every close call returned `not found`. No new agents were spawned. This
+  does not claim that old UI history entries were deleted or remotely stopped.
+
+Next handoff: complete the owner's phone acceptance with the live-connected APK,
+review the documented advisor warnings before wider distribution, and preserve
+the encrypted recovery copy. Keep ignored private code, backups and pre-existing
+unrelated edits out of commits. Do not restart the stopped security-audit workflow.
 
 References: [Supabase RLS](https://supabase.com/docs/guides/database/postgres/row-level-security),
 [Buzz switcher](https://github.com/block/buzz/blob/main/mobile/lib/features/channels/channels_page/community_switcher.dart).
