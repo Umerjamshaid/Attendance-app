@@ -14,6 +14,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 const _url =
     'https://photos.example.invalid/storage/v1/object/sign/profile-media/owner/avatar-v1.gif?token=old';
@@ -42,6 +43,7 @@ class _CleanupFailure extends CacheManager {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(() => SharedPreferences.setMockInitialValues({}));
 
   test(
     'failed cleanup disposes and isolates the next login without poisoning it',
@@ -72,11 +74,6 @@ void main() {
       );
       await ProfileImageCache.clearViewer('cleanup-error');
       expect(failing.disposed, isTrue);
-      expect(
-        await oldFile.exists(),
-        isTrue,
-        reason: 'fault injection leaves the old cache behind',
-      );
       final newImage =
           ProfileImageCache.image(_url, viewer: 'cleanup-error')
               as CachedNetworkImageProvider;
@@ -89,6 +86,17 @@ void main() {
         key: newImage.cacheKey,
       );
       expect(await file.readAsBytes(), [3, 4]);
+      await ProfileImageCache.retryFailedCleanups();
+      expect(
+        await oldFile.exists(),
+        isFalse,
+        reason: 'the abandoned namespace is retried',
+      );
+      expect(
+        await file.exists(),
+        isTrue,
+        reason: 'retry must not purge the new session',
+      );
       await ProfileImageCache.clearViewer('cleanup-error');
       final again =
           ProfileImageCache.image(_url, viewer: 'cleanup-error')
@@ -206,6 +214,11 @@ void main() {
       ]) {
         expect(SignedProfileUrl.fromUrl(signed(payload)).expiresAt, isNull);
       }
+      final malformed = SignedProfileUrl.fromUrl(
+        _url.replaceFirst('token=old', 'token=%FF'),
+      );
+      expect(malformed.expiresAt, isNull);
+      expect(malformed.needsRefresh(DateTime.now()), isTrue);
       expect(
         SignedProfileUrl.fromUrl(_url).needsRefresh(DateTime.now()),
         isTrue,

@@ -7,8 +7,8 @@ class SignedProfileUrl {
   final DateTime? expiresAt;
 
   factory SignedProfileUrl.fromUrl(String url) {
-    final token = Uri.tryParse(url)?.queryParameters['token'];
     try {
+      final token = Uri.tryParse(url)?.queryParameters['token'];
       final parts = token?.split('.');
       if (parts != null && parts.length == 3) {
         final value = jsonDecode(

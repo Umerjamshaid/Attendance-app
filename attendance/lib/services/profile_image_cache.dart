@@ -1,14 +1,17 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:http/http.dart' as http;
 import 'profile_cache_session.dart';
+import 'profile_cache_cleanup.dart';
 
 /// Private profile media uses viewer-scoped disk and decoded-image keys.
 class ProfileImageCache {
   static final _viewers = <String, ProfileCacheSession>{};
   static final _retiring = <String, Future<String>>{};
-  static int _recoveryId = 0;
+  static final _cleanup = ProfileCacheCleanup();
   static final _decoded =
       <String, Map<(String, int?), ImageProvider<Object>>>{};
 
@@ -31,11 +34,12 @@ class ProfileImageCache {
     http.Client? httpClient,
     CacheManager Function(Config)? createManager,
   }) {
+    unawaited(retryFailedCleanups());
     final manager = _viewers.putIfAbsent(
       viewer,
       () => ProfileCacheSession(
         viewer,
-        after: _retiring[viewer],
+        after: _retiring[viewer] ?? _cleanup.namespaceFor(viewer),
         client: httpClient,
         createManager: createManager,
       ),
@@ -69,13 +73,12 @@ class ProfileImageCache {
     final manager = _viewers.remove(viewer);
     final retirement = manager == null
         ? _retiring[viewer]
-        : manager
-              .retire()
-              .then((_) => manager.cacheNamespace)
-              .catchError(
-                (Object _) =>
-                    'profile-media-v1-$viewer-recovery-${DateTime.now().microsecondsSinceEpoch}-${_recoveryId++}',
-              );
+        : manager.retire().then((_) => manager.cacheNamespace).catchError((
+            Object _,
+          ) async {
+            await _cleanup.remember(manager.cacheNamespace);
+            return ProfileCacheCleanup.freshNamespace(viewer);
+          });
     if (retirement != null) _retiring[viewer] = retirement;
     try {
       final decoded = _decoded.remove(viewer) ?? {};
@@ -86,7 +89,10 @@ class ProfileImageCache {
     } catch (_) {
       // Cache cleanup must not prevent signing out (e.g. OS removed temp files).
     }
+    unawaited(retryFailedCleanups());
   }
+
+  static Future<void> retryFailedCleanups() => _cleanup.retry();
 }
 
 // CachedNetworkImageProvider normally ignores its manager in memory-cache keys.

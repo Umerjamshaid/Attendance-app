@@ -189,3 +189,40 @@ same cleanup failure and two concern different banner callback races).
 - Physical-phone GIF playback, live end-to-end upload testing and optional
   CodeRabbit CLI review remain unrun. Existing Gradle/AGP/Kotlin future-support
   warnings are documented, not bypassed or upgraded as part of these fixes.
+
+## Durable Cleanup And Current Gallery
+
+- The follow-up namespace-retention finding was valid. Isolation alone avoided
+  failed-login image loads but abandoned the previous namespace after a purge
+  error. `ProfileCacheCleanup` now retains failed namespaces in a serialized
+  SharedPreferences queue and retries at app startup, subsequent image use and
+  sign-out. Successful purges remove their queue entries; failures remain queued.
+- Namespace selection checks the persisted queue before opening the normal
+  cache, including after a restart. A namespace being purged is not reused by
+  a new login. Retries do not block the active session on old-file deletion.
+- Retry cleanup reopens the retired cache index, disposes its manager, and also
+  removes flat partial files in that exact namespace. Names are validated;
+  directory links are rejected before deletion, and cleanup never recurses into
+  other directories. Active namespaces and attendance evidence are untouched.
+- If preferences are unwritable too, failures remain queued in memory until
+  persistence can succeed. Persistent OS locks can still prevent deletion;
+  this is app-level retry, not a claim of forensic secure erasure.
+- Added tests for restart recovery, repeated purge failures, concurrent queue
+  additions, non-blocking namespace selection, and indexed/partial-file removal
+  without touching an active namespace. Existing late-download tests remain.
+- The requested remote-only CodeRabbit CLI review completed on public commit
+  `66cc408` against `codex/buzz-ui-refresh`, returning one minor malformed-query
+  finding. It was reproduced locally and is now fixed by moving query decoding
+  inside the FormatException handler, with a `token=%FF` regression assertion.
+- The missing-results documentation finding is stale: `66cc408` already added
+  the Final Follow-Up Delivery section immediately below the referenced pointer.
+- The root README now leads with the five corrected, current Android mockups
+  under `screenshots/current/`. Captions, public demo instructions, feature copy,
+  Buzz attribution and verification limitations are kept concise. Old screenshots
+  and the supplied ZIP are preserved; no image was modified or generated.
+- The previously built ARM64 APK (code 2014) predates this cleanup/parser change.
+  No new build or live Supabase change is part of this follow-up.
+- Final validation for this follow-up: 216 Flutter tests passed, analyzer found
+  no issues, and all five 1320x2868 PNG gallery paths and relative documentation
+  links resolve. Private entrypoint/service hashes remain unchanged. These
+  changes stay on `fix/coderabbit-issues` / PR #21, not a merge into main.
