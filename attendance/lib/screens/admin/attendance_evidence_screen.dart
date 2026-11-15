@@ -22,6 +22,16 @@ class _AttendanceEvidenceScreenState extends State<AttendanceEvidenceScreen> {
       .backend!
       .evidence(widget.record.id);
   NetworkImage? _photo;
+  void _reload() {
+    _photo?.evict();
+    final request = context.read<AuthProvider>().backend!.evidence(
+      widget.record.id,
+    );
+    setState(() {
+      _evidence = request;
+    });
+  }
+
   @override
   void dispose() {
     _photo?.evict();
@@ -42,38 +52,81 @@ class _AttendanceEvidenceScreenState extends State<AttendanceEvidenceScreen> {
             return Column(
               children: [
                 Text(snapshot.error.toString()),
-                TextButton(
-                  onPressed: () {
-                    final request = context
-                        .read<AuthProvider>()
-                        .backend!
-                        .evidence(widget.record.id);
-                    setState(() {
-                      _evidence = request;
-                    });
-                  },
-                  child: const Text('Retry'),
-                ),
+                TextButton(onPressed: _reload, child: const Text('Retry')),
               ],
             );
           }
           final evidence = snapshot.data!;
-          _photo = NetworkImage(evidence['photo_url'] as String);
+          final url = evidence['photo_url'] as String;
+          if (_photo?.url != url) _photo = NetworkImage(url);
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              AspectRatio(
-                aspectRatio: 1,
-                child: Image(
-                  image: _photo!,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, _, _) => const Center(
-                    child: Text('Photo unavailable. Refresh to retry.'),
+              Text(
+                'Employee ${widget.record.userId}',
+                style: AppTypography.title,
+              ),
+              const SizedBox(height: 16),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: context.colors.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: context.colors.outlineVariant),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: AspectRatio(
+                    aspectRatio: 1,
+                    child: Image(
+                      image: _photo!,
+                      fit: BoxFit.contain,
+                      loadingBuilder: (context, child, progress) =>
+                          progress == null
+                          ? child
+                          : const Center(
+                              child: SizedBox.square(
+                                dimension: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ),
+                      errorBuilder: (_, _, _) => Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                AppIcons.camera,
+                                color: context.colors.onSurfaceVariant,
+                                size: 24,
+                              ),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'Photo unavailable. Refresh to retry.',
+                                textAlign: TextAlign.center,
+                              ),
+                              TextButton.icon(
+                                onPressed: _reload,
+                                icon: const Icon(AppIcons.refresh, size: 20),
+                                label: const Text('Retry photo'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
               const SizedBox(height: 20),
-              Text(widget.record.timestamp.toString()),
+              _EvidenceFact(
+                icon: AppIcons.clock,
+                label: 'Check-in time',
+                value: widget.record.timestamp.toString(),
+              ),
+              const Divider(height: 24),
               _EvidenceLocation(
                 latitude: switch (evidence['latitude']) {
                   num value => value.toDouble(),
@@ -84,13 +137,82 @@ class _AttendanceEvidenceScreenState extends State<AttendanceEvidenceScreen> {
                   _ => null,
                 },
               ),
-              Text('Latitude: ${evidence['latitude']}'),
-              Text('Longitude: ${evidence['longitude']}'),
-              Text('Accuracy: ${evidence['accuracy']} m'),
-              Text(widget.record.device),
+              Padding(
+                padding: const EdgeInsets.only(left: 32),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Latitude: ${evidence['latitude']}',
+                      style: AppTypography.label,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Longitude: ${evidence['longitude']}',
+                      style: AppTypography.label,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Accuracy: ${evidence['accuracy']} m',
+                      style: AppTypography.caption.copyWith(
+                        color: context.colors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 32),
+              _EvidenceFact(
+                icon: AppIcons.deviceMobile,
+                label: 'Device',
+                value: widget.record.device,
+              ),
             ],
           );
         },
+      ),
+    ],
+  );
+}
+
+class _EvidenceFact extends StatelessWidget {
+  const _EvidenceFact({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+  final IconData icon;
+  final String label, value;
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Padding(
+        padding: const EdgeInsets.only(top: 2),
+        child: Icon(
+          icon,
+          size: AppLayout.compactIconSize,
+          color: context.colors.onSurfaceVariant,
+        ),
+      ),
+      const SizedBox(width: 12),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: AppTypography.caption.copyWith(
+                color: context.colors.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: AppTypography.body.copyWith(fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
       ),
     ],
   );

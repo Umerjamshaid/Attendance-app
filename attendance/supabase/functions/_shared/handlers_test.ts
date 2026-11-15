@@ -27,6 +27,9 @@ interface Scenario {
   finalizeCode?: string;
   finalizeDisconnect?: boolean;
   claim?: boolean;
+  registeredUser?: boolean;
+  multipleMemberships?: boolean;
+  wrongOffice?: boolean;
 }
 
 /** Exercises a real handler against isolated Auth, Data and Storage HTTP responses. */
@@ -53,7 +56,12 @@ async function run(handler: Handler, scenario: Scenario, input: Record<string, u
         if (url.searchParams.has('employee_code')) {
           if (scenario.lookupFailure) { status = 500; data = { code: 'XX000', message: 'Test lookup failure' }; }
           else data = scenario.duplicateCode ? [{ user_id: user }] : [];
-        } else data = [{ user_id: user, organization_id: company, role: 'admin', active: true }];
+        } else {
+          data = scenario.wrongOffice ? [] : [{ user_id: user, organization_id: company, role: 'admin', active: true }];
+          if (scenario.multipleMemberships && !url.searchParams.has('organization_id')) {
+            data = [...data as object[], { user_id: user, organization_id: '10000000-0000-4000-8000-000000000002', role: 'employee', active: true }];
+          }
+        }
         break;
       case '/rest/v1/employee_invitations':
         data = method === 'GET' ? (scenario.invitation ? [scenario.invitation] : []) : { id: 'invitation', user_id: null };
@@ -69,6 +77,7 @@ async function run(handler: Handler, scenario: Scenario, input: Record<string, u
         } else data = { id: 'saved' };
         break;
       case '/rest/v1/rpc/complete_employee_invitation': data = null; break;
+      case '/rest/v1/rpc/invitation_user': data = scenario.registeredUser ? user : null; break;
       case '/rest/v1/submission_attempts': status = 204; data = null; break;
       default:
         assert.ok(url.pathname.startsWith('/storage/v1/object/attendance-evidence/'));
@@ -136,9 +145,26 @@ for (const [name, scenario, released] of [
     const deletions = result.calls.filter(({ url, method }) => url.pathname.endsWith('/submission_attempts') && method === 'DELETE');
     assert.equal(deletions.length, released ? 1 : 0);
     for (const { url } of deletions) {
+      assert.equal(url.searchParams.get('organization_id'), `eq.${company}`);
       assert.equal(url.searchParams.get('user_id'), `eq.${user}`);
       assert.equal(url.searchParams.get('request_id'), `eq.${requestId}`);
     }
     assert.equal(result.response.status === 200, scenario.uploadStatus === 409);
   });
 }
+
+Deno.test('multi-office clients must provide an authorized office', async () => {
+  const ambiguous = await run(manage, { multipleMemberships: true }, invite);
+  assert.equal(ambiguous.response.status, 409);
+  assert.equal(ambiguous.data.code, 'office_required');
+  const denied = await run(manage, { wrongOffice: true }, { ...invite, organization_id: company });
+  assert.equal(denied.response.status, 403);
+  assert.ok(!denied.calls.some(({ method }) => method === 'POST'));
+});
+
+Deno.test('registered invitees do not receive a failing Auth duplicate invitation', async () => {
+  const result = await run(manage, { registeredUser: true }, { ...invite, organization_id: company });
+  assert.equal(result.response.status, 200);
+  assert.ok(result.calls.some(({ url }) => url.pathname.endsWith('/complete_employee_invitation')));
+  assert.ok(!result.calls.some(({ url }) => url.pathname.endsWith('/invite')));
+});

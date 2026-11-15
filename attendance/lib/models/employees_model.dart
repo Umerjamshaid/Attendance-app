@@ -1,4 +1,7 @@
 class Employee {
+  final String? authUserId;
+  final String? organizationId;
+  final String? officeName;
   final String id;
   final String name;
   final String email;
@@ -20,6 +23,9 @@ class Employee {
   final bool isActive;
 
   Employee({
+    this.authUserId,
+    this.organizationId,
+    this.officeName,
     required this.id,
     required this.name,
     required this.email,
@@ -59,6 +65,9 @@ class Employee {
   // ✅ From Firebase/API → Dart Object
   factory Employee.fromMap(Map<String, dynamic> map) {
     return Employee(
+      authUserId: map['authUserId'] as String?,
+      organizationId: map['organizationId'] as String?,
+      officeName: map['officeName'] as String?,
       id: map['id'] ?? '',
       name: map['name'] ?? '',
       email: map['email'] ?? '',
@@ -84,6 +93,9 @@ class Employee {
   // ✅ Dart Object → Firebase/API
   Map<String, dynamic> toMap() {
     return {
+      'authUserId': authUserId,
+      'organizationId': organizationId,
+      'officeName': officeName,
       'id': id,
       'name': name,
       'email': email,
@@ -108,6 +120,9 @@ class Employee {
 
   // ✅ Copy with (useful for updating specific fields)
   Employee copyWith({
+    String? authUserId,
+    String? organizationId,
+    String? officeName,
     String? id,
     String? name,
     String? email,
@@ -128,6 +143,9 @@ class Employee {
     List<String>? chips,
   }) {
     return Employee(
+      authUserId: authUserId ?? this.authUserId,
+      organizationId: organizationId ?? this.organizationId,
+      officeName: officeName ?? this.officeName,
       id: id ?? this.id,
       name: name ?? this.name,
       email: email ?? this.email,
@@ -158,9 +176,12 @@ class Employee {
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    return other is Employee && other.id == id;
+    return other is Employee &&
+        other.id == id &&
+        other.organizationId == organizationId &&
+        other.authUserId == authUserId;
   }
 
   @override
-  int get hashCode => id.hashCode;
+  int get hashCode => Object.hash(id, organizationId, authUserId);
 }

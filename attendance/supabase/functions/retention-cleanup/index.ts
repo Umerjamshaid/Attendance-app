@@ -19,7 +19,7 @@ async function retentionCleanup(req: Request) {
   }
   const { data: orphans, error: orphanError } = await db.rpc('orphaned_media');
   if (orphanError) throw orphanError;
-  for (const bucket of ['attendance-evidence','profile-media']) {
+  for (const bucket of ['attendance-evidence','profile-media','office-logos']) {
     const paths = (orphans as { bucket_id: string; name: string }[]).filter((row) => row.bucket_id === bucket).map((row) => row.name);
     if (paths.length) { const { error } = await db.storage.from(bucket).remove(paths); if (error) throw error; }
   }

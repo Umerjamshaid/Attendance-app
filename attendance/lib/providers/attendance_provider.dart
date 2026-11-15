@@ -137,6 +137,11 @@ class AttendanceProvider extends ChangeNotifier {
       throw const CompanyException('Company connection unavailable.');
     }
     if (isPreview) throw PreviewUnavailable();
+    final installationId = await _deviceService.getDeviceId();
+    if (_disposed) {
+      throw const CompanyException('The office changed. Please try again.');
+    }
+    backend!.validateContext();
     final record = await backend!.submit(
       requestId: requestId,
       base64Image: base64Image,
@@ -144,10 +149,13 @@ class AttendanceProvider extends ChangeNotifier {
       longitude: longitude,
       accuracy: accuracy,
       capturedAt: capturedAt,
-      installationId: await _deviceService.getDeviceId(),
+      installationId: installationId,
       deviceModel: _deviceModel,
       platform: Platform.isIOS ? 'ios' : 'android',
     );
+    if (_disposed) {
+      throw const CompanyException('The office changed. Please try again.');
+    }
     _isCheckedIn = true;
     _checkInTime =
         '${record.timestamp.hour.toString().padLeft(2, '0')}:${record.timestamp.minute.toString().padLeft(2, '0')}';

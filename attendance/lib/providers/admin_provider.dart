@@ -11,6 +11,7 @@ class AdminProvider extends ChangeNotifier {
   final AttendanceService _attendanceService;
   final EmployeeService _employeeService;
   bool _disposed = false;
+  int _generation = 0;
   bool get usesCheckInLog => _attendanceService.backend != null;
 
   AdminProvider({
@@ -59,6 +60,7 @@ class AdminProvider extends ChangeNotifier {
   }
 
   Future<void> loadDashboard() async {
+    final generation = ++_generation;
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -69,6 +71,7 @@ class AdminProvider extends ChangeNotifier {
         _employeeService.getAllEmployees(),
         _attendanceService.getTodayAllAttendance(),
       ]);
+      if (_disposed || generation != _generation) return;
 
       final employees = (results[0] as List<Employee>).where((e) => e.isActive);
       final todayRecords = results[1] as List<AttendanceRecord>;
@@ -84,10 +87,13 @@ class AdminProvider extends ChangeNotifier {
         return EmployeeAttendance(employee: emp, latestRecord: latestRecord);
       }).toList();
     } catch (e) {
+      if (_disposed || generation != _generation) return;
       _error = 'Failed to load dashboard. Try again.';
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (!_disposed && generation == _generation) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -99,6 +105,7 @@ class AdminProvider extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _generation++;
     super.dispose();
   }
 }
