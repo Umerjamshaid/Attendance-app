@@ -7,6 +7,7 @@ import 'package:attendance/models/employees_model.dart';
 import 'package:attendance/providers/auth_provider.dart';
 import 'package:attendance/screens/admin/attendance_evidence_screen.dart';
 import 'package:attendance/services/preview_company_backend.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:attendance/widgets/admin/employee_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
@@ -43,6 +44,60 @@ void main() {
     await loadOverviewFonts();
   });
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  testWidgets('Logs heading reuses the roster photo without another lookup', (
+    tester,
+  ) async {
+    final backend = _Backend();
+    final employee = _employee.copyWith(
+      authUserId: 'employee-photo-user',
+      organizationId: 'office-a',
+      avatarUrl: 'https://photos.example.invalid/avatar-current.gif',
+    );
+    await _mount(tester, backend: backend, employee: employee);
+    await _open(tester);
+    final image = tester.widget<Image>(
+      find.byKey(const ValueKey('check-in-logs-avatar')),
+    );
+    final resize = image.image as ResizeImage;
+    final source = resize.imageProvider as CachedNetworkImageProvider;
+    expect(source.url, employee.avatarUrl);
+    expect(resize.width, 120);
+    expect(backend.avatarRequests, 0);
+    expect(find.text('Alice Johnson'), findsNWidgets(2));
+    expect(find.text('3 check-ins'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'missing Logs photo loads separately and failure keeps history usable',
+    (tester) async {
+      final backend = _Backend();
+      backend.avatarResult = Completer<Map<String, String>>();
+      final employee = _employee.copyWith(authUserId: 'employee-photo-user');
+      await _mount(tester, backend: backend, employee: employee);
+      await _open(tester);
+      expect(backend.avatarRequests, 1);
+      expect(find.text('3 check-ins'), findsOneWidget);
+      expect(find.byKey(const ValueKey('check-in-logs-avatar')), findsNothing);
+      backend.avatarResult!.completeError(StateError('Photo offline'));
+      await tester.pumpAndSettle();
+      expect(find.text('3 check-ins'), findsOneWidget);
+      backend.avatarResult = Completer<Map<String, String>>();
+      await tester.tap(find.byTooltip('Refresh check-in logs'));
+      await tester.pumpAndSettle();
+      expect(backend.avatarRequests, 2);
+      backend.avatarResult!.complete({
+        employee.authUserId!: 'https://photos.example.invalid/avatar.png',
+      });
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('check-in-logs-avatar')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   for (final brightness in Brightness.values) {
     testWidgets('Check-in Logs ${brightness.name} reference and large text', (
@@ -281,6 +336,7 @@ Future<({_Backend backend, _Observer observer})> _mount(
   bool reduceMotion = false,
   TextDirection direction = TextDirection.ltr,
   bool checkInLog = true,
+  Employee? employee,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = const Size(390, 844);
@@ -321,7 +377,7 @@ Future<({_Backend backend, _Observer observer})> _mount(
               child: EmployeeCard(
                 checkInLog: checkInLog,
                 data: EmployeeAttendance(
-                  employee: _employee,
+                  employee: employee ?? _employee,
                   latestRecord: _samples.first,
                 ),
               ),
@@ -356,6 +412,14 @@ class _Backend extends PreviewCompanyBackend {
   final employeeIds = <String?>[];
   final evidenceIds = <String>[];
   final evidenceResult = Completer<Map<String, dynamic>>();
+  Completer<Map<String, String>>? avatarResult;
+  int avatarRequests = 0;
+  @override
+  Future<Map<String, String>> employeeAvatars(List<Employee> employees) {
+    avatarRequests++;
+    return avatarResult?.future ?? Future.value({});
+  }
+
   @override
   bool get isPreview => false;
   @override

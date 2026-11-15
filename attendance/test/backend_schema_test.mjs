@@ -21,7 +21,8 @@ await db.exec(`
   grant all on storage.objects to service_role;
 `);
 const migrations = (await readdir(new URL('../supabase/migrations/', import.meta.url))).filter((name) => name.endsWith('.sql')).sort();
-for (const file of migrations.filter((name) => !name.endsWith('_multi_office.sql'))) {
+const officeMigration = migrations.find((name) => name.endsWith('_multi_office.sql'));
+for (const file of migrations.filter((name) => name < officeMigration)) {
   await db.exec(await readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), 'utf8'));
 }
 const buckets = (await db.query('select id, public, file_size_limit, allowed_mime_types from storage.buckets order by id')).rows;
@@ -46,9 +47,18 @@ await db.exec(`
 // Seed real legacy evidence and a lease before the expansion, not an empty database.
 const before = (await db.query(`select public.finalize_check_in('${employee}','${request}',now(),'Test device','${company}/${employee}/${request}',24.8,67.0,20,'${installation}','android') as value`)).rows[0].value;
 await db.exec(`select public.claim_submission('${admin}','${request}')`);
-for (const file of migrations.filter((name) => name.endsWith('_multi_office.sql'))) {
+for (const file of migrations.filter((name) => name >= officeMigration)) {
   await db.exec(await readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), 'utf8'));
 }
+assert.deepEqual(
+  (await db.query('select id, public, file_size_limit, allowed_mime_types from storage.buckets order by id')).rows,
+  [
+    { id: 'attendance-evidence', public: false, file_size_limit: 2097152, allowed_mime_types: ['image/jpeg', 'image/png'] },
+    { id: 'office-logos', public: false, file_size_limit: 2097152, allowed_mime_types: ['image/jpeg', 'image/png'] },
+    { id: 'profile-media', public: false, file_size_limit: 5242880, allowed_mime_types: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'] },
+  ],
+  'only profile media gains the 5 MB allowance; privacy, formats and other buckets are preserved',
+);
 assert.equal((await db.query('select id from public.check_ins')).rows[0].id, before.id);
 assert.equal((await db.query('select count(*)::int as n from public.memberships')).rows[0].n, 3);
 assert.equal((await db.query(`select created_by from public.organizations where id='${company}'`)).rows[0].created_by, null, 'migration must not invent owner privileges');
@@ -205,5 +215,58 @@ await db.exec(`select public.update_office('${created}','Renamed office','${crea
 await denied(`select public.update_office('${created}','Renamed office','${otherCompany}/logo.png')`);
 await role('service_role');
 assert.ok(!(await db.query('select * from public.orphaned_media()')).rows.some((row) => row.bucket_id === 'office-logos'));
+// Admin avatar access is selected-office scoped and never includes banners or
+// old/unreferenced media. Existing owner-only reads remain available.
+await role('postgres');
+const outsider = '20000000-0000-4000-8000-000000000009';
+const avatar = `${employee}/avatar-current.gif`;
+const ownAvatar = `${admin}/avatar-current.png`;
+const outsiderAvatar = `${outsider}/avatar-current.jpg`;
+const banner = `${employee}/banner-current.png`;
+const oldAvatar = `${employee}/avatar-old.jpg`;
+await db.exec(`
+  insert into auth.users(id,email) values('${outsider}','outsider@example.invalid');
+  insert into public.memberships(organization_id,user_id,employee_code,role)
+    values('${otherCompany}','${outsider}','OUTSIDE','employee');
+  insert into public.profiles(user_id,name,avatar_path)
+    values('${outsider}','Outside office','${outsiderAvatar}');
+  update public.profiles set avatar_path='${avatar}',banner_path='${banner}' where user_id='${employee}';
+  update public.profiles set avatar_path='${ownAvatar}' where user_id='${admin}';
+  insert into storage.objects(bucket_id,name) values
+    ('profile-media','${avatar}'),('profile-media','${ownAvatar}'),
+    ('profile-media','${banner}'),('profile-media','${oldAvatar}'),
+    ('profile-media','${outsiderAvatar}');
+`);
+const visible = (path) => value(`select count(*)::int as value from storage.objects where bucket_id='profile-media' and name='${path}'`);
+await role('authenticated', admin);
+await value(`select public.switch_office('${company}') as value`);
+assert.equal(await visible(avatar), 1, 'office admin can read the current employee avatar');
+assert.equal(await visible(banner), 0, 'admin cannot read employee banners');
+assert.equal(await visible(oldAvatar), 0, 'admin cannot read unreferenced avatars');
+assert.equal(await visible(outsiderAvatar), 0, 'other-office avatar is hidden');
+await value(`select public.switch_office('${otherCompany}') as value`);
+assert.equal(await visible(avatar), 0, 'switching offices removes old-office avatar access');
+assert.equal(await visible(outsiderAvatar), 0, 'admin in A is only an employee in B');
+assert.equal(await visible(ownAvatar), 1, 'own avatar access remains unchanged');
+await role('authenticated', employee);
+assert.equal(await visible(ownAvatar), 0, 'employees cannot read a coworker avatar');
+assert.equal(await visible(avatar), 1, 'employees can still read their own avatar');
+await role('authenticated', other);
+await value(`select public.switch_office('${otherCompany}') as value`);
+assert.equal(await visible(outsiderAvatar), 1, 'office B admin sees only B members');
+assert.equal(await visible(avatar), 0);
+await role('authenticated', admin);
+await value(`select public.switch_office('${company}') as value`);
+assert.equal(await visible(avatar), 1);
+await role('postgres');
+await db.exec(`update public.memberships set role='employee' where user_id='${admin}' and organization_id='${company}'`);
+await role('authenticated', admin);
+assert.equal(await visible(avatar), 0, 'demotion removes coworker avatar access');
+await role('postgres');
+await db.exec(`update public.memberships set role='admin',active=false where user_id='${admin}' and organization_id='${company}'`);
+await role('authenticated', admin);
+assert.equal(await visible(avatar), 0, 'revoked admin access cannot read avatars');
+await role('anon');
+await denied('select * from storage.objects');
 await db.close();
 console.log('PASS: legacy data preservation, multi-office roles, atomic creation, selection authorization, RLS/evidence isolation, invitation acceptance, revocation, scoped leases, logos, retention, and last-admin protection');

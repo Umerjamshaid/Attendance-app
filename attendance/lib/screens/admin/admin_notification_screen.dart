@@ -1,9 +1,9 @@
+import 'package:attendance/config/ui_tokens.dart';
 import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/widgets/notification_tile.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class AdminNotificationScreen extends StatelessWidget {
   const AdminNotificationScreen({super.key});
@@ -84,7 +84,7 @@ class _EmptyNotifications extends StatelessWidget {
               child: Text(
                 'You’re all caught up',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
+                style: AppTypography.inter(
                   fontSize: 18,
                   height: 1.3,
                   fontWeight: FontWeight.w600,

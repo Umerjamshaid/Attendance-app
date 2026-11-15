@@ -2,6 +2,7 @@ import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../error_shake.dart';
 
 /// Bottom-sheet editor for the signed-in employee's name and email.
 ///
@@ -30,6 +31,7 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
   late final TextEditingController _email;
   bool _saving = false;
   String? _error;
+  int _errorRevision = 0;
 
   @override
   void initState() {
@@ -57,7 +59,11 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
   bool get _canSave => !_saving && _nameValid && _emailValid && _changed;
 
   Future<void> _save() async {
-    if (!_canSave) return;
+    if (_saving || !_changed) return;
+    if (!_nameValid || !_emailValid) {
+      setState(() => _errorRevision++);
+      return;
+    }
     HapticFeedback.lightImpact();
     setState(() {
       _saving = true;
@@ -72,6 +78,7 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
       setState(() {
         _saving = false;
         _error = 'Couldn’t save changes. Try again.';
+        _errorRevision++;
       });
     }
   }
@@ -93,6 +100,7 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
     return InputDecoration(
       labelText: label,
       errorText: errorText,
+      errorMaxLines: 8,
       prefixIcon: Icon(icon, size: 24),
       filled: true,
       fillColor: colors.surfaceContainerHighest,
@@ -193,41 +201,53 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
                 ],
               ),
               const SizedBox(height: 20),
-              TextField(
-                controller: _name,
-                enabled: !_saving,
-                textCapitalization: TextCapitalization.words,
-                textInputAction: TextInputAction.next,
-                autofillHints: const [AutofillHints.name],
-                style: ProfileUi.body(context, color: colors.onSurface),
-                decoration: _decoration(
-                  label: 'Full name',
-                  icon: AppIcons.idBadge2,
-                  errorText: nameError,
+              ErrorShake(
+                error: nameError,
+                revision: _errorRevision,
+                child: TextField(
+                  controller: _name,
+                  enabled: !_saving,
+                  textCapitalization: TextCapitalization.words,
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const [AutofillHints.name],
+                  style: ProfileUi.body(context, color: colors.onSurface),
+                  decoration: _decoration(
+                    label: 'Full name',
+                    icon: AppIcons.idBadge2,
+                    errorText: nameError,
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
-              TextField(
-                controller: _email,
-                enabled: !_saving,
-                keyboardType: TextInputType.emailAddress,
-                textInputAction: TextInputAction.done,
-                autofillHints: const [AutofillHints.email],
-                onSubmitted: (_) => _save(),
-                style: ProfileUi.body(context, color: colors.onSurface),
-                decoration: _decoration(
-                  label: 'Email address',
-                  icon: AppIcons.mail,
-                  errorText: emailError,
+              ErrorShake(
+                error: emailError,
+                revision: _errorRevision,
+                child: TextField(
+                  controller: _email,
+                  enabled: !_saving,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.done,
+                  autofillHints: const [AutofillHints.email],
+                  onSubmitted: (_) => _save(),
+                  style: ProfileUi.body(context, color: colors.onSurface),
+                  decoration: _decoration(
+                    label: 'Email address',
+                    icon: AppIcons.mail,
+                    errorText: emailError,
+                  ),
                 ),
               ),
               if (_error != null) ...[
                 const SizedBox(height: 12),
-                Semantics(
-                  liveRegion: true,
-                  child: Text(
-                    _error!,
-                    style: ProfileUi.small(context, color: colors.error),
+                ErrorShake(
+                  error: _error,
+                  revision: _errorRevision,
+                  child: Semantics(
+                    liveRegion: true,
+                    child: Text(
+                      _error!,
+                      style: ProfileUi.small(context, color: colors.error),
+                    ),
                   ),
                 ),
               ],

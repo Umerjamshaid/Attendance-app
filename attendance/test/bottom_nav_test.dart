@@ -1,13 +1,121 @@
+import 'dart:ui' show SemanticsAction;
+
 import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/config/app_theme.dart';
+import 'package:attendance/widgets/animated_app_icon.dart';
 import 'package:attendance/widgets/bottom_nav.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_lucide_animated/flutter_lucide_animated.dart' as lucide;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/test_fonts.dart';
 
 void main() {
   setUpAll(loadTestFonts);
+
+  lucide.LucideAnimatedIcon glyph(WidgetTester tester, String label) =>
+      tester.widget<lucide.LucideAnimatedIcon>(
+        find.descendant(
+          of: find.byTooltip(label),
+          matching: find.byType(lucide.LucideAnimatedIcon),
+        ),
+      );
+
+  testWidgets(
+    'every dock tap replays its icon once, including the active tab',
+    (tester) async {
+      await tester.pumpWidget(const _Harness());
+      await tester.pumpAndSettle();
+      final state = tester.state<_HarnessState>(find.byType(_Harness));
+      var expectedTaps = 0;
+      for (final label in ['Home', 'History', 'Admin', 'Profile']) {
+        for (var repeat = 0; repeat < 2; repeat++) {
+          await tester.tap(find.byTooltip(label));
+          await tester.pump();
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 90));
+          final controller = glyph(tester, label).controller!;
+          expect(controller.value, inExclusiveRange(0, 1));
+          expect(state.taps, ++expectedTaps);
+          expect(find.text('Selected $label'), findsOneWidget);
+          await tester.pumpAndSettle();
+          expect(controller.value, 1);
+        }
+      }
+      final controller = glyph(tester, 'Profile').controller!;
+      await tester.tap(find.byTooltip('Profile'));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 180));
+      expect(controller.value, inExclusiveRange(0, 1));
+      await tester.tap(find.byTooltip('Profile'));
+      await tester.pump();
+      expect(controller.value, 0);
+      await tester.pumpAndSettle();
+      expect(controller.isAnimating, isFalse);
+      expect(state.taps, expectedTaps + 2);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('reduced motion keeps repeated dock activations static', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const _Harness(reducedMotion: true));
+    await tester.pumpAndSettle();
+    final state = tester.state<_HarnessState>(find.byType(_Harness));
+    for (final label in ['Home', 'History', 'History']) {
+      await tester.tap(find.byTooltip(label));
+      await tester.pumpAndSettle();
+      expect(glyph(tester, label).controller!.value, 1);
+      expect(glyph(tester, label).controller!.isAnimating, isFalse);
+    }
+    expect(state.taps, 3);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('assistive and keyboard activation replay the selected icon', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    try {
+      await tester.pumpWidget(const _Harness());
+      await tester.pumpAndSettle();
+      final state = tester.state<_HarnessState>(find.byType(_Harness));
+      final homeSemantics = tester.getSemantics(
+        find.byWidgetPredicate(
+          (widget) => widget is Semantics && widget.properties.label == 'Home',
+        ),
+      );
+      homeSemantics.owner!.performAction(homeSemantics.id, SemanticsAction.tap);
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 90));
+      expect(glyph(tester, 'Home').controller!.isAnimating, isTrue);
+      expect(state.taps, 1);
+      await tester.pumpAndSettle();
+      Focus.of(
+        tester.element(
+          find.descendant(
+            of: find.byTooltip('Home'),
+            matching: find.byType(AnimatedAppIcon),
+          ),
+        ),
+      ).requestFocus();
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 90));
+      expect(glyph(tester, 'Home').controller!.isAnimating, isTrue);
+      expect(state.taps, 2);
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    } finally {
+      semantics.dispose();
+    }
+  });
   for (final dark in [false, true]) {
     testWidgets('navigation reference - ${dark ? 'dark' : 'light'}', (
       tester,
@@ -160,6 +268,7 @@ class _Harness extends StatefulWidget {
 
 class _HarnessState extends State<_Harness> {
   int _selected = 0;
+  int taps = 0;
 
   @override
   Widget build(BuildContext context) => MaterialApp(
@@ -230,7 +339,10 @@ class _HarnessState extends State<_Harness> {
         bottomNavigationBar: BottomNav(
           currentIndex: _selected,
           isAdmin: true,
-          onTap: (index) => setState(() => _selected = index),
+          onTap: (index) => setState(() {
+            taps++;
+            _selected = index;
+          }),
         ),
       ),
     ),

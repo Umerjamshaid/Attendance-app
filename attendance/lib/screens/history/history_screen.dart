@@ -1,3 +1,4 @@
+import 'package:attendance/config/ui_tokens.dart';
 import 'package:attendance/config/app_icons.dart';
 import 'dart:math' as math;
 
@@ -9,7 +10,6 @@ import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:attendance/widgets/demo_mode_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -360,7 +360,7 @@ class _Fact extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Text(
               value ?? '—',
-              style: GoogleFonts.inter(
+              style: AppTypography.inter(
                 fontSize: 20,
                 height: 1.2,
                 fontWeight: FontWeight.w600,
@@ -401,7 +401,7 @@ class _Count extends StatelessWidget {
 
   const _Count({required this.value, required this.label, required this.color});
 
-  TextStyle _numberStyle(BuildContext context) => GoogleFonts.inter(
+  TextStyle _numberStyle(BuildContext context) => AppTypography.inter(
     fontSize: 24,
     height: 1.2,
     fontWeight: FontWeight.w600,
@@ -504,7 +504,7 @@ class _MonthRing extends StatelessWidget {
                   children: [
                     Text(
                       isLoading ? '—' : '${(value * 100).round()}%',
-                      style: GoogleFonts.inter(
+                      style: AppTypography.inter(
                         fontSize: 18,
                         height: 1.2,
                         fontWeight: FontWeight.w600,
@@ -613,7 +613,7 @@ class _AttendanceRecordRow extends StatelessWidget {
             const SizedBox(width: 12),
             Text(
               timeStr,
-              style: GoogleFonts.inter(
+              style: AppTypography.inter(
                 fontSize: 14,
                 height: 1.2,
                 fontWeight: FontWeight.w600,
@@ -670,7 +670,7 @@ class _EmptyState extends StatelessWidget {
             child: Text(
               title,
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
+              style: AppTypography.inter(
                 fontSize: 18,
                 height: 1.3,
                 fontWeight: FontWeight.w600,
@@ -700,7 +700,7 @@ class _EmptyState extends StatelessWidget {
                 minimumSize: const Size(0, 44),
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 shape: const StadiumBorder(),
-                textStyle: GoogleFonts.inter(
+                textStyle: AppTypography.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),

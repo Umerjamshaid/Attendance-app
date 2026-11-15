@@ -1,3 +1,4 @@
+import 'package:attendance/widgets/app_toast.dart';
 import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/providers/auth_provider.dart';
 import 'package:attendance/widgets/demo_mode_notice.dart';
@@ -8,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../../config/app_theme.dart';
 import '../../config/ui_tokens.dart';
 import '../../widgets/spring_scale.dart';
+import '../../widgets/error_shake.dart';
 import '../profile/account_edit_screen.dart';
 
 class UpperCaseTextFormatter extends TextInputFormatter {
@@ -37,6 +39,9 @@ class _LoginScreenState extends State<LoginScreen>
   final _passwordFocus = FocusNode();
   bool _obscurePassword = true;
   String? _idError;
+  String? _passwordError;
+  String? _formError;
+  int _errorRevision = 0;
   late final AnimationController _animationController;
   late final Animation<double> _fadeIn;
   late final Animation<Offset> _riseIn;
@@ -89,29 +94,39 @@ class _LoginScreenState extends State<LoginScreen>
     if (authProvider.status == AuthStatus.authenticating) return;
     final id = _controller.text.trim();
     final company = authProvider.isPublicBuild;
-    if (id.isEmpty) {
-      setState(
-        () => _idError = company
-            ? 'Enter your work email.'
-            : 'Enter your employee ID.',
-      );
-      _idFocus.requestFocus();
+    final idError = id.isEmpty
+        ? (company ? 'Enter your work email.' : 'Enter your employee ID.')
+        : company && !id.contains('@')
+        ? 'Enter a valid work email.'
+        : null;
+    final passwordError = company && _password.text.isEmpty
+        ? 'Enter your password.'
+        : null;
+    setState(() {
+      _idError = idError;
+      _passwordError = passwordError;
+      _formError = null;
+      _errorRevision++;
+    });
+    if (idError != null || passwordError != null) {
+      (idError != null ? _idFocus : _passwordFocus).requestFocus();
       return;
     }
-    if (company && (_password.text.isEmpty || !id.contains('@'))) {
-      setState(() => _idError = 'Enter your email and password.');
-      return;
-    }
-    setState(() => _idError = null);
     final success = await authProvider.login(id, password: _password.text);
     if (!mounted) return;
 
     if (success) {
       widget.onLoginSuccess?.call();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(authProvider.error ?? 'Login failed')),
-      );
+      setState(() {
+        final message = authProvider.error ?? 'Login failed';
+        if (company) {
+          _formError = message;
+        } else {
+          _idError = message;
+        }
+        _errorRevision++;
+      });
     }
   }
 
@@ -171,70 +186,110 @@ class _LoginScreenState extends State<LoginScreen>
                             ),
                             const SizedBox(height: 32),
                             if (company) ...[
-                              TextField(
-                                controller: _controller,
-                                focusNode: _idFocus,
-                                readOnly: isLoading,
-                                keyboardType: TextInputType.emailAddress,
-                                autofillHints: const [
-                                  AutofillHints.username,
-                                  AutofillHints.email,
-                                ],
-                                textInputAction: TextInputAction.next,
-                                onSubmitted: (_) =>
-                                    _passwordFocus.requestFocus(),
-                                onChanged: (_) {
-                                  if (_idError != null) {
-                                    setState(() => _idError = null);
-                                  }
-                                },
-                                style: AppTypography.body,
-                                decoration: InputDecoration(
-                                  labelText: 'Work email',
-                                  errorText: _idError,
-                                  prefixIcon: const Icon(
-                                    AppIcons.mail,
-                                    size: AppLayout.compactIconSize,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              TextField(
-                                controller: _password,
-                                focusNode: _passwordFocus,
-                                readOnly: isLoading,
-                                obscureText: _obscurePassword,
-                                enableSuggestions: false,
-                                autocorrect: false,
-                                autofillHints: const [AutofillHints.password],
-                                textInputAction: TextInputAction.done,
-                                onSubmitted: (_) => _signIn(),
-                                style: AppTypography.body,
-                                decoration: InputDecoration(
-                                  labelText: 'Password',
-                                  prefixIcon: const Icon(
-                                    AppIcons.lock,
-                                    size: AppLayout.compactIconSize,
-                                  ),
-                                  suffixIcon: IconButton(
-                                    tooltip: _obscurePassword
-                                        ? 'Show password'
-                                        : 'Hide password',
-                                    onPressed: isLoading
-                                        ? null
-                                        : () => setState(
-                                            () => _obscurePassword =
-                                                !_obscurePassword,
-                                          ),
-                                    icon: Icon(
-                                      _obscurePassword
-                                          ? AppIcons.eye
-                                          : AppIcons.eyeOff,
+                              ErrorShake(
+                                error: _idError,
+                                revision: _errorRevision,
+                                child: TextField(
+                                  controller: _controller,
+                                  focusNode: _idFocus,
+                                  readOnly: isLoading,
+                                  keyboardType: TextInputType.emailAddress,
+                                  autofillHints: const [
+                                    AutofillHints.username,
+                                    AutofillHints.email,
+                                  ],
+                                  textInputAction: TextInputAction.next,
+                                  onSubmitted: (_) =>
+                                      _passwordFocus.requestFocus(),
+                                  onChanged: (_) {
+                                    if (_idError != null ||
+                                        _formError != null) {
+                                      setState(() {
+                                        _idError = null;
+                                        _formError = null;
+                                      });
+                                    }
+                                  },
+                                  style: AppTypography.body,
+                                  decoration: InputDecoration(
+                                    labelText: 'Work email',
+                                    errorText: _idError,
+                                    errorMaxLines: 8,
+                                    prefixIcon: const Icon(
+                                      AppIcons.mail,
                                       size: AppLayout.compactIconSize,
                                     ),
                                   ),
                                 ),
                               ),
+                              const SizedBox(height: 16),
+                              ErrorShake(
+                                error: _passwordError,
+                                revision: _errorRevision,
+                                child: TextField(
+                                  controller: _password,
+                                  focusNode: _passwordFocus,
+                                  readOnly: isLoading,
+                                  obscureText: _obscurePassword,
+                                  enableSuggestions: false,
+                                  autocorrect: false,
+                                  autofillHints: const [AutofillHints.password],
+                                  textInputAction: TextInputAction.done,
+                                  onSubmitted: (_) => _signIn(),
+                                  onChanged: (_) {
+                                    if (_passwordError != null ||
+                                        _formError != null) {
+                                      setState(() {
+                                        _passwordError = null;
+                                        _formError = null;
+                                      });
+                                    }
+                                  },
+                                  style: AppTypography.body,
+                                  decoration: InputDecoration(
+                                    labelText: 'Password',
+                                    errorText: _passwordError,
+                                    errorMaxLines: 8,
+                                    prefixIcon: const Icon(
+                                      AppIcons.lock,
+                                      size: AppLayout.compactIconSize,
+                                    ),
+                                    suffixIcon: IconButton(
+                                      tooltip: _obscurePassword
+                                          ? 'Show password'
+                                          : 'Hide password',
+                                      onPressed: isLoading
+                                          ? null
+                                          : () => setState(
+                                              () => _obscurePassword =
+                                                  !_obscurePassword,
+                                            ),
+                                      icon: Icon(
+                                        _obscurePassword
+                                            ? AppIcons.eye
+                                            : AppIcons.eyeOff,
+                                        size: AppLayout.compactIconSize,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              if (_formError != null) ...[
+                                const SizedBox(height: 8),
+                                ErrorShake(
+                                  error: _formError,
+                                  revision: _errorRevision,
+                                  child: Semantics(
+                                    liveRegion: true,
+                                    child: Text(
+                                      _formError!,
+                                      style: AppTypography.caption.copyWith(
+                                        color: context.colors.error,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                               Align(
                                 alignment: Alignment.centerRight,
                                 child: TextButton(
@@ -254,7 +309,7 @@ class _LoginScreenState extends State<LoginScreen>
                                                   .resetPassword(value),
                                               onSaved: () {
                                                 Navigator.pop(context);
-                                                ScaffoldMessenger.of(
+                                                AppToast.of(
                                                   context,
                                                 ).showSnackBar(
                                                   const SnackBar(
@@ -275,17 +330,21 @@ class _LoginScreenState extends State<LoginScreen>
                                   'Company sign-in is unavailable in this build.',
                                 ),
                             ] else
-                              _EmployeeIdField(
-                                controller: _controller,
-                                focusNode: _idFocus,
-                                readOnly: isLoading,
-                                errorText: _idError,
-                                onChanged: (_) {
-                                  if (_idError != null) {
-                                    setState(() => _idError = null);
-                                  }
-                                },
-                                onSubmitted: (_) => _signIn(),
+                              ErrorShake(
+                                error: _idError,
+                                revision: _errorRevision,
+                                child: _EmployeeIdField(
+                                  controller: _controller,
+                                  focusNode: _idFocus,
+                                  readOnly: isLoading,
+                                  errorText: _idError,
+                                  onChanged: (_) {
+                                    if (_idError != null) {
+                                      setState(() => _idError = null);
+                                    }
+                                  },
+                                  onSubmitted: (_) => _signIn(),
+                                ),
                               ),
                             if (!company && auth.isDemoMode) ...[
                               const SizedBox(height: 16),
@@ -414,6 +473,7 @@ class _EmployeeIdField extends StatelessWidget {
       decoration: InputDecoration(
         labelText: 'Employee ID',
         errorText: errorText,
+        errorMaxLines: 8,
         hintText: 'e.g. EMP001',
         prefixIcon: const Icon(
           AppIcons.idBadge2,

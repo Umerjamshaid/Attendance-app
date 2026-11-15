@@ -1,3 +1,4 @@
+import 'package:attendance/widgets/app_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -33,7 +34,7 @@ class AccountSecurityScreen extends StatelessWidget {
                         ),
                       );
                       if (saved == true && context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        AppToast.of(context).showSnackBar(
                           const SnackBar(
                             content: Text(
                               'Check your email to confirm the change.',

@@ -28,7 +28,7 @@ class TabItem extends StatelessWidget {
                 color: isActive ? WC.white : const Color(0xFF555555),
                 fontSize: 14,
                 fontWeight: isActive ? FontWeight.w800 : FontWeight.w500,
-                letterSpacing: -0.1,
+                letterSpacing: 0,
               ),
             ),
           ),

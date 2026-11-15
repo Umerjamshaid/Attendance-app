@@ -1,3 +1,5 @@
+import 'package:attendance/widgets/app_toast.dart';
+import 'package:attendance/config/ui_tokens.dart';
 import 'package:attendance/config/app_icons.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -17,7 +19,6 @@ import 'package:attendance/widgets/home/attendance_summary_card.dart';
 import 'package:attendance/widgets/home/check_in_status_card.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
@@ -142,11 +143,11 @@ class _AttendanceScreenState extends State<AttendanceScreen>
 
         // If the user permanently denied it, guide them to app settings.
         if (cameraStatus.isPermanentlyDenied) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          AppToast.of(context).showSnackBar(
             SnackBar(
               content: Text(
                 '✗ Camera permission is blocked. Enable it in Settings.',
-                style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                style: AppTypography.inter(fontWeight: FontWeight.w600),
               ),
               behavior: SnackBarBehavior.floating,
               action: SnackBarAction(
@@ -154,16 +155,18 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                 onPressed: openAppSettings,
               ),
             ),
+            kind: ToastKind.error,
           );
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
+          AppToast.of(context).showSnackBar(
             SnackBar(
               content: Text(
                 '✗ Camera permission is required to check in.',
-                style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                style: AppTypography.inter(fontWeight: FontWeight.w600),
               ),
               behavior: SnackBarBehavior.floating,
             ),
+            kind: ToastKind.error,
           );
         }
         return;
@@ -181,14 +184,15 @@ class _AttendanceScreenState extends State<AttendanceScreen>
         );
       } catch (e) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
+        AppToast.of(context).showSnackBar(
           SnackBar(
             content: Text(
               '✗ Failed to open camera: $e',
-              style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+              style: AppTypography.inter(fontWeight: FontWeight.w600),
             ),
             behavior: SnackBarBehavior.floating,
           ),
+          kind: ToastKind.error,
         );
         return;
       }
@@ -229,9 +233,10 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           });
           _successController.forward();
           _syncPulse();
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Check-in saved.')));
+          AppToast.of(context).showSnackBar(
+            const SnackBar(content: Text('Check-in saved.')),
+            kind: ToastKind.success,
+          );
           return;
         }
 
@@ -275,11 +280,11 @@ class _AttendanceScreenState extends State<AttendanceScreen>
         if (!mounted) return;
 
         if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          AppToast.of(context).showSnackBar(
             SnackBar(
               content: Text(
                 '✓ Attendance marked successfully!',
-                style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                style: AppTypography.inter(fontWeight: FontWeight.w600),
               ),
               duration: const Duration(seconds: 2),
               behavior: SnackBarBehavior.floating,
@@ -287,6 +292,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
+            kind: ToastKind.success,
           );
         } else {
           throw Exception(
@@ -304,11 +310,11 @@ class _AttendanceScreenState extends State<AttendanceScreen>
         _successController.reverse();
         _syncPulse();
 
-        ScaffoldMessenger.of(context).showSnackBar(
+        AppToast.of(context).showSnackBar(
           SnackBar(
             content: Text(
               '✗ ${e.toString().replaceAll('Exception: ', '')}',
-              style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+              style: AppTypography.inter(fontWeight: FontWeight.w600),
             ),
             duration: const Duration(seconds: 4),
             behavior: SnackBarBehavior.floating,
@@ -316,6 +322,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
               borderRadius: BorderRadius.circular(12),
             ),
           ),
+          kind: ToastKind.error,
         );
       } finally {
         if (mounted) {
@@ -628,10 +635,10 @@ class _LiveClockHeroState extends State<_LiveClockHero> {
                 child: Text(
                   timeStr,
                   maxLines: 1,
-                  style: GoogleFonts.inter(
+                  style: AppTypography.inter(
                     fontSize: 44,
                     height: 1.15,
-                    letterSpacing: -1,
+                    letterSpacing: 0,
                     fontWeight: FontWeight.w600,
                     color: context.colors.onSurface,
                     fontFeatures: const [FontFeature.tabularFigures()],

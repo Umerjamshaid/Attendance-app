@@ -1,3 +1,4 @@
+import 'package:attendance/widgets/app_toast.dart';
 import 'package:attendance/config/app_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -20,8 +21,9 @@ class AppearanceScreen extends StatelessWidget {
       await context.read<ThemeProvider>().select(mode);
     } catch (_) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppToast.of(context).showSnackBar(
         const SnackBar(content: Text('Could not save appearance. Try again.')),
+        kind: ToastKind.error,
       );
     }
   }

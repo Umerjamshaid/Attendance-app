@@ -1,6 +1,6 @@
+import 'package:attendance/config/ui_tokens.dart';
 import 'package:attendance/config/wc_tokens.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class HistoryHeader extends StatelessWidget {
   final int present;
@@ -22,11 +22,11 @@ class HistoryHeader extends StatelessWidget {
             children: [
               Text(
                 'HISTORY',
-                style: GoogleFonts.dmSans(
+                style: AppTypography.inter(
                   color: WC.white,
                   fontSize: 18,
                   fontWeight: FontWeight.w900,
-                  letterSpacing: 1.5,
+                  letterSpacing: 0,
                 ),
               ),
               const SizedBox(height: 20),
@@ -93,7 +93,7 @@ class _DarkStatBadge extends StatelessWidget {
               children: [
                 Text(
                   '$count',
-                  style: GoogleFonts.dmSans(
+                  style: AppTypography.inter(
                     color: WC.white,
                     fontSize: 20,
                     fontWeight: FontWeight.w900,
@@ -101,11 +101,11 @@ class _DarkStatBadge extends StatelessWidget {
                 ),
                 Text(
                   label.toUpperCase(),
-                  style: GoogleFonts.inter(
+                  style: AppTypography.inter(
                     color: const Color(0xFF666666),
                     fontSize: 9,
                     fontWeight: FontWeight.w800,
-                    letterSpacing: 0.5,
+                    letterSpacing: 0,
                   ),
                 ),
               ],

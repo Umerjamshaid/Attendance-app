@@ -1,7 +1,7 @@
+import 'package:attendance/config/ui_tokens.dart';
 import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 /// Employees / present / absent for today, in one grouped surface.
 ///
@@ -88,7 +88,7 @@ class _Metric extends StatelessWidget {
   final String label;
   final Color color;
 
-  TextStyle _numberStyle(BuildContext context) => GoogleFonts.inter(
+  TextStyle _numberStyle(BuildContext context) => AppTypography.inter(
     fontSize: 24,
     height: 1.2,
     fontWeight: FontWeight.w600,

@@ -1,3 +1,4 @@
+import 'package:attendance/widgets/app_toast.dart';
 import '../../widgets/profile_image.dart';
 
 import 'package:flutter/material.dart';
@@ -56,9 +57,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _feedback(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    AppToast.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _openPermissions() async {
@@ -365,8 +364,14 @@ class _SettingsProfileHeader extends StatelessWidget {
                   child: path == null || path!.isEmpty
                       ? fallback
                       : Image(
-                          image: profileImageProvider(path!),
+                          image: profileImageProvider(
+                            path!,
+                            viewer: context.read<ProfileProvider>().imageViewer,
+                            width: 228,
+                          ),
                           fit: BoxFit.cover,
+                          frameBuilder: (_, child, frame, wasSync) =>
+                              wasSync || frame != null ? child : fallback,
                           errorBuilder: (_, _, _) => fallback,
                         ),
                 ),

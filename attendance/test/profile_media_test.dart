@@ -120,6 +120,7 @@ void main() {
   });
 
   test('unknown, empty, and oversized profile files are rejected', () {
+    expect(ProfileImageFormat.maxBytes, 5242880);
     for (final bytes in [
       Uint8List(0),
       Uint8List.fromList('<svg/>'.codeUnits),
@@ -133,14 +134,18 @@ void main() {
     final limit = Uint8List(ProfileImageFormat.maxBytes)
       ..setRange(0, _animatedGif.length, _animatedGif);
     expect(ProfileImageFormat.fromBytes(limit), ProfileImageFormat.gif);
-    final tooLarge = Uint8List(ProfileImageFormat.maxBytes + 1);
+    final aboveOldLimit = Uint8List(2 * 1024 * 1024 + 1)
+      ..setRange(0, _animatedGif.length, _animatedGif);
+    expect(ProfileImageFormat.fromBytes(aboveOldLimit), ProfileImageFormat.gif);
+    final tooLarge = Uint8List(ProfileImageFormat.maxBytes + 1)
+      ..setRange(0, _animatedGif.length, _animatedGif);
     expect(
       () => ProfileImageFormat.fromBytes(tooLarge),
       throwsA(
         isA<CompanyException>().having(
           (e) => e.message,
           'message',
-          contains('2 MB'),
+          contains('5 MB'),
         ),
       ),
     );

@@ -1,3 +1,5 @@
+import 'package:attendance/widgets/app_toast.dart';
+import 'package:attendance/config/ui_tokens.dart';
 import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/providers/admin_provider.dart';
@@ -11,7 +13,6 @@ import 'package:attendance/widgets/user-profile/profile_menu_item.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import 'set_attendance_window_sheet.dart';
@@ -89,7 +90,7 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
       ]);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        AppToast.of(context).showSnackBar(
           const SnackBar(
             content: Text('Could not refresh attendance settings.'),
           ),
@@ -528,7 +529,7 @@ class _StateView extends StatelessWidget {
             child: Text(
               title,
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
+              style: AppTypography.inter(
                 fontSize: 18,
                 height: 1.3,
                 fontWeight: FontWeight.w600,
@@ -561,7 +562,7 @@ class _StateView extends StatelessWidget {
                 minimumSize: const Size(0, 44),
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 shape: const StadiumBorder(),
-                textStyle: GoogleFonts.inter(
+                textStyle: AppTypography.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),

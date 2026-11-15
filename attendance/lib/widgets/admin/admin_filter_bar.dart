@@ -1,8 +1,8 @@
+import 'package:attendance/config/ui_tokens.dart';
 import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 /// All / Present / Absent selector with live counts.
 ///
@@ -109,7 +109,7 @@ class _Chip extends StatelessWidget {
           textAlign: TextAlign.center,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: GoogleFonts.inter(
+          style: AppTypography.inter(
             fontSize: 13,
             height: 1.2,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,

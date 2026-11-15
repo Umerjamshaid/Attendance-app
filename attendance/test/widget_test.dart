@@ -1,4 +1,3 @@
-import 'package:attendance/config/app_icons.dart';
 // This is a basic Flutter widget test.
 //
 // To perform an interaction with a widget in your test, use the WidgetTester
@@ -103,7 +102,7 @@ void main() {
     expect(find.byTooltip('Admin'), findsOneWidget);
 
     // Tap the History destination.
-    await tester.tap(find.byIcon(AppIcons.clock));
+    await tester.tap(find.byTooltip('History'));
     await tester.pumpAndSettle();
 
     expect(tappedIndex, 1);

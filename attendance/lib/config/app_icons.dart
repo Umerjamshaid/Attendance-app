@@ -26,6 +26,7 @@ abstract final class AppIcons {
   static const eyeOff = TablerIcons.eyeOff;
   static const fileCertificate = TablerIcons.fileCertificate;
   static const fingerprint = TablerIcons.fingerprint;
+  static const flame = TablerIcons.flame;
   static const help = TablerIcons.help;
   static const history = TablerIcons.history;
   static const home = TablerIcons.home;

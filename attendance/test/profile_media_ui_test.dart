@@ -84,7 +84,7 @@ void main() {
       expect(tester.takeException(), isNull);
       await tester.tap(find.byIcon(AppIcons.cameraPlus));
       await tester.pumpAndSettle();
-      expect(find.text('Choose an image no larger than 2 MB.'), findsOneWidget);
+      expect(find.text('Choose an image no larger than 5 MB.'), findsOneWidget);
     });
   }
 
@@ -108,7 +108,7 @@ void main() {
                     weight: FontWeight.w600,
                   );
                   expect(profile.fontFamily, ProfileUi.fontFamily);
-                  expect(profile.height, 1.4);
+                  expect(profile.height, 1.25);
                   return const SizedBox.shrink();
                 },
               ),
@@ -145,5 +145,5 @@ class _Profile extends ProfileProvider {
 
   @override
   Future<void> pickPfp(String userId) async =>
-      throw const CompanyException('Choose an image no larger than 2 MB.');
+      throw const CompanyException('Choose an image no larger than 5 MB.');
 }

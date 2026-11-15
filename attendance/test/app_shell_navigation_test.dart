@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/models/employees_model.dart';
 import 'package:attendance/providers/admin_provider.dart';
@@ -186,6 +188,47 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
   });
+
+  testWidgets('brief inactive interruptions do not refresh the session', (
+    tester,
+  ) async {
+    final fixture = await _mount(tester);
+    final before = fixture.backend.restoreCalls;
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(fixture.backend.restoreCalls, before);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('real background resumes share one pending refresh', (
+    tester,
+  ) async {
+    final fixture = await _mount(tester);
+    final before = fixture.backend.restoreCalls;
+    final gate = Completer<void>();
+    fixture.backend.restoreGate = gate;
+    for (var attempt = 0; attempt < 2; attempt++) {
+      for (final state in [
+        AppLifecycleState.inactive,
+        AppLifecycleState.hidden,
+        AppLifecycleState.paused,
+        AppLifecycleState.hidden,
+        AppLifecycleState.inactive,
+        AppLifecycleState.resumed,
+      ]) {
+        tester.binding.handleAppLifecycleStateChanged(state);
+      }
+      await tester.pump();
+    }
+    expect(fixture.backend.restoreCalls, before + 1);
+    fixture.backend.restoreGate = null;
+    gate.complete();
+    await tester.pumpAndSettle();
+    expect(fixture.auth.isAuthenticated, isTrue);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 }
 
 final _pageFinder = find.byKey(const PageStorageKey('main-pages'));
@@ -282,15 +325,20 @@ class _Fixture {
 class _Backend extends PreviewCompanyBackend {
   _Backend({required this.admin});
   bool admin;
+  int restoreCalls = 0;
+  Completer<void>? restoreGate;
   @override
   bool get isPreview => false;
   @override
-  Future<Employee?> restoreSession() async =>
-      (await super.restoreSession())!.copyWith(
-        role: admin ? 'admin' : 'employee',
-        isPresentToday: true,
-        checkInTime: '09:05 AM',
-      );
+  Future<Employee?> restoreSession() async {
+    restoreCalls++;
+    await restoreGate?.future;
+    return (await super.restoreSession())!.copyWith(
+      role: admin ? 'admin' : 'employee',
+      isPresentToday: true,
+      checkInTime: '09:05 AM',
+    );
+  }
 }
 
 class _UiAttendanceProvider extends AttendanceProvider {

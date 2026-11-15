@@ -74,6 +74,14 @@ abstract class CompanyBackend {
   Future<void> setPassword(String password);
   Future<void> changeEmail(String email);
   Future<List<Employee>> employees();
+
+  /// Current profile avatars, separate from attendance photo evidence, keyed by user UUID.
+  Future<Map<String, String>> employeeAvatars(List<Employee> employees) async =>
+      {
+        for (final employee in employees)
+          if (employee.authUserId != null && employee.avatarUrl != null)
+            employee.authUserId!: employee.avatarUrl!,
+      };
   Future<List<AttendanceRecord>> history({
     String? employeeId,
     bool todayOnly = false,

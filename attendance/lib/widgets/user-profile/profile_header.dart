@@ -1,3 +1,4 @@
+import 'package:attendance/widgets/app_toast.dart';
 import 'package:attendance/config/app_icons.dart';
 import '../profile_image.dart';
 
@@ -44,7 +45,7 @@ class ProfileHeader extends StatelessWidget {
   ) async {
     HapticFeedback.selectionClick();
     final provider = context.read<ProfileProvider>();
-    final messenger = ScaffoldMessenger.of(context);
+    final messenger = AppToast.of(context);
     try {
       await pick(provider);
     } catch (error) {
@@ -57,6 +58,7 @@ class ProfileHeader extends StatelessWidget {
           ),
           behavior: SnackBarBehavior.floating,
         ),
+        kind: ToastKind.error,
       );
     }
   }
@@ -64,7 +66,7 @@ class ProfileHeader extends StatelessWidget {
   Future<void> _removeBanner(BuildContext context) async {
     HapticFeedback.selectionClick();
     final provider = context.read<ProfileProvider>();
-    final messenger = ScaffoldMessenger.of(context);
+    final messenger = AppToast.of(context);
     try {
       await provider.removeBanner(employee.id);
       messenger
@@ -74,6 +76,7 @@ class ProfileHeader extends StatelessWidget {
             content: Text('Banner removed'),
             behavior: SnackBarBehavior.floating,
           ),
+          kind: ToastKind.success,
         );
     } catch (_) {
       messenger.showSnackBar(
@@ -81,6 +84,7 @@ class ProfileHeader extends StatelessWidget {
           content: Text('Couldn’t remove the banner. Try again.'),
           behavior: SnackBarBehavior.floating,
         ),
+        kind: ToastKind.error,
       );
     }
   }
@@ -88,7 +92,7 @@ class ProfileHeader extends StatelessWidget {
   Future<void> _openEditSheet(BuildContext context) async {
     HapticFeedback.selectionClick();
     final auth = context.read<AuthProvider>();
-    final messenger = ScaffoldMessenger.of(context);
+    final messenger = AppToast.of(context);
 
     if (auth.isPreview) {
       messenger.showSnackBar(
@@ -138,6 +142,7 @@ class ProfileHeader extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
           ),
         ),
+        kind: ToastKind.success,
       );
     }
   }
@@ -182,6 +187,7 @@ class ProfileHeader extends StatelessWidget {
                   height: _bannerHeight,
                   child: _Banner(
                     path: profile.bannerPath,
+                    viewer: profile.imageViewer,
                     onTap: () =>
                         _changeImage(context, (p) => p.pickBanner(employee.id)),
                     onRemove: () => _removeBanner(context),
@@ -196,6 +202,7 @@ class ProfileHeader extends StatelessWidget {
                       initial: _initialOf(name),
                       localPath: profile.pfpPath,
                       networkUrl: employee.avatarUrl,
+                      viewer: profile.imageViewer,
                       size: _avatarSize,
                       ring: _ring,
                       onTap: () =>
@@ -334,11 +341,13 @@ class _ProfileChipGroup extends StatelessWidget {
 class _Banner extends StatelessWidget {
   const _Banner({
     required this.path,
+    required this.viewer,
     required this.onTap,
     required this.onRemove,
   });
 
   final String? path;
+  final String? viewer;
   final VoidCallback onTap;
   final VoidCallback onRemove;
 
@@ -364,11 +373,16 @@ class _Banner extends StatelessWidget {
                   : SizedBox.expand(
                       key: ValueKey(image),
                       child: Image(
-                        image: ResizeImage(
-                          profileImageProvider(image),
+                        image: profileImageProvider(
+                          image,
+                          viewer: viewer,
                           width: _decodeWidth,
                         ),
                         fit: BoxFit.cover,
+                        frameBuilder: (_, child, frame, wasSync) =>
+                            wasSync || frame != null
+                            ? child
+                            : const _BannerGradient(),
                         // The picked file can disappear (cache cleared). The
                         // remove action stays available to clear the stale path.
                         errorBuilder: (_, _, _) => const _BannerGradient(),
@@ -518,6 +532,7 @@ class _Avatar extends StatelessWidget {
     required this.initial,
     required this.localPath,
     required this.networkUrl,
+    required this.viewer,
     required this.size,
     required this.ring,
     required this.onTap,
@@ -526,6 +541,7 @@ class _Avatar extends StatelessWidget {
   final String initial;
   final String? localPath;
   final String? networkUrl;
+  final String? viewer;
   final double size;
   final double ring;
   final VoidCallback onTap;
@@ -538,10 +554,9 @@ class _Avatar extends StatelessWidget {
 
     Widget network() {
       if (url == null || url.isEmpty) return const SizedBox.shrink();
-      return Image.network(
-        url,
+      return Image(
+        image: profileImageProvider(url, viewer: viewer, width: _decodeWidth),
         fit: BoxFit.cover,
-        cacheWidth: _decodeWidth,
         errorBuilder: (_, _, _) => const SizedBox.shrink(),
         frameBuilder: (_, child, frame, wasSync) => wasSync
             ? child
@@ -571,7 +586,11 @@ class _Avatar extends StatelessWidget {
         ),
         if (path != null)
           Image(
-            image: ResizeImage(profileImageProvider(path), width: _decodeWidth),
+            image: profileImageProvider(
+              path,
+              viewer: viewer,
+              width: _decodeWidth,
+            ),
             fit: BoxFit.cover,
             errorBuilder: (_, _, _) => network(),
           )
