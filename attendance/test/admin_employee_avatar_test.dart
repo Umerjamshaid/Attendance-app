@@ -52,6 +52,35 @@ void main() {
     attendanceService: AttendanceService(backend: backend),
   )..setFilter('all');
 
+  test(
+    'dashboard return preserves photos until the batched refresh finishes',
+    () async {
+      final backend = _Backend();
+      final admin = provider(backend);
+      addTearDown(admin.dispose);
+      await admin.loadDashboard();
+      backend.avatars.complete({
+        'user-0': 'https://avatar.example.invalid/current.gif',
+      });
+      await Future<void>.delayed(Duration.zero);
+      backend.avatars = Completer<Map<String, String>>();
+      await admin.loadDashboard();
+      expect(
+        admin.filteredList.first.employee.avatarUrl,
+        endsWith('/current.gif'),
+        reason:
+            'a return to Admin must not briefly replace a cached photo with initials',
+      );
+      backend.avatars.complete({});
+      await Future<void>.delayed(Duration.zero);
+      expect(
+        admin.filteredList.first.employee.avatarUrl,
+        isNull,
+        reason: 'a confirmed missing avatar clears the old reference',
+      );
+    },
+  );
+
   testWidgets(
     'admin cards show profile photos without delaying names or changing geometry',
     (tester) async {

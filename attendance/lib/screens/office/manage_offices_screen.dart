@@ -43,7 +43,7 @@ class ManageOfficesScreen extends StatelessWidget {
       if (image == null) return;
       final bytes = await image.readAsBytes();
       // The provider/server still authorize the captured office after the picker returns.
-      await provider.updateOffice(office, name: office.name, logo: bytes);
+      await provider.updateOffice(office, logo: bytes);
     } catch (_) {
       if (context.mounted) {
         AppToast.of(context).showSnackBar(
@@ -140,7 +140,6 @@ class ManageOfficesScreen extends StatelessWidget {
                             TextButton(
                               onPressed: () => provider.updateOffice(
                                 office,
-                                name: office.name,
                                 removeLogo: true,
                               ),
                               child: const Text('Remove logo'),

@@ -44,6 +44,7 @@ dependencies:
   http: ^1.2.2
   cached_network_image: ^4.0.7
   flutter_cache_manager: ^3.5.0
+  file: ^7.0.1
   # Location
   geolocator: ^14.0.2
   geocoding: ^5.0.1

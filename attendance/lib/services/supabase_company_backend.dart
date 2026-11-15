@@ -45,6 +45,9 @@ class SupabaseCompanyBackend extends CompanyBackend {
   AttendancePolicy _policy = const AttendancePolicy();
   bool _hasPolicy = false;
   Future<AttendancePolicy>? _policyRequest;
+  final _imageRefreshes = <String, Completer<String?>>{};
+  final _queuedImagePaths = <String>{};
+  Timer? _imageRefreshTimer;
 
   @override
   bool get supportsOffices => true;
@@ -165,6 +168,8 @@ class SupabaseCompanyBackend extends CompanyBackend {
           'duplicate_employee' =>
             'That employee number is already in use in this office.',
           'last_admin' => 'The last active administrator must keep their role.',
+          'owner_cannot_demote' =>
+            'The office owner must remain an administrator.',
           _ => 'The office request could not be completed. Please try again.',
         });
       }
@@ -510,9 +515,91 @@ class SupabaseCompanyBackend extends CompanyBackend {
         if (item is SignedUrlSuccess) item.path: item.signedUrl,
     };
     return {
-      for (final kind in ['avatar', 'banner']) kind: urls[row['${kind}_path']],
+      for (final kind in ['avatar', 'banner'])
+        if (row['${kind}_path'] == null ||
+            urls.containsKey(row['${kind}_path']))
+          kind: urls[row['${kind}_path']],
     };
   });
+
+  @override
+  Future<String?> refreshProfileImage(String url) => _guard(() async {
+    final uri = Uri.tryParse(url);
+    final base = Uri.parse(client.storage.url);
+    const prefix = '/storage/v1/object/sign/profile-media/';
+    if (uri == null ||
+        uri.origin != base.origin ||
+        !uri.path.startsWith(prefix)) {
+      throw const CompanyException('This profile image is not available.');
+    }
+    final path = uri.path.substring(prefix.length);
+    final parts = path.split('/');
+    if (parts.length != 2 ||
+        parts.any((part) => part.isEmpty || part == '..') ||
+        (!parts[1].startsWith('avatar-') && !parts[1].startsWith('banner-')) ||
+        (parts[0] != _user &&
+            (_officeId == null || !parts[1].startsWith('avatar-')))) {
+      throw const CompanyException('This profile image is not available.');
+    }
+    // All uncached visible avatars expiring together share a signing batch.
+    final pending = _imageRefreshes[path];
+    if (pending != null) return pending.future;
+    final request = Completer<String?>();
+    _imageRefreshes[path] = request;
+    _queuedImagePaths.add(path);
+    _imageRefreshTimer ??= Timer(
+      const Duration(milliseconds: 10),
+      _flushImageRefreshes,
+    );
+    return request.future;
+  });
+
+  Future<void> _flushImageRefreshes() async {
+    _imageRefreshTimer = null;
+    final requests = {
+      for (final path in _queuedImagePaths) path: _imageRefreshes[path]!,
+    };
+    _queuedImagePaths.clear();
+    try {
+      validateContext();
+      final paths = requests.keys.toList();
+      for (var offset = 0; offset < paths.length; offset += 100) {
+        final batch = paths.skip(offset).take(100).toList();
+        final results = await client.storage
+            .from('profile-media')
+            .createSignedUrlsResult(batch, 900)
+            .timeout(const Duration(seconds: 20));
+        validateContext();
+        final urls = {
+          for (final result in results)
+            if (result is SignedUrlSuccess) result.path: result.signedUrl,
+        };
+        for (final path in batch) {
+          final url = urls[path];
+          if (url == null) {
+            requests[path]!.completeError(
+              const CompanyException(
+                'This profile image is no longer available.',
+              ),
+            );
+          } else {
+            requests[path]!.complete(url);
+          }
+        }
+      }
+    } catch (error, stack) {
+      for (final request in requests.values) {
+        if (!request.isCompleted) request.completeError(error, stack);
+      }
+    } finally {
+      for (final entry in requests.entries) {
+        if (identical(_imageRefreshes[entry.key], entry.value)) {
+          _imageRefreshes.remove(entry.key);
+        }
+      }
+    }
+  }
+
   @override
   Future<void> saveMedia(String kind, Uint8List? bytes) => _guard(() async {
     if (!['avatar', 'banner'].contains(kind)) {
@@ -521,7 +608,10 @@ class SupabaseCompanyBackend extends CompanyBackend {
     final userId = _user;
     String? path;
     if (bytes != null) {
-      final format = ProfileImageFormat.fromBytes(bytes);
+      final format = ProfileImageFormat.fromBytes(
+        bytes,
+        banner: kind == 'banner',
+      );
       path = '$userId/$kind-${const Uuid().v4()}.${format.extension}';
       await client.storage
           .from('profile-media')
@@ -670,13 +760,18 @@ class SupabaseCompanyBackend extends CompanyBackend {
   @override
   Future<void> updateOffice(
     Office office, {
-    required String name,
+    String? name,
     Uint8List? logo,
     bool removeLogo = false,
   }) => _guard(() async {
     final userId = _user;
-    var path = removeLogo ? null : office.logoPath;
+    String? path;
     if (logo != null) {
+      if (logo.length > 2 * 1024 * 1024) {
+        throw const CompanyException(
+          'Choose an office logo no larger than 2 MB.',
+        );
+      }
       final format = ProfileImageFormat.fromBytes(logo);
       if (!['image/jpeg', 'image/png'].contains(format.contentType)) {
         throw const CompanyException('Choose a JPEG or PNG office logo.');
@@ -694,11 +789,14 @@ class SupabaseCompanyBackend extends CompanyBackend {
       throw const CompanyAccessException('Your account changed.');
     }
     await _rpc(
-      'update_office',
+      'update_office_fields',
       params: {
         'p_organization': office.id,
-        'p_name': name.trim(),
-        'p_logo': path,
+        if (name != null) 'p_name': name.trim(),
+        if (logo != null || removeLogo) ...{
+          'p_change_logo': true,
+          'p_logo': path,
+        },
       },
     );
     // Old/failed uploads are removed by retention, never through an ambiguous rollback.

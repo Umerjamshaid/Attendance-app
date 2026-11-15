@@ -50,6 +50,11 @@ void main() {
       backend.media[2].complete({'avatar': 'new.gif'});
       await retry;
       expect(profile.pfpPath, 'new.gif');
+      expect(
+        profile.bannerPath,
+        'banner.gif',
+        reason: 'an omitted failed URL must not erase a playing banner',
+      );
     },
   );
 

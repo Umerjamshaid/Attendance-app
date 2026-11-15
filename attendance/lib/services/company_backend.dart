@@ -47,7 +47,7 @@ abstract class CompanyBackend {
       throw const CompanyException('Office creation is unavailable.');
   Future<void> updateOffice(
     Office office, {
-    required String name,
+    String? name,
     Uint8List? logo,
     bool removeLogo = false,
   }) async => throw const CompanyException('Office management is unavailable.');
@@ -100,6 +100,9 @@ abstract class CompanyBackend {
   Future<AttendancePolicy> policy();
   Future<void> savePolicy(AttendancePolicy policy);
   Future<Map<String, String?>> profileMedia();
+
+  /// Re-signs a previously authorized profile object; the server rechecks RLS.
+  Future<String?> refreshProfileImage(String url) async => url;
   Future<void> saveMedia(String kind, Uint8List? bytes);
   Future<void> invite({
     required String email,

@@ -155,11 +155,19 @@ and must be addressed in the company's deployment/privacy policy.
 ## Validation And Release Gates
 
 Profile avatars and cover photos accept JPEG/JPG, PNG, GIF (including animation),
-WebP, and BMP, up to 5 MB (5,242,880 bytes). The profile-media-formats migration
-expands the allowed formats; the profile-media-size-limit migration raises only
-the private `profile-media` bucket's size limit. Attendance evidence retains its
-separate 2 MB JPEG/PNG restrictions and existing permissions. Older APKs still
-enforce their bundled limit and must be updated to use the larger allowance.
+WebP, and BMP. The app permits avatars and non-GIF banners up to 5 MB
+(5,242,880 bytes), and GIF banners up to 10 MB (10,485,760 bytes). The shared
+private `profile-media` bucket has a 10 MB ceiling; the per-kind limits are app
+validation, not separate server-side bucket limits. The allowed MIME types and
+private access policies are unchanged. Attendance evidence and office logos
+retain their separate 2 MB JPEG/PNG restrictions. Older APKs still enforce their
+bundled limit and must be updated to use the larger allowance.
+
+Office-review fixes are forward-only migrations. The new `update_office_fields`
+RPC preserves fields omitted by an action; legacy clients retain the original
+RPC. Existing owners cannot self-demote, and reissued pending invitations record
+the current inviter without rewriting accepted-invitation provenance. Deploy the
+new migration before distributing the updated client that calls this RPC.
 
 ```powershell
 flutter analyze

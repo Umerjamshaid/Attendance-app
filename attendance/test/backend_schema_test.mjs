@@ -55,9 +55,9 @@ assert.deepEqual(
   [
     { id: 'attendance-evidence', public: false, file_size_limit: 2097152, allowed_mime_types: ['image/jpeg', 'image/png'] },
     { id: 'office-logos', public: false, file_size_limit: 2097152, allowed_mime_types: ['image/jpeg', 'image/png'] },
-    { id: 'profile-media', public: false, file_size_limit: 5242880, allowed_mime_types: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'] },
+    { id: 'profile-media', public: false, file_size_limit: 10485760, allowed_mime_types: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'] },
   ],
-  'only profile media gains the 5 MB allowance; privacy, formats and other buckets are preserved',
+  'only profile media gains the 10 MB GIF-banner ceiling; privacy, formats and other buckets are preserved',
 );
 assert.equal((await db.query('select id from public.check_ins')).rows[0].id, before.id);
 assert.equal((await db.query('select count(*)::int as n from public.memberships')).rows[0].n, 3);
@@ -167,6 +167,8 @@ await db.exec(`update public.organizations set created_by='${admin}' where id='$
 await role('authenticated', admin);
 await value(`select public.switch_office('${company}') as value`);
 await db.exec(`select public.set_office_role('${company}','${employee}','admin')`);
+await assert.rejects(db.exec(`select public.set_office_role('${company}','${admin}','employee')`), /owner_cannot_demote/,
+  'an owner cannot self-demote even with a second active admin');
 await role('authenticated', employee);
 await value(`select public.switch_office('${company}') as value`);
 await denied(`select public.set_office_role('${company}','${admin}','employee')`);
@@ -174,6 +176,30 @@ await role('authenticated', admin);
 await db.exec(`select public.set_office_role('${company}','${employee}','employee')`);
 await role('service_role');
 await denied(`select public.set_employee_active('${admin}','${created}','ADMIN001',false)`);
+
+// Reissuing a pending invitation changes its responsible admin, but acceptance
+// freezes that provenance even if another active admin retries completion.
+await role('postgres');
+const reissue = '50000000-0000-4000-8000-000000000099';
+const reissuedUser = '20000000-0000-4000-8000-000000000098';
+await db.exec(`
+  update public.memberships set role='admin' where organization_id='${company}' and user_id='${employee}';
+  insert into auth.users(id,email) values('${reissuedUser}','reissued@example.invalid');
+  insert into public.memberships(user_id,organization_id,employee_code) values('${reissuedUser}','${otherCompany}','REISSUE_TEST');
+  insert into public.employee_invitations(id,organization_id,email,employee_code,name,department,user_id,invited_by)
+  values('${reissue}','${company}','reissued@example.invalid','REISSUE','Other','Ops','${reissuedUser}','${admin}');
+`);
+await role('service_role');
+await db.exec(`select public.complete_employee_invitation('${employee}','${reissue}','${reissuedUser}')`);
+await role('postgres');
+assert.equal(await value(`select invited_by as value from public.employee_invitations where id='${reissue}'`), employee);
+await db.exec(`update public.employee_invitations set accepted_at=now() where id='${reissue}'`);
+await role('service_role');
+await db.exec(`select public.complete_employee_invitation('${admin}','${reissue}','${reissuedUser}')`);
+await role('postgres');
+assert.equal(await value(`select invited_by as value from public.employee_invitations where id='${reissue}'`), employee,
+  'an accepted invitation retains its original responsible admin');
+await db.exec(`update public.memberships set role='employee' where organization_id='${company}' and user_id='${employee}'`);
 
 // Existing users accept a second-office invitation without profile duplication.
 const invitation = '50000000-0000-4000-8000-000000000001';
@@ -212,6 +238,12 @@ await db.exec(`insert into storage.objects(bucket_id,name) values('office-logos'
 await role('authenticated', admin);
 await value(`select public.switch_office('${created}') as value`);
 await db.exec(`select public.update_office('${created}','Renamed office','${created}/logo.png')`);
+await db.exec(`select public.update_office_fields('${created}',p_name=>'Concurrent rename')`);
+assert.equal(await value(`select logo_path as value from public.organizations where id='${created}'`), `${created}/logo.png`);
+await db.exec(`select public.update_office_fields('${created}',p_change_logo=>true,p_logo=>null)`);
+assert.equal(await value(`select name as value from public.organizations where id='${created}'`), 'Concurrent rename');
+await db.exec(`select public.update_office_fields('${created}',p_change_logo=>true,p_logo=>'${created}/logo.png')`);
+await denied(`select public.update_office_fields('${otherCompany}',p_name=>'Stolen')`);
 await denied(`select public.update_office('${created}','Renamed office','${otherCompany}/logo.png')`);
 await role('service_role');
 assert.ok(!(await db.query('select * from public.orphaned_media()')).rows.some((row) => row.bucket_id === 'office-logos'));

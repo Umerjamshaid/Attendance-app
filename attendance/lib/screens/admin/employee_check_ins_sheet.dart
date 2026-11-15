@@ -217,6 +217,7 @@ class _EmployeeCheckInsSheetState extends State<_EmployeeCheckInsSheet> {
                 employee: widget.employee,
                 avatarUrl: _avatarUrl,
                 viewer: widget.viewer,
+                refresh: widget.backend.refreshProfileImage,
               ),
             ),
             if (loading)
@@ -310,10 +311,16 @@ class _EmployeeCheckInsSheetState extends State<_EmployeeCheckInsSheet> {
 }
 
 class _EmployeeHeading extends StatelessWidget {
-  const _EmployeeHeading({required this.employee, this.avatarUrl, this.viewer});
+  const _EmployeeHeading({
+    required this.employee,
+    this.avatarUrl,
+    this.viewer,
+    this.refresh,
+  });
   final Employee employee;
   final String? avatarUrl;
   final String? viewer;
+  final Future<String?> Function(String)? refresh;
 
   @override
   Widget build(BuildContext context) {
@@ -361,6 +368,7 @@ class _EmployeeHeading extends StatelessWidget {
                         viewer: viewer,
                         office: employee.organizationId,
                         width: 120,
+                        refresh: refresh,
                       ),
                       fit: BoxFit.cover,
                       excludeFromSemantics: true,

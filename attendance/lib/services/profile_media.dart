@@ -18,17 +18,25 @@ enum ProfileImageFormat {
   final String extension;
 
   static const maxBytes = 5 * 1024 * 1024;
+  static const maxGifBannerBytes = 10 * 1024 * 1024;
   static final _mimeTypes = MimeTypeResolver()
     ..addMagicNumber([0x42, 0x4d], 'image/bmp');
 
   /// Identifies the actual bytes rather than trusting a file's extension.
-  static ProfileImageFormat fromBytes(Uint8List bytes) {
-    if (bytes.length > maxBytes) {
-      throw const CompanyException('Choose an image no larger than 5 MB.');
-    }
+  static ProfileImageFormat fromBytes(Uint8List bytes, {bool banner = false}) {
     final contentType = _mimeTypes.lookup('', headerBytes: bytes);
     for (final format in values) {
-      if (format.contentType == contentType) return format;
+      if (format.contentType == contentType) {
+        final limit = banner && format == gif ? maxGifBannerBytes : maxBytes;
+        if (bytes.length > limit) {
+          throw CompanyException(
+            limit == maxGifBannerBytes
+                ? 'Choose a GIF banner no larger than 10 MB.'
+                : 'Choose an image no larger than 5 MB.',
+          );
+        }
+        return format;
+      }
     }
     throw const CompanyException(
       'Choose a JPEG, PNG, GIF, WebP, or BMP image.',

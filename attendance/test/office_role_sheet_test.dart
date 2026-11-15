@@ -89,6 +89,14 @@ void main() {
     await tester.pumpAndSettle();
     expect(_sheet, findsOneWidget);
     expect(backend.employee.role, 'employee');
+    expect(
+      find.descendant(
+        of: find.byType(OfficeRolesScreen),
+        matching: find.text('Employee'),
+      ),
+      findsOneWidget,
+      reason: 'cancelling confirmation never changes the committed row',
+    );
     await _openConfirmation(tester);
     await tester.tap(find.text('Confirm'));
     await tester.pump();
@@ -117,6 +125,14 @@ void main() {
     expect(find.text(backend.failure!), findsOneWidget);
     expect(_sheet, findsOneWidget);
     expect(backend.employee.role, 'admin');
+    expect(
+      find.descendant(
+        of: find.byType(OfficeRolesScreen),
+        matching: find.text('Administrator'),
+      ),
+      findsOneWidget,
+      reason: 'a failed write never changes the committed row',
+    );
     expect(tester.widget<FilledButton>(_save).onPressed, isNotNull);
     backend.failure = null;
     await _openConfirmation(tester);

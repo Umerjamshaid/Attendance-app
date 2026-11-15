@@ -188,6 +188,10 @@ class EmployeeCard extends StatelessWidget {
                                         ?.authUserId,
                                     office: employee.organizationId,
                                     width: 120,
+                                    refresh: context
+                                        .read<AuthProvider?>()
+                                        ?.backend
+                                        ?.refreshProfileImage,
                                   ),
                                   fit: BoxFit.cover,
                                   excludeFromSemantics: true,

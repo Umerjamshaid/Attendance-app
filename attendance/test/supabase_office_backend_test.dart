@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:attendance/services/company_backend.dart';
 import 'package:attendance/models/employees_model.dart';
+import 'package:attendance/models/office_model.dart';
 import 'package:attendance/services/supabase_company_backend.dart';
 import 'package:attendance/providers/auth_provider.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -69,6 +70,7 @@ class _Server {
   Future<http.Response> handle(http.Request request) async {
     calls.add(request);
     final path = request.url.path;
+    if (path.endsWith('/update_office_fields')) return json(null);
     if (path.endsWith('/user')) {
       if (rejectPassword) {
         return json({'code': 'weak_password', 'msg': 'Test rejection'}, 422);
@@ -189,6 +191,95 @@ class _Server {
 void main() {
   setUpAll(tz.initializeTimeZones);
   test(
+    'image renewal batches visible objects and keeps account/office boundaries',
+    () async {
+      final server = _Server();
+      final client = SupabaseClient(
+        'https://office-backend.example.invalid',
+        'test-publishable-key',
+        httpClient: MockClient(server.handle),
+        authOptions: const AuthClientOptions(autoRefreshToken: false),
+      );
+      addTearDown(client.dispose);
+      final root = SupabaseCompanyBackend(client);
+      final employee = await root.signIn(
+        'test@example.invalid',
+        'test-password',
+      );
+      final office = root.forOffice(employee);
+      const colleague = '20000000-0000-4000-8000-000000000002';
+      String image(String user, String kind) =>
+          'https://office-backend.example.invalid/storage/v1/object/sign/profile-media/$user/$kind-old.gif?token=expired';
+      final results = await Future.wait([
+        office.refreshProfileImage(image(_user, 'avatar')),
+        office.refreshProfileImage(image(colleague, 'avatar')),
+        office.refreshProfileImage(image(colleague, 'avatar')),
+      ]);
+      expect(results.every((url) => url!.contains('token=test-token')), isTrue);
+      final signing = server.calls
+          .where((call) => call.url.path.endsWith('/object/sign/profile-media'))
+          .toList();
+      expect(signing.length, 1);
+      expect((jsonDecode(signing.single.body) as Map)['paths'], [
+        '$_user/avatar-old.gif',
+        '$colleague/avatar-old.gif',
+      ]);
+      await expectLater(
+        root
+            .forAccount(employee)
+            .refreshProfileImage(image(colleague, 'avatar')),
+        throwsA(isA<CompanyException>()),
+      );
+      await expectLater(
+        office.refreshProfileImage(image(colleague, 'banner')),
+        throwsA(isA<CompanyException>()),
+      );
+      await expectLater(
+        office.refreshProfileImage(
+          image(_user, 'avatar').replaceFirst(
+            'office-backend.example.invalid',
+            'other.example.invalid',
+          ),
+        ),
+        throwsA(isA<CompanyException>()),
+      );
+      final stale = office.refreshProfileImage(image(_user, 'avatar'));
+      final assertion = expectLater(stale, throwsA(isA<CompanyException>()));
+      await root.switchOffice(_b);
+      await assertion;
+    },
+  );
+  test('office actions send only the field being changed', () async {
+    final server = _Server();
+    final client = SupabaseClient(
+      'https://office-backend.example.invalid',
+      'test-publishable-key',
+      httpClient: MockClient(server.handle),
+      authOptions: const AuthClientOptions(autoRefreshToken: false),
+    );
+    addTearDown(client.dispose);
+    final root = SupabaseCompanyBackend(client);
+    final employee = await root.signIn('test@example.invalid', 'test-password');
+    final backend = root.forAccount(employee);
+    const stale = Office(
+      id: _a,
+      name: 'Old name',
+      role: 'admin',
+      logoPath: 'old-logo.png',
+    );
+    await backend.updateOffice(stale, name: 'New name');
+    expect(jsonDecode(server.calls.last.body), {
+      'p_organization': _a,
+      'p_name': 'New name',
+    });
+    await backend.updateOffice(stale, removeLogo: true);
+    expect(jsonDecode(server.calls.last.body), {
+      'p_organization': _a,
+      'p_change_logo': true,
+      'p_logo': null,
+    });
+  });
+  test(
     'AuthProvider leaves password setup after a successful scoped update',
     () async {
       final server = _Server();
@@ -243,6 +334,11 @@ void main() {
       final partial = await root.forAccount(me).profileMedia();
       expect(partial['avatar'], isNotNull);
       expect(partial['banner'], isNull);
+      expect(
+        partial.containsKey('banner'),
+        isFalse,
+        reason: 'failed signing must not masquerade as a removed banner',
+      );
       server.avatarPaths.clear();
       server.bannerPath = null;
       final before = server.calls.length;

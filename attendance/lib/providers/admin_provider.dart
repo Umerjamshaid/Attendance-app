@@ -91,6 +91,11 @@ class AdminProvider extends ChangeNotifier {
 
       final employees = (results[0] as List<Employee>).where((e) => e.isActive);
       final todayRecords = results[1] as List<AttendanceRecord>;
+      final oldAvatars = {
+        for (final row in _allEmployeeAttendance)
+          if (row.employee.authUserId != null && row.employee.avatarUrl != null)
+            row.employee.authUserId!: row.employee.avatarUrl!,
+      };
 
       // Match each employee to their latest attendance record
       _allEmployeeAttendance = employees.map((emp) {
@@ -100,7 +105,12 @@ class AdminProvider extends ChangeNotifier {
               if (prev == null) return r;
               return r.timestamp.isAfter(prev.timestamp) ? r : prev;
             });
-        return EmployeeAttendance(employee: emp, latestRecord: latestRecord);
+        return EmployeeAttendance(
+          employee: emp.copyWith(
+            avatarUrl: emp.avatarUrl ?? oldAvatars[emp.authUserId],
+          ),
+          latestRecord: latestRecord,
+        );
       }).toList();
       unawaited(_loadAvatars(employees.toList(), generation));
     } catch (e) {
@@ -121,12 +131,13 @@ class AdminProvider extends ChangeNotifier {
       final avatars = await backend
           .employeeAvatars(employees)
           .timeout(const Duration(seconds: 10));
-      if (_disposed || generation != _generation || avatars.isEmpty) return;
+      if (_disposed || generation != _generation) return;
       _allEmployeeAttendance = _allEmployeeAttendance
           .map(
             (data) => EmployeeAttendance(
               employee: data.employee.copyWith(
                 avatarUrl: avatars[data.employee.authUserId],
+                clearAvatarUrl: !avatars.containsKey(data.employee.authUserId),
               ),
               latestRecord: data.latestRecord,
             ),

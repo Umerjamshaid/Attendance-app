@@ -1,6 +1,11 @@
 # Buzz UI Refresh Handoff
 
 Updated: 2026-11-15. Branch: `codex/buzz-ui-refresh`.
+
+Latest follow-up: see [review and media fixes](review-fixes-2026-11-16.md) on
+`fix/coderabbit-issues` for PR #19/#20 review handling, cache retirement/expiry,
+banner recovery and 10 MB GIF banners. Earlier limits and delivery states below
+are historical.
 Base: `755f60d`, the existing multi-office rollout checkpoint.
 
 ## Read This First

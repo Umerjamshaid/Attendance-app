@@ -20,6 +20,47 @@ void main() {
   });
   setUp(() => GoogleFonts.config.allowRuntimeFetching = false);
 
+  testWidgets(
+    'a failed banner exposes retry rather than only a silent fallback',
+    (tester) async {
+      final profile = _Profile();
+      addTearDown(profile.dispose);
+      await tester.pumpWidget(
+        ChangeNotifierProvider<ProfileProvider>.value(
+          value: profile,
+          child: MaterialApp(
+            theme: AppTheme.theme,
+            home: Scaffold(
+              body: ListView(
+                children: [
+                  ProfileHeader(
+                    employee: Employee(
+                      id: 'EMP001',
+                      name: 'Sample Employee',
+                      email: '',
+                      department: '',
+                      role: 'employee',
+                      time: '',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 80)),
+      );
+      await tester.pumpAndSettle();
+    expect(find.byTooltip('Retry banner'), findsOneWidget);
+    await tester.tap(find.byTooltip('Retry banner'));
+      await tester.pumpAndSettle();
+      expect(profile.bannerRetries, 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   for (final brightness in Brightness.values) {
     testWidgets('profile media icons fit ${brightness.name} UI', (
       tester,
@@ -140,6 +181,12 @@ void main() {
 }
 
 class _Profile extends ProfileProvider {
+  int bannerRetries = 0;
+  @override
+  Future<void> retryBanner(String userId) async {
+    bannerRetries++;
+  }
+
   @override
   String? get bannerPath => 'missing-test-banner.png';
 

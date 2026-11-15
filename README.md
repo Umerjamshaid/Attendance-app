@@ -15,7 +15,7 @@ What started as a UI project now includes a working Supabase backend, authentica
 - **Review attendance:** see today's status, monthly progress, streaks, and the History overview.
 - **Manage your team:** review employees and their profile photos, open check-in logs in a bottom sheet, and inspect photo/GPS evidence with an address when available.
 - **Manage access:** invite employees and use office-specific administrative controls. Role changes remain server-authorized.
-- **Make it yours:** edit your profile, change appearance, and use animated GIFs or other supported images for your avatar and banner, up to 5 MB.
+- **Make it yours:** edit your profile, change appearance, and use animated GIFs or other supported images. Avatars and ordinary banners support up to 5 MB; GIF banners support up to 10 MB.
 
 ## Interface
 
