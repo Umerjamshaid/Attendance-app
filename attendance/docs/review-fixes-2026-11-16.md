@@ -112,3 +112,6 @@ request server-side image transformations for animated media.
 - Ignored private entrypoint/service hashes are unchanged. No APK was rebuilt
   in this pass; the previous APK does not contain these client-side fixes.
   Physical-phone GIF playback and optional CodeRabbit CLI review remain unrun.
+- Public fixes were committed as `2735132` on `fix/coderabbit-issues` and pushed.
+  [PR #21](https://github.com/Umerjamshaid/Attendance-app/pull/21) targets
+  `codex/buzz-ui-refresh` (PR #20). No existing PR head or main was overwritten.
