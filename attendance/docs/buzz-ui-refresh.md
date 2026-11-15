@@ -510,3 +510,20 @@ References: [Storage access control](https://supabase.com/docs/guides/storage/se
   `codex/multi-office-switcher` while #19 remains open. This keeps the new UI diff
   separate from the earlier office migration. After #19 merges, review/retarget
   the UI PR to main as appropriate; do not imply main already contains this work.
+
+### Published Result
+
+- Public source/README checkpoint `ba2ea25778061c04d26297dad1400d4f3584a5f2`
+  was committed and pushed to `origin/codex/buzz-ui-refresh`.
+- Opened [PR #20](https://github.com/Umerjamshaid/Attendance-app/pull/20),
+  "Polish attendance UI, profile media and recovery flows", with base
+  `codex/multi-office-switcher`. PR #19 and main were not merged or rewritten.
+- The current README is on the UI branch/PR; the GitHub default-branch front page
+  will remain on its prior version until the relevant PRs are merged.
+- Both ignored private source hashes remain unchanged. The APK is still local.
+  The only remaining local edits are the intentionally excluded historical
+  handoff, prompt/design notes, attachments and diagnostic images. Do not delete
+  or sweep them into an unrelated commit to make the worktree appear clean.
+- Next media task: use the owner's forthcoming mockups and real demo video to
+  replace the explicitly labeled earlier gallery. Shorebird remains discussion
+  only; notifications and recognition badges still await product requirements.
