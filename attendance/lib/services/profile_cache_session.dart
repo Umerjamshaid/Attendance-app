@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:file/file.dart' show File;
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:http/http.dart' as http;
 
@@ -12,15 +13,18 @@ typedef ProfileUrlRefresh = Future<String?> Function(String url);
 /// One login's cache access. A later login waits for retirement before opening
 /// the same persistent directory, but never shares this manager or image keys.
 class ProfileCacheSession implements BaseCacheManager {
-  ProfileCacheSession(String viewer, {Future<void>? after, http.Client? client})
-    : _client = client ?? http.Client() {
-    final name = 'profile-media-v1-$viewer';
-    _files = _TrackedFiles(IOFileSystem(name));
+  ProfileCacheSession(
+    String viewer, {
+    Future<String>? after,
+    http.Client? client,
+    CacheManager Function(Config)? createManager,
+  }) : _client = client ?? http.Client() {
     _manager = () async {
-      await after;
-      return CacheManager(
+      cacheNamespace = await after ?? 'profile-media-v1-$viewer';
+      _files = _TrackedFiles(IOFileSystem(cacheNamespace));
+      return (createManager ?? CacheManager.new)(
         Config(
-          name,
+          cacheNamespace,
           stalePeriod: const Duration(days: 1),
           maxNrOfCacheObjects: 80,
           fileSystem: _files,
@@ -31,12 +35,15 @@ class ProfileCacheSession implements BaseCacheManager {
   }
 
   final http.Client _client;
+  late final String cacheNamespace;
   late final _TrackedFiles _files;
   late final Future<CacheManager> _manager;
   final _pending = <Future<void>>{};
   final _refreshers = <String, ProfileUrlRefresh>{};
   bool _retired = false;
   Future<void>? _retirement;
+  @visibleForTesting
+  int get unindexedFileCount => _files.created.length;
   void register(String key, ProfileUrlRefresh? refresh) {
     if (!_retired && refresh != null) _refreshers[key] = refresh;
   }
@@ -48,7 +55,10 @@ class ProfileCacheSession implements BaseCacheManager {
     try {
       final manager = await _manager;
       if (_retired) throw StateError('The image session has ended.');
-      return await operation(manager);
+      final result = await operation(manager);
+      if (result is FileInfo) _files.indexed(result.file);
+      if (result is File) _files.indexed(result);
+      return result;
     } finally {
       _pending.remove(done.future);
       done.complete();
@@ -111,6 +121,7 @@ class ProfileCacheSession implements BaseCacheManager {
                     headers: headers,
                     withProgress: withProgress,
                   )) {
+                    if (event is FileInfo) _files.indexed(event.file);
                     if (!_retired && output.hasListener) output.add(event);
                   }
                   return;
@@ -147,13 +158,20 @@ class ProfileCacheSession implements BaseCacheManager {
     return _retirement = () async {
       await Future.wait(_pending.toList());
       final manager = await _manager;
-      await manager.emptyCache();
-      // Interrupted transfers may leave files not yet indexed by CacheManager.
-      for (final file in _files.created) {
-        if (await file.exists()) await file.delete();
+      try {
+        await manager.emptyCache();
+      } finally {
+        try {
+          // Interrupted transfers may leave files not yet indexed by CacheManager.
+          for (final file in _files.created.values) {
+            if (await file.exists()) await file.delete();
+          }
+        } finally {
+          _files.created.clear();
+          _refreshers.clear();
+          await manager.dispose();
+        }
       }
-      _refreshers.clear();
-      await manager.dispose();
     }();
   }
 
@@ -248,11 +266,12 @@ class ProfileCacheSession implements BaseCacheManager {
 class _TrackedFiles implements FileSystem {
   _TrackedFiles(this.delegate);
   final FileSystem delegate;
-  final created = <File>{};
+  final created = <String, File>{};
+  void indexed(File file) => created.remove(file.path);
   @override
   Future<File> createFile(String name) async {
     final file = await delegate.createFile(name);
-    created.add(file);
+    if (!await file.exists()) created[file.path] = file;
     return file;
   }
 }

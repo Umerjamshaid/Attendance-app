@@ -40,7 +40,7 @@ class _Server {
   Completer<http.Response>? oldHistory;
   Completer<http.Response>? oldContext;
   Completer<http.Response>? oldAvatar;
-  final avatarPaths = <String, String>{};
+  final avatarPaths = <String, String?>{};
   final calls = <http.Request>[];
   bool rejectPassword = false;
   String? bannerPath;
@@ -412,6 +412,10 @@ void main() {
         server.employee(_a),
       ).copyWith(authUserId: '20000000-0000-4000-8000-000000000002');
       expect(await backend.employeeAvatars([colleague]), isEmpty);
+      server.avatarPaths[colleague.authUserId!] = null;
+      expect(await backend.employeeAvatars([colleague]), {
+        colleague.authUserId!: null,
+      });
       expect(
         server.calls.where((c) => c.url.path.contains('/object/sign/')),
         isEmpty,

@@ -157,11 +157,27 @@ and must be addressed in the company's deployment/privacy policy.
 Profile avatars and cover photos accept JPEG/JPG, PNG, GIF (including animation),
 WebP, and BMP. The app permits avatars and non-GIF banners up to 5 MB
 (5,242,880 bytes), and GIF banners up to 10 MB (10,485,760 bytes). The shared
-private `profile-media` bucket has a 10 MB ceiling; the per-kind limits are app
-validation, not separate server-side bucket limits. The allowed MIME types and
+private `profile-media` bucket has a 10 MB ceiling. The forward migration
+`20261115222312_profile_media_kind_limits.sql` also enforces per-kind limits on
+Storage's final measured metadata: 5 MB normally, or 10 MB for `banner-*.gif`
+objects reported as `image/gif`. It checks both size fields, including writes
+performed by Storage's privileged completion path; it does not trust custom
+user metadata. This is MIME/size validation, not server-side image-byte decoding.
+Apply `20261115224246_profile_media_upload_probe_compatibility.sql` too: it limits
+the hook to final metadata containing measured `size`, since authorization
+probes can report a multipart request length including non-file overhead.
+The app separately verifies file signatures. The allowed MIME types and
 private access policies are unchanged. Attendance evidence and office logos
 retain their separate 2 MB JPEG/PNG restrictions. Older APKs still enforce their
 bundled limit and must be updated to use the larger allowance.
+
+The narrow `profile_media_size_guard` trigger is a custom Storage-schema hook.
+Recheck it against Storage's upload/probe/completion contract during upgrades;
+do not replace it with an RLS-only size check, because some service versions
+complete uploads with elevated privileges. It changes no existing objects.
+If an incompatible Storage upgrade requires rollback, remove that trigger and
+its `public.enforce_profile_media_size()` function through a reviewed forward
+migration. Doing so restores the shared 10 MB ceiling, not the per-kind guard.
 
 Office-review fixes are forward-only migrations. The new `update_office_fields`
 RPC preserves fields omitted by an action; legacy clients retain the original

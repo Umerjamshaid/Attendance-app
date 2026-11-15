@@ -364,24 +364,21 @@ class _Banner extends StatefulWidget {
 
 class _BannerState extends State<_Banner> {
   int _revision = 0;
+  int _imageRevision = 0;
   bool _retrying = false;
   bool _failed = false;
 
   @override
   void didUpdateWidget(covariant _Banner oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.path != null &&
-        widget.path != null &&
-        profileImageIdentity(oldWidget.path!, viewer: oldWidget.viewer) ==
-            profileImageIdentity(widget.path!, viewer: widget.viewer)) {
+    if (oldWidget.path == widget.path && oldWidget.viewer == widget.viewer) {
       return;
     }
     _failed = false;
     _revision++;
   }
 
-  void _reportFailure() {
-    final revision = _revision;
+  void _reportFailure(int revision) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && revision == _revision && !_failed) {
         setState(() => _failed = true);
@@ -405,6 +402,7 @@ class _BannerState extends State<_Banner> {
           _retrying = false;
           _failed = false;
           _revision++;
+          _imageRevision++;
         });
       }
     }
@@ -420,6 +418,7 @@ class _BannerState extends State<_Banner> {
     final onTap = widget.onTap;
     final onRemove = widget.onRemove;
     final hasBanner = image != null;
+    final revision = _revision;
     return Semantics(
       container: true,
       button: true,
@@ -435,7 +434,7 @@ class _BannerState extends State<_Banner> {
                   ? const _BannerGradient(key: ValueKey('default-banner'))
                   : SizedBox.expand(
                       key: ValueKey(
-                        '${profileImageIdentity(image, viewer: viewer)}:$_revision',
+                        '${profileImageIdentity(image, viewer: viewer)}:$_imageRevision',
                       ),
                       child: Image(
                         image: profileImageProvider(
@@ -453,7 +452,7 @@ class _BannerState extends State<_Banner> {
                         // The picked file can disappear (cache cleared). The
                         // remove action stays available to clear the stale path.
                         errorBuilder: (_, _, _) {
-                          _reportFailure();
+                          _reportFailure(revision);
                           return const _BannerGradient();
                         },
                       ),

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:attendance/services/profile_image_cache.dart';
 import 'package:attendance/services/profile_cache_session.dart';
@@ -26,8 +27,106 @@ class _Paths extends PathProviderPlatform {
   Future<String> getApplicationSupportPath() async => path;
 }
 
+class _CleanupFailure extends CacheManager {
+  _CleanupFailure(super.config);
+  bool disposed = false;
+  @override
+  Future<void> emptyCache() async =>
+      throw const FileSystemException('Simulated cleanup failure');
+  @override
+  Future<void> dispose() async {
+    disposed = true;
+    await super.dispose();
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  test(
+    'failed cleanup disposes and isolates the next login without poisoning it',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'attendance-cleanup-error-',
+      );
+      final original = PathProviderPlatform.instance;
+      PathProviderPlatform.instance = _Paths(directory.path);
+      addTearDown(() async {
+        await ProfileImageCache.clearViewer('cleanup-error');
+        PathProviderPlatform.instance = original;
+        await directory.delete(recursive: true);
+      });
+      late _CleanupFailure failing;
+      final oldImage =
+          ProfileImageCache.image(
+                _url,
+                viewer: 'cleanup-error',
+                createManager: (config) => failing = _CleanupFailure(config),
+              )
+              as CachedNetworkImageProvider;
+      final old = oldImage.cacheManager! as ProfileCacheSession;
+      final oldFile = await old.putFile(
+        _url,
+        Uint8List.fromList([1, 2]),
+        key: oldImage.cacheKey,
+      );
+      await ProfileImageCache.clearViewer('cleanup-error');
+      expect(failing.disposed, isTrue);
+      expect(
+        await oldFile.exists(),
+        isTrue,
+        reason: 'fault injection leaves the old cache behind',
+      );
+      final newImage =
+          ProfileImageCache.image(_url, viewer: 'cleanup-error')
+              as CachedNetworkImageProvider;
+      final current = newImage.cacheManager! as ProfileCacheSession;
+      expect(await current.getFileFromCache(newImage.cacheKey!), isNull);
+      expect(current.cacheNamespace, isNot(old.cacheNamespace));
+      final file = await current.putFile(
+        _url,
+        Uint8List.fromList([3, 4]),
+        key: newImage.cacheKey,
+      );
+      expect(await file.readAsBytes(), [3, 4]);
+      await ProfileImageCache.clearViewer('cleanup-error');
+      final again =
+          ProfileImageCache.image(_url, viewer: 'cleanup-error')
+              as CachedNetworkImageProvider;
+      expect(
+        await again.cacheManager!.getFileFromCache(again.cacheKey!),
+        isNull,
+      );
+      expect(
+        (again.cacheManager! as ProfileCacheSession).cacheNamespace,
+        current.cacheNamespace,
+      );
+    },
+  );
+
+  test(
+    'indexed and evicted files do not accumulate in partial-file tracking',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'attendance-cache-tracking-',
+      );
+      final original = PathProviderPlatform.instance;
+      PathProviderPlatform.instance = _Paths(directory.path);
+      final manager = ProfileCacheSession('tracking');
+      addTearDown(() async {
+        await manager.retire();
+        PathProviderPlatform.instance = original;
+        await directory.delete(recursive: true);
+      });
+      for (var index = 0; index < 100; index++) {
+        final key = 'image-$index';
+        await manager.putFile(key, Uint8List.fromList([index]), key: key);
+        await manager.getFileFromCache(key);
+        await manager.removeFile(key);
+        expect(manager.unindexedFileCount, 0);
+      }
+    },
+  );
 
   test('cache keys follow file versions, not refreshed private signatures', () {
     String key(

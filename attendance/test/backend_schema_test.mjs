@@ -14,7 +14,7 @@ await db.exec(`
   create table auth.users(id uuid primary key, email text, email_confirmed_at timestamptz default now());
   create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true),'')::uuid $$;
   create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
-  create table storage.objects(id uuid primary key default gen_random_uuid(),bucket_id text,name text,created_at timestamptz default now());
+  create table storage.objects(id uuid primary key default gen_random_uuid(),bucket_id text,name text,metadata jsonb,created_at timestamptz default now());
   create function storage.foldername(name text) returns text[] language sql immutable as $$ select string_to_array(name,'/') $$;
   alter table storage.objects enable row level security;
   grant select,insert,delete on storage.objects to authenticated;
@@ -73,6 +73,26 @@ async function role(name, user) {
 /** Reads the scalar assertion value from a test query. */
 async function value(sql) { return (await db.query(sql)).rows[0].value; }
 async function denied(sql) { await assert.rejects(db.exec(sql)); }
+await role('authenticated', employee);
+const media = (name, metadata) => `insert into storage.objects(bucket_id,name,metadata) values ('profile-media','${employee}/${name}','${JSON.stringify(metadata)}'::jsonb)`;
+// Authorization probes roll back; their request length can include multipart overhead.
+await db.exec(`begin; ${media('avatar-probe.png', { contentLength: 5243392, mimetype: 'image/png' })}; rollback;`);
+await db.exec(`begin; ${media('banner-probe.gif', { contentLength: 10486272, mimetype: 'image/gif' })}; rollback;`);
+await db.exec(media('avatar-limit.png', { size: 5242880, mimetype: 'image/png' }));
+await db.exec(media('banner-limit.gif', { size: 10485760, mimetype: 'image/gif' }));
+await denied(media('avatar-large.gif', { size: 5242881, mimetype: 'image/gif' }));
+await denied(media('banner-large.png', { size: 5242881, mimetype: 'image/png' }));
+await denied(media('banner-wrong-type.gif', { size: 5242881, mimetype: 'image/jpeg' }));
+await denied(media('banner-too-large.gif', { size: 10485761, mimetype: 'image/gif' }));
+await denied(media('avatar-conflicting.png', { size: 1, contentLength: 5242881, mimetype: 'image/png' }));
+await denied(media('avatar-invalid.png', { size: -1, mimetype: 'image/png' }));
+await denied(media('avatar-invalid.png', { size: 'invalid', mimetype: 'image/png' }));
+await role('service_role');
+// Storage completion writes bypass RLS; the measured-metadata guard must not.
+await db.exec(`insert into storage.objects(bucket_id,name) values ('profile-media','${employee}/avatar-probe.png')`);
+await denied(`update storage.objects set metadata='{"size":5242881,"mimetype":"image/png"}' where name='${employee}/avatar-probe.png'`);
+await denied(`update storage.objects set name='${employee}/avatar-renamed.gif' where name='${employee}/banner-limit.gif'`);
+await db.exec(`delete from storage.objects where bucket_id='profile-media' and name in ('${employee}/avatar-probe.png','${employee}/avatar-limit.png','${employee}/banner-limit.gif')`);
 await role('anon');
 await denied('select * from public.check_ins');
 await denied('select public.current_employee()');
@@ -241,6 +261,7 @@ await db.exec(`select public.update_office('${created}','Renamed office','${crea
 await db.exec(`select public.update_office_fields('${created}',p_name=>'Concurrent rename')`);
 assert.equal(await value(`select logo_path as value from public.organizations where id='${created}'`), `${created}/logo.png`);
 await db.exec(`select public.update_office_fields('${created}',p_change_logo=>true,p_logo=>null)`);
+assert.equal(await value(`select logo_path as value from public.organizations where id='${created}'`), null);
 assert.equal(await value(`select name as value from public.organizations where id='${created}'`), 'Concurrent rename');
 await db.exec(`select public.update_office_fields('${created}',p_change_logo=>true,p_logo=>'${created}/logo.png')`);
 await denied(`select public.update_office_fields('${otherCompany}',p_name=>'Stolen')`);

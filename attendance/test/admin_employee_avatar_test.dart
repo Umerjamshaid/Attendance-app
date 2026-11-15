@@ -29,7 +29,7 @@ final _employees = [
 ];
 
 class _Backend extends PreviewCompanyBackend {
-  Completer<Map<String, String>> avatars = Completer<Map<String, String>>();
+  Completer<Map<String, String?>> avatars = Completer<Map<String, String?>>();
   final batches = <List<Employee>>[];
   @override
   Future<List<Employee>> employees() async => _employees;
@@ -39,7 +39,7 @@ class _Backend extends PreviewCompanyBackend {
     bool todayOnly = false,
   }) async => [];
   @override
-  Future<Map<String, String>> employeeAvatars(List<Employee> employees) {
+  Future<Map<String, String?>> employeeAvatars(List<Employee> employees) {
     batches.add(employees);
     return avatars.future;
   }
@@ -63,7 +63,7 @@ void main() {
         'user-0': 'https://avatar.example.invalid/current.gif',
       });
       await Future<void>.delayed(Duration.zero);
-      backend.avatars = Completer<Map<String, String>>();
+      backend.avatars = Completer<Map<String, String?>>();
       await admin.loadDashboard();
       expect(
         admin.filteredList.first.employee.avatarUrl,
@@ -72,6 +72,15 @@ void main() {
             'a return to Admin must not briefly replace a cached photo with initials',
       );
       backend.avatars.complete({});
+      await Future<void>.delayed(Duration.zero);
+      expect(
+        admin.filteredList.first.employee.avatarUrl,
+        endsWith('/current.gif'),
+        reason: 'a partial signing error does not confirm avatar removal',
+      );
+      backend.avatars = Completer<Map<String, String?>>();
+      await admin.loadDashboard();
+      backend.avatars.complete({'user-0': null});
       await Future<void>.delayed(Duration.zero);
       expect(
         admin.filteredList.first.employee.avatarUrl,
@@ -165,7 +174,7 @@ void main() {
       addTearDown(admin.dispose);
       await admin.loadDashboard();
       final old = backend.avatars;
-      backend.avatars = Completer<Map<String, String>>();
+      backend.avatars = Completer<Map<String, String?>>();
       await admin.loadDashboard();
       backend.avatars.complete({
         'user-0': 'https://avatar.example.invalid/new.png',
@@ -188,7 +197,7 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       expect(admin.totalEmployees, 2);
       expect(admin.error, isNull);
-      backend.avatars = Completer<Map<String, String>>();
+      backend.avatars = Completer<Map<String, String?>>();
       await admin.loadDashboard();
       backend.avatars.complete({
         'user-0': 'https://avatar.example.invalid/retry.png',

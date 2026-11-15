@@ -332,7 +332,7 @@ class SupabaseCompanyBackend extends CompanyBackend {
   });
 
   @override
-  Future<Map<String, String>> employeeAvatars(List<Employee> employees) =>
+  Future<Map<String, String?>> employeeAvatars(List<Employee> employees) =>
       _guard(() async {
         final office = _office;
         if (employees.any(
@@ -341,7 +341,7 @@ class SupabaseCompanyBackend extends CompanyBackend {
         )) {
           throw const CompanyException('The employee is not in this office.');
         }
-        final avatars = <String, String>{};
+        final avatars = <String, String?>{};
         final ids = employees
             .map((employee) => employee.authUserId!)
             .toSet()
@@ -357,6 +357,7 @@ class SupabaseCompanyBackend extends CompanyBackend {
           for (final row in rows) {
             final id = row['user_id'] as String;
             final path = row['avatar_path'] as String?;
+            if (batch.contains(id) && path == null) avatars[id] = null;
             if (batch.contains(id) &&
                 path != null &&
                 path.startsWith('$id/avatar-')) {

@@ -137,7 +137,9 @@ class AdminProvider extends ChangeNotifier {
             (data) => EmployeeAttendance(
               employee: data.employee.copyWith(
                 avatarUrl: avatars[data.employee.authUserId],
-                clearAvatarUrl: !avatars.containsKey(data.employee.authUserId),
+                clearAvatarUrl:
+                    avatars.containsKey(data.employee.authUserId) &&
+                    avatars[data.employee.authUserId] == null,
               ),
               latestRecord: data.latestRecord,
             ),

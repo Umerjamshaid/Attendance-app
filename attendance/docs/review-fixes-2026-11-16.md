@@ -55,8 +55,9 @@ Base: `a406336`, the published UI PR #20 checkpoint, which is stacked on #19.
 - GIF banners: app limit is 10,485,760 bytes. Avatars and non-GIF banners remain
   5,242,880 bytes in app validation; office logos and evidence remain 2 MB.
   Storage buckets have one size ceiling, so profile-media's bucket ceiling is
-  10 MB, not a per-kind server-side enforcement mechanism. No MIME or RLS access
-  expansion is part of the size migration. Original GIF bytes are retained.
+  10 MB, not by itself a per-kind enforcement mechanism. The follow-up below
+  adds a server guard. No MIME or RLS access expansion is part of the size
+  migration. Original GIF bytes are retained.
 
 ## Storage Recommendation
 
@@ -115,3 +116,46 @@ request server-side image transformations for animated media.
 - Public fixes were committed as `2735132` on `fix/coderabbit-issues` and pushed.
   [PR #21](https://github.com/Umerjamshaid/Attendance-app/pull/21) targets
   `codex/buzz-ui-refresh` (PR #20). No existing PR head or main was overwritten.
+
+## PR 21 Follow-Up
+
+All nine submitted inline findings were verified as valid (two describe the
+same cleanup failure and two concern different banner callback races).
+
+- Cleanup always disposes the underlying manager in `finally`. `_retiring`
+  stores a fulfilled namespace barrier, not a rejected cleanup future. On a
+  filesystem failure the next login waits, then uses a new namespace rather
+  than reopening the partially cleaned cache. Later successful cleanups retain
+  that safe namespace. Old OS-locked bytes may remain; this is isolation and
+  best-effort cleanup, not secure erasure.
+- Partial-file tracking is deduplicated by path and drops files once indexing
+  succeeds. Existing cached files read/evicted later are not added to that set.
+  A regression exercises 100 indexed/read/evicted files without accumulation.
+- Avatar refresh results now distinguish a confirmed absent path (`UUID: null`)
+  from a failed/omitted signing result (UUID omitted). Only confirmed removal
+  clears the cached avatar. Backend batching and office validation remain.
+- Banner failure callbacks capture the generation at Image construction, so
+  outgoing AnimatedSwitcher children cannot mark the new banner failed.
+  Signature changes clear Retry without replacing the stable image element;
+  explicit Retry still gets a separate image revision to reload corrupt bytes.
+- The missing-file UI test waits for the Retry tooltip with a bounded deadline,
+  not a fixed 80 ms delay. Added a cache-backed test of signature refresh and
+  late outgoing errors; the existing light/dark goldens remain unchanged.
+- The logo-clear SQL test immediately asserts `logo_path IS NULL`.
+- New forward migration `20261115222312_profile_media_kind_limits.sql` validates
+  profile-media sizes using Storage's measured `size`/`contentLength`, object
+  filename and reported MIME type, including privileged completion writes.
+  Avatars/non-GIF banners are capped at 5 MiB; named GIF banners at 10 MiB.
+  Metadata-less preflight probes remain compatible. This is not byte sniffing;
+  user-supplied custom metadata cannot change the guard's measured size input.
+  No object migration/deletion, bucket split or RLS relaxation is performed.
+- Forward compatibility migration
+  `20261115224246_profile_media_upload_probe_compatibility.sql` limits the hook
+  to final metadata containing measured `size`. Multipart authorization probes
+  can report Content-Length including request overhead. Tests cover rolled-back
+  probes above each cap and final measured sizes exactly at/above the caps.
+- This custom trigger is intentionally narrow; Supabase recommends treating
+  the Storage schema as managed. Its API metadata contract and trigger must be
+  rechecked on Storage upgrades. See backend-setup.md for rollback boundaries.
+- The user explicitly approved applying the tested guard live and requested a
+  single public ARM64 release APK. Deployment/build results are recorded below.
