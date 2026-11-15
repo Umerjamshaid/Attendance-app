@@ -18,6 +18,7 @@ class _OfficeSession {
   int generation = 0;
   bool switching = false;
   bool recoveryRequired = false;
+  bool passwordRecovery = false;
 }
 
 class SupabaseCompanyBackend extends CompanyBackend {
@@ -44,7 +45,6 @@ class SupabaseCompanyBackend extends CompanyBackend {
   AttendancePolicy _policy = const AttendancePolicy();
   bool _hasPolicy = false;
   Future<AttendancePolicy>? _policyRequest;
-  bool _recovering = false;
 
   @override
   bool get supportsOffices => true;
@@ -107,12 +107,17 @@ class SupabaseCompanyBackend extends CompanyBackend {
       tz.TZDateTime.now(tz.getLocation(_policy.timezone));
   @override
   bool get needsPasswordSetup =>
-      _recovering ||
+      _session.passwordRecovery ||
       (client.auth.currentUser != null &&
           client.auth.currentUser!.userMetadata?['password_set'] != true);
   @override
   Stream<void> get authChanges => client.auth.onAuthStateChange.map((event) {
-    if (event.event == AuthChangeEvent.passwordRecovery) _recovering = true;
+    if (event.event == AuthChangeEvent.passwordRecovery) {
+      _session.passwordRecovery = true;
+    }
+    if (event.event == AuthChangeEvent.signedOut) {
+      _session.passwordRecovery = false;
+    }
   });
 
   Future<dynamic> _rpc(String name, {Map<String, dynamic>? params}) =>
@@ -247,7 +252,7 @@ class SupabaseCompanyBackend extends CompanyBackend {
     _session.generation++;
     _session.officeId = null;
     await client.auth.signOut();
-    _recovering = false;
+    _session.passwordRecovery = false;
   });
   @override
   Future<Employee> updateProfile({
@@ -284,17 +289,25 @@ class SupabaseCompanyBackend extends CompanyBackend {
   });
   @override
   Future<void> resetPassword(String email) => _guard(
-    () => client.auth.resetPasswordForEmail(
-      email,
-      redirectTo: BackendConfig.authRedirect,
-    ),
+    () => client.auth
+        .resetPasswordForEmail(email, redirectTo: BackendConfig.authRedirect)
+        .timeout(const Duration(seconds: 20)),
   );
   @override
   Future<void> setPassword(String password) => _guard(() async {
-    await client.auth.updateUser(
-      UserAttributes(password: password, data: {'password_set': true}),
-    );
-    _recovering = false;
+    await client.auth
+        .updateUser(
+          UserAttributes(password: password, data: {'password_set': true}),
+        )
+        .timeout(
+          const Duration(seconds: 30),
+          onTimeout: () => throw const CompanyException(
+            'The password update could not be confirmed. Check your connection. '
+            'Try signing in with the new password before requesting another reset.',
+          ),
+        );
+    validateContext();
+    _session.passwordRecovery = false;
   });
   @override
   Future<void> changeEmail(String email) => _guard(() async {
@@ -312,6 +325,52 @@ class SupabaseCompanyBackend extends CompanyBackend {
         .map((row) => Employee.fromMap(Map<String, dynamic>.from(row as Map)))
         .toList();
   });
+
+  @override
+  Future<Map<String, String>> employeeAvatars(List<Employee> employees) =>
+      _guard(() async {
+        final office = _office;
+        if (employees.any(
+          (employee) =>
+              employee.organizationId != office || employee.authUserId == null,
+        )) {
+          throw const CompanyException('The employee is not in this office.');
+        }
+        final avatars = <String, String>{};
+        final ids = employees
+            .map((employee) => employee.authUserId!)
+            .toSet()
+            .toList();
+        for (var offset = 0; offset < ids.length; offset += 100) {
+          final batch = ids.skip(offset).take(100).toList();
+          final rows = await client
+              .from('profiles')
+              .select('user_id,avatar_path')
+              .inFilter('user_id', batch);
+          validateContext();
+          final owners = <String, String>{};
+          for (final row in rows) {
+            final id = row['user_id'] as String;
+            final path = row['avatar_path'] as String?;
+            if (batch.contains(id) &&
+                path != null &&
+                path.startsWith('$id/avatar-')) {
+              owners[path] = id;
+            }
+          }
+          if (owners.isEmpty) continue;
+          final signed = await client.storage
+              .from('profile-media')
+              .createSignedUrlsResult(owners.keys.toList(), 60);
+          validateContext();
+          for (final result in signed) {
+            if (result is SignedUrlSuccess && owners.containsKey(result.path)) {
+              avatars[owners[result.path]!] = result.signedUrl;
+            }
+          }
+        }
+        return avatars;
+      });
 
   AttendanceRecord _record(Map<String, dynamic> row) => AttendanceRecord(
     id: row['id'] as String,
@@ -438,16 +497,21 @@ class SupabaseCompanyBackend extends CompanyBackend {
         .select('avatar_path,banner_path')
         .eq('user_id', _user)
         .single();
-    final result = <String, String?>{};
-    for (final kind in ['avatar', 'banner']) {
-      final path = row['${kind}_path'] as String?;
-      result[kind] = path == null
-          ? null
-          : await client.storage
-                .from('profile-media')
-                .createSignedUrl(path, 900);
-    }
-    return result;
+    final paths = [
+      for (final kind in ['avatar', 'banner'])
+        if (row['${kind}_path'] case final String path) path,
+    ];
+    if (paths.isEmpty) return {'avatar': null, 'banner': null};
+    final signed = await client.storage
+        .from('profile-media')
+        .createSignedUrlsResult(paths, 900);
+    final urls = {
+      for (final item in signed)
+        if (item is SignedUrlSuccess) item.path: item.signedUrl,
+    };
+    return {
+      for (final kind in ['avatar', 'banner']) kind: urls[row['${kind}_path']],
+    };
   });
   @override
   Future<void> saveMedia(String kind, Uint8List? bytes) => _guard(() async {

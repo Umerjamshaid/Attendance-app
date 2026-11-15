@@ -46,7 +46,7 @@ class DashboardHeader extends StatelessWidget {
                             color: WC.white,
                             fontSize: 28,
                             fontWeight: FontWeight.w900,
-                            letterSpacing: -0.6,
+                            letterSpacing: 0,
                           ),
                         ),
                         SizedBox(height: 4),

@@ -1,8 +1,8 @@
+import 'package:attendance/config/ui_tokens.dart';
 import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/config/wc_tokens.dart';
 import 'package:attendance/models/attendance_record_model.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class AttendanceGroupCard extends StatelessWidget {
   final AttendanceGroup group;
@@ -17,11 +17,11 @@ class AttendanceGroupCard extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(8, 24, 8, 12),
           child: Text(
             group.date.toUpperCase(),
-            style: GoogleFonts.inter(
+            style: AppTypography.inter(
               color: const Color(0xFF555555),
               fontSize: 11,
               fontWeight: FontWeight.w900,
-              letterSpacing: 1.5,
+              letterSpacing: 0,
             ),
           ),
         ),
@@ -85,7 +85,7 @@ class CompactAttendanceCard extends StatelessWidget {
               children: [
                 Text(
                   record.isPresent ? 'Present' : 'Absent',
-                  style: GoogleFonts.inter(
+                  style: AppTypography.inter(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                     color: const Color(0xFF1B1D1F),
@@ -94,7 +94,7 @@ class CompactAttendanceCard extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   record.device.isNotEmpty ? record.device : 'Mobile App',
-                  style: GoogleFonts.inter(
+                  style: AppTypography.inter(
                     fontSize: 12,
                     color: const Color(0xFF999999),
                     fontWeight: FontWeight.w500,
@@ -108,7 +108,7 @@ class CompactAttendanceCard extends StatelessWidget {
             children: [
               Text(
                 time,
-                style: GoogleFonts.dmSans(
+                style: AppTypography.inter(
                   fontSize: 15,
                   fontWeight: FontWeight.w900,
                   color: const Color(0xFF1B1D1F),
@@ -117,11 +117,11 @@ class CompactAttendanceCard extends StatelessWidget {
               const SizedBox(height: 3),
               Text(
                 'VERIFIED',
-                style: GoogleFonts.inter(
+                style: AppTypography.inter(
                   fontSize: 9,
                   color: WC.present,
                   fontWeight: FontWeight.w900,
-                  letterSpacing: 0.5,
+                  letterSpacing: 0,
                 ),
               ),
             ],

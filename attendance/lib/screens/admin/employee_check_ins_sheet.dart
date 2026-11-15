@@ -1,7 +1,7 @@
+import 'package:attendance/config/ui_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -12,6 +12,7 @@ import '../../models/employees_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/company_backend.dart';
 import '../../widgets/user-profile/profile_section_card.dart';
+import '../../widgets/profile_image.dart';
 import 'attendance_evidence_screen.dart';
 
 /// Opens one employee's existing history without leaving the Admin dashboard.
@@ -22,6 +23,7 @@ Future<void> showEmployeeCheckInsSheet(
   final navigator = Navigator.of(context);
   final localizations = MaterialLocalizations.of(context);
   final backend = context.read<AuthProvider>().backend!;
+  final viewer = context.read<AuthProvider>().currentUser?.authUserId;
   HapticFeedback.selectionClick();
   return navigator.push<void>(
     _CheckInsRoute(
@@ -40,7 +42,11 @@ Future<void> showEmployeeCheckInsSheet(
       backgroundColor: context.colors.surface,
       builder: (context) => Theme(
         data: ProfileUi.themeOf(context),
-        child: _EmployeeCheckInsSheet(employee: employee, backend: backend),
+        child: _EmployeeCheckInsSheet(
+          employee: employee,
+          backend: backend,
+          viewer: viewer,
+        ),
       ),
     ),
   );
@@ -90,10 +96,15 @@ class _CheckInsRoute extends ModalBottomSheetRoute<void> {
 }
 
 class _EmployeeCheckInsSheet extends StatefulWidget {
-  const _EmployeeCheckInsSheet({required this.employee, required this.backend});
+  const _EmployeeCheckInsSheet({
+    required this.employee,
+    required this.backend,
+    this.viewer,
+  });
 
   final Employee employee;
   final CompanyBackend backend;
+  final String? viewer;
 
   @override
   State<_EmployeeCheckInsSheet> createState() => _EmployeeCheckInsSheetState();
@@ -101,17 +112,37 @@ class _EmployeeCheckInsSheet extends StatefulWidget {
 
 class _EmployeeCheckInsSheetState extends State<_EmployeeCheckInsSheet> {
   late Future<List<AttendanceRecord>> _records;
+  String? _avatarUrl;
+  int _avatarGeneration = 0;
 
   @override
   void initState() {
     super.initState();
     _records = _load();
+    _avatarUrl = widget.employee.avatarUrl;
+    if (_avatarUrl == null || _avatarUrl!.isEmpty) _loadAvatar();
+  }
+
+  Future<void> _loadAvatar() async {
+    final user = widget.employee.authUserId;
+    if (user == null) return;
+    final generation = ++_avatarGeneration;
+    try {
+      final avatars = await widget.backend
+          .employeeAvatars([widget.employee])
+          .timeout(const Duration(seconds: 10));
+      if (!mounted || generation != _avatarGeneration) return;
+      setState(() => _avatarUrl = avatars[user]);
+    } catch (_) {
+      // A missing photo must not block attendance history or its retry action.
+    }
   }
 
   Future<List<AttendanceRecord>> _load() =>
       widget.backend.history(employeeId: widget.employee.id);
 
   void _reload() {
+    _loadAvatar();
     final request = _load();
     setState(() {
       _records = request;
@@ -182,7 +213,11 @@ class _EmployeeCheckInsSheetState extends State<_EmployeeCheckInsSheet> {
               ],
             ),
             SliverToBoxAdapter(
-              child: _EmployeeHeading(employee: widget.employee),
+              child: _EmployeeHeading(
+                employee: widget.employee,
+                avatarUrl: _avatarUrl,
+                viewer: widget.viewer,
+              ),
             ),
             if (loading)
               const SliverFillRemaining(
@@ -275,8 +310,10 @@ class _EmployeeCheckInsSheetState extends State<_EmployeeCheckInsSheet> {
 }
 
 class _EmployeeHeading extends StatelessWidget {
-  const _EmployeeHeading({required this.employee});
+  const _EmployeeHeading({required this.employee, this.avatarUrl, this.viewer});
   final Employee employee;
+  final String? avatarUrl;
+  final String? viewer;
 
   @override
   Widget build(BuildContext context) {
@@ -302,13 +339,35 @@ class _EmployeeHeading extends StatelessWidget {
             radius: 22,
             backgroundColor: context.colors.primaryContainer,
             foregroundColor: context.colors.onPrimaryContainer,
-            child: Text(
-              initials,
-              style: const TextStyle(
-                fontFamily: ProfileUi.fontFamily,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Center(
+                  child: Text(
+                    initials,
+                    style: const TextStyle(
+                      fontFamily: ProfileUi.fontFamily,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                if (avatarUrl?.isNotEmpty ?? false)
+                  ClipOval(
+                    child: Image(
+                      key: const ValueKey('check-in-logs-avatar'),
+                      image: profileImageProvider(
+                        avatarUrl!,
+                        viewer: viewer,
+                        office: employee.organizationId,
+                        width: 120,
+                      ),
+                      fit: BoxFit.cover,
+                      excludeFromSemantics: true,
+                      errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                    ),
+                  ),
+              ],
             ),
           ),
           const SizedBox(width: 12),
@@ -391,7 +450,7 @@ class _LogRow extends StatelessWidget {
                   children: [
                     Text(
                       time,
-                      style: GoogleFonts.inter(
+                      style: AppTypography.inter(
                         fontSize: 16,
                         height: 1.3,
                         fontWeight: FontWeight.w600,

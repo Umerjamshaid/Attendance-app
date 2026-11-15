@@ -1,10 +1,11 @@
+import 'package:attendance/widgets/app_toast.dart';
+import 'package:attendance/config/ui_tokens.dart';
 import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/providers/attendance_provider.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 /// Sheet content for choosing when attendance can be marked.
@@ -74,11 +75,12 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
   Future<void> _save() async {
     if (_loading || _saving || !_hasChanges) return;
     if (!_rangeValid) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppToast.of(context).showSnackBar(
         const SnackBar(
           content: Text('End time must be after start time.'),
           behavior: SnackBarBehavior.floating,
         ),
+        kind: ToastKind.error,
       );
       return;
     }
@@ -96,21 +98,23 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppToast.of(context).showSnackBar(
         const SnackBar(
           content: Text('✓ Attendance window saved!'),
           behavior: SnackBarBehavior.floating,
         ),
+        kind: ToastKind.success,
       );
 
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppToast.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: $e'),
           behavior: SnackBarBehavior.floating,
         ),
+        kind: ToastKind.error,
       );
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -151,7 +155,7 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
                           header: true,
                           child: Text(
                             'Attendance window',
-                            style: GoogleFonts.inter(
+                            style: AppTypography.inter(
                               fontSize: 20,
                               height: 1.3,
                               fontWeight: FontWeight.w600,
@@ -219,7 +223,7 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
                   selectedForegroundColor: context.colors.onPrimary,
                   side: BorderSide.none,
                   minimumSize: const Size.fromHeight(48),
-                  textStyle: GoogleFonts.inter(
+                  textStyle: AppTypography.inter(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
@@ -323,7 +327,7 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        textStyle: GoogleFonts.inter(
+                        textStyle: AppTypography.inter(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                         ),
@@ -350,7 +354,7 @@ class _SetAttendanceWindowSheetState extends State<SetAttendanceWindowSheet> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        textStyle: GoogleFonts.inter(
+                        textStyle: AppTypography.inter(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                         ),

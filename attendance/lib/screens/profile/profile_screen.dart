@@ -1,3 +1,4 @@
+import 'package:attendance/config/ui_tokens.dart';
 import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/models/employees_model.dart';
@@ -15,7 +16,6 @@ import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
 import '../../widgets/check_in_summary.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
@@ -159,7 +159,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         Theme(
           data: Theme.of(context).copyWith(
             textTheme: Theme.of(context).textTheme.copyWith(
-              headlineSmall: GoogleFonts.inter(
+              headlineSmall: AppTypography.inter(
                 textStyle: Theme.of(context).textTheme.headlineSmall,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),

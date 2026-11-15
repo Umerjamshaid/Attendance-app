@@ -3,11 +3,12 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_lucide_animated/flutter_lucide_animated.dart' as lucide;
 
-import '../config/app_icons.dart';
 import '../config/app_theme.dart';
 import '../config/ui_tokens.dart';
 import 'spring_scale.dart';
+import 'animated_app_icon.dart';
 
 /// A single, centered floating capsule, with no separate action button.
 class BottomNav extends StatelessWidget {
@@ -30,10 +31,10 @@ class BottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      (icon: AppIcons.home, label: 'Home'),
-      (icon: AppIcons.clock, label: 'History'),
-      if (isAdmin) (icon: AppIcons.shield, label: 'Admin'),
-      (icon: AppIcons.user, label: 'Profile'),
+      (icon: lucide.home, label: 'Home'),
+      (icon: lucide.clock, label: 'History'),
+      if (isAdmin) (icon: lucide.shield_check, label: 'Admin'),
+      (icon: lucide.user, label: 'Profile'),
     ];
     final selected = currentIndex >= 0 && currentIndex < items.length
         ? currentIndex
@@ -166,7 +167,7 @@ class _DockItem extends StatefulWidget {
   });
 
   final String label;
-  final IconData icon;
+  final lucide.LucideAnimatedIconData icon;
   final bool selected;
   final VoidCallback onTap;
 
@@ -176,6 +177,12 @@ class _DockItem extends StatefulWidget {
 
 class _DockItemState extends State<_DockItem> {
   bool _pressed = false;
+  int _activationCount = 0;
+
+  void _activate() {
+    setState(() => _activationCount++);
+    widget.onTap();
+  }
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -183,20 +190,22 @@ class _DockItemState extends State<_DockItem> {
     selected: widget.selected,
     inMutuallyExclusiveGroup: true,
     label: widget.label,
-    onTap: widget.onTap,
+    onTap: _activate,
     excludeSemantics: true,
     child: Tooltip(
       message: widget.label,
       excludeFromSemantics: true,
       child: InkWell(
-        onTap: widget.onTap,
+        onTap: _activate,
         onHighlightChanged: (pressed) => setState(() => _pressed = pressed),
         customBorder: const StadiumBorder(),
         child: Center(
           child: SpringScale(
             pressed: _pressed,
-            child: Icon(
-              widget.icon,
+            child: AnimatedAppIcon(
+              icon: widget.icon,
+              selected: widget.selected,
+              activationCount: _activationCount,
               size: 24,
               color: context.colors.onSurfaceVariant,
             ),

@@ -1,5 +1,5 @@
+import 'package:attendance/config/ui_tokens.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class OptionCard extends StatelessWidget {
   final IconData icon;
@@ -42,7 +42,7 @@ class OptionCard extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               label,
-              style: GoogleFonts.inter(
+              style: AppTypography.inter(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: const Color(0xFF1B1D1F),
@@ -52,7 +52,7 @@ class OptionCard extends StatelessWidget {
             Text(
               subtitle,
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
+              style: AppTypography.inter(
                 fontSize: 10,
                 color: Colors.grey[500],
                 fontWeight: FontWeight.w500,

@@ -1,3 +1,4 @@
+import 'package:attendance/widgets/app_toast.dart';
 import 'package:attendance/config/app_icons.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../models/employees_model.dart';
 import '../../providers/auth_provider.dart';
 import 'settings_layout.dart';
+import '../../widgets/error_shake.dart';
 
 class ProfileDetailsScreen extends StatefulWidget {
   const ProfileDetailsScreen({super.key, required this.user});
@@ -17,9 +19,10 @@ class ProfileDetailsScreen extends StatefulWidget {
       MaterialPageRoute(builder: (_) => ProfileDetailsScreen(user: user)),
     );
     if (saved == true && context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Profile details saved.')));
+      AppToast.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile details saved.')),
+        kind: ToastKind.success,
+      );
     }
   }
 
@@ -36,6 +39,7 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
   bool _saving = false;
   bool _failed = false;
   bool _leaving = false;
+  int _errorRevision = 0;
   String? get _inputError =>
       _tagsWithDraft.length > 12 || _tagsWithDraft.any((tag) => tag.length > 40)
       ? 'Use up to 12 tags, each no longer than 40 characters.'
@@ -59,6 +63,10 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
 
   void _addTags() {
     if (_saving || _tagDraft.text.trim().isEmpty) return;
+    if (_inputError != null) {
+      setState(() => _errorRevision++);
+      return;
+    }
     final next = _tagsWithDraft;
     setState(() {
       _tags
@@ -70,7 +78,11 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
   }
 
   Future<void> _save() async {
-    if (_saving || !_changed || _inputError != null) return;
+    if (_saving || !_changed) return;
+    if (_inputError != null) {
+      setState(() => _errorRevision++);
+      return;
+    }
     final auth = context.read<AuthProvider>();
     setState(() {
       _saving = true;
@@ -90,6 +102,7 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
       setState(() {
         _saving = false;
         _failed = true;
+        _errorRevision++;
       });
     }
   }
@@ -187,30 +200,39 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
             ),
             const SizedBox(height: 8),
           ],
-          TextField(
-            controller: _tagDraft,
-            readOnly: _saving,
-            textInputAction: TextInputAction.done,
-            onChanged: _onChanged,
-            onSubmitted: (_) => _addTags(),
-            decoration: _decoration(context, 'Add a tag').copyWith(
-              errorText: _inputError,
-              suffixIcon: IconButton(
-                tooltip: 'Add tag',
-                icon: const Icon(AppIcons.plus),
-                onPressed: _saving || _tagDraft.text.trim().isEmpty
-                    ? null
-                    : _addTags,
+          ErrorShake(
+            error: _inputError,
+            revision: _errorRevision,
+            child: TextField(
+              controller: _tagDraft,
+              readOnly: _saving,
+              textInputAction: TextInputAction.done,
+              onChanged: _onChanged,
+              onSubmitted: (_) => _addTags(),
+              decoration: _decoration(context, 'Add a tag').copyWith(
+                errorText: _inputError,
+                errorMaxLines: 8,
+                suffixIcon: IconButton(
+                  tooltip: 'Add tag',
+                  icon: const Icon(AppIcons.plus),
+                  onPressed: _saving || _tagDraft.text.trim().isEmpty
+                      ? null
+                      : _addTags,
+                ),
               ),
             ),
           ),
           if (_failed) ...[
             const SizedBox(height: 12),
-            Semantics(
-              liveRegion: true,
-              child: Text(
-                'Could not save changes. Try again.',
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ErrorShake(
+              error: _failed ? 'Could not save changes. Try again.' : null,
+              revision: _errorRevision,
+              child: Semantics(
+                liveRegion: true,
+                child: Text(
+                  'Could not save changes. Try again.',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
               ),
             ),
           ],

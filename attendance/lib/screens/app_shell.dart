@@ -25,11 +25,13 @@ class AppShellState extends State<AppShell> {
   final PageController _pageController = PageController();
   bool? _wasAdmin;
   bool _roleJumpPending = false;
+  bool _wasBackgrounded = false;
+  Future<void>? _refreshFuture;
   late final AppLifecycleListener _lifecycle;
   @override
   void initState() {
     super.initState();
-    _lifecycle = AppLifecycleListener(onResume: _refresh);
+    _lifecycle = AppLifecycleListener(onStateChange: _onLifecycleChanged);
   }
 
   @override
@@ -87,7 +89,23 @@ class AppShellState extends State<AppShell> {
     child: TickerMode(enabled: _currentIndex == index, child: child),
   );
 
-  Future<void> _refresh() async {
+  void _onLifecycleChanged(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive) return;
+    if (state != AppLifecycleState.resumed) {
+      _wasBackgrounded = true;
+    } else if (_wasBackgrounded) {
+      _wasBackgrounded = false;
+      _refresh();
+    }
+  }
+
+  Future<void> _refresh() =>
+      _refreshFuture ??= Future<void>.microtask(_refreshData).whenComplete(() {
+        _refreshFuture = null;
+      });
+
+  Future<void> _refreshData() async {
+    if (!mounted) return;
     final auth = context.read<AuthProvider>();
     if (!auth.isPublicBuild || auth.isPreview) return;
     await auth.refreshSession();

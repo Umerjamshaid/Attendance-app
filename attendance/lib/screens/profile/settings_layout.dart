@@ -1,4 +1,6 @@
 import 'package:attendance/config/app_icons.dart';
+import 'package:attendance/config/ui_tokens.dart';
+import 'package:attendance/config/utility_surface_theme.dart';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -18,7 +20,7 @@ class SettingsLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = ProfileUi.themeOf(context);
+    final theme = utilitySurfaceThemeData(ProfileUi.themeOf(context));
     final colors = theme.colorScheme;
     final top = MediaQuery.paddingOf(context).top + kToolbarHeight;
     return Theme(
@@ -101,10 +103,9 @@ class SettingsSection extends StatelessWidget {
             ),
           ),
           Material(
-            color: theme.colorScheme.surfaceContainerLow,
+            color: theme.colorScheme.surfaceContainerHighest,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-              side: BorderSide(color: theme.colorScheme.outlineVariant),
+              borderRadius: BorderRadius.circular(AppLayout.groupRadius),
             ),
             clipBehavior: Clip.antiAlias,
             child: Column(

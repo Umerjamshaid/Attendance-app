@@ -1,8 +1,9 @@
+import 'package:attendance/config/ui_tokens.dart';
 import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/models/employees_model.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'attendance_progress_ring.dart';
 
 /// Presents / absents / leaves in one grouped surface.
 ///
@@ -24,6 +25,22 @@ class AttendanceStatsCard extends StatelessWidget {
     return ProfileSectionCard(
       label: 'Attendance overview',
       children: [
+        Padding(
+          padding: const EdgeInsets.all(20),
+          child: Center(
+            child: AttendanceProgressRing(
+              progress: isLoading ? null : employee.attendanceRate / 100,
+              label: 'Attendance rate',
+              isLoading: isLoading,
+              dimension:
+                  112 *
+                  (MediaQuery.textScalerOf(context).scale(14) / 14).clamp(
+                    1.0,
+                    1.5,
+                  ),
+            ),
+          ),
+        ),
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
           child: Row(
@@ -84,7 +101,7 @@ class _StatItem extends StatelessWidget {
   final String label;
   final Color color;
 
-  TextStyle _numberStyle(BuildContext context) => GoogleFonts.inter(
+  TextStyle _numberStyle(BuildContext context) => AppTypography.inter(
     fontSize: 24,
     height: 1.2,
     fontWeight: FontWeight.w600,

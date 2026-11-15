@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/error_shake.dart';
 import 'settings_layout.dart';
 
 class AccountEditScreen extends StatefulWidget {
@@ -27,6 +28,7 @@ class _AccountEditScreenState extends State<AccountEditScreen> {
     ..addListener(_changed);
   bool _saving = false, _leaving = false;
   String? _error;
+  int _errorRevision = 0;
   bool get _dirty => _controller.text.trim() != widget.initialValue.trim();
   void _changed() => setState(() => _error = null);
   Future<void> _save() async {
@@ -36,11 +38,12 @@ class _AccountEditScreenState extends State<AccountEditScreen> {
         (widget.email &&
             !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value)) ||
         (widget.password && value.length < 12)) {
-      setState(
-        () => _error = widget.password
+      setState(() {
+        _errorRevision++;
+        _error = widget.password
             ? 'Use at least 12 characters.'
-            : 'Enter a valid ${widget.label.toLowerCase()}.',
-      );
+            : 'Enter a valid ${widget.label.toLowerCase()}.';
+      });
       return;
     }
     setState(() {
@@ -62,6 +65,7 @@ class _AccountEditScreenState extends State<AccountEditScreen> {
         setState(() {
           _saving = false;
           _error = e.toString();
+          _errorRevision++;
         });
       }
     }
@@ -104,23 +108,28 @@ class _AccountEditScreenState extends State<AccountEditScreen> {
     child: SettingsLayout(
       title: widget.title,
       children: [
-        TextField(
-          controller: _controller,
-          autofocus: true,
-          readOnly: _saving,
-          obscureText: widget.password,
-          autocorrect: !widget.password,
-          enableSuggestions: !widget.password,
-          keyboardType: widget.email
-              ? TextInputType.emailAddress
-              : TextInputType.text,
-          textInputAction: TextInputAction.done,
-          maxLength: widget.password ? 128 : 100,
-          onSubmitted: (_) => _save(),
-          decoration: InputDecoration(
-            labelText: widget.label,
-            errorText: _error,
-            border: const OutlineInputBorder(),
+        ErrorShake(
+          error: _error,
+          revision: _errorRevision,
+          child: TextField(
+            controller: _controller,
+            autofocus: true,
+            readOnly: _saving,
+            obscureText: widget.password,
+            autocorrect: !widget.password,
+            enableSuggestions: !widget.password,
+            keyboardType: widget.email
+                ? TextInputType.emailAddress
+                : TextInputType.text,
+            textInputAction: TextInputAction.done,
+            maxLength: widget.password ? 128 : 100,
+            onSubmitted: (_) => _save(),
+            decoration: InputDecoration(
+              labelText: widget.label,
+              errorText: _error,
+              errorMaxLines: 8,
+              border: const OutlineInputBorder(),
+            ),
           ),
         ),
         const SizedBox(height: 24),

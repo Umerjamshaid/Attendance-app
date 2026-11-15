@@ -1,9 +1,12 @@
+import 'package:attendance/widgets/app_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/employees_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/company_backend.dart';
 import '../../config/ui_tokens.dart';
+import '../../config/app_icons.dart';
+import '../../widgets/office/office_role_sheet.dart';
 
 /// Owner-authorized role changes; existing employee invitation/activation UI is unchanged.
 class OfficeRolesScreen extends StatefulWidget {
@@ -16,7 +19,10 @@ class _OfficeRolesScreenState extends State<OfficeRolesScreen> {
   late final CompanyBackend _backend = context.read<AuthProvider>().backend!;
   late Future<List<Employee>> _employees = _backend.employees();
   bool _busy = false;
-  Future<void> _change(Employee employee, String role) async {
+  Future<bool> _change(Employee employee, String role) async {
+    if (_busy || employee.authUserId == null || employee.role == role) {
+      return false;
+    }
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -35,22 +41,41 @@ class _OfficeRolesScreenState extends State<OfficeRolesScreen> {
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !mounted) return false;
     setState(() => _busy = true);
     try {
       await _backend.setEmployeeRole(employee.authUserId!, role);
-      if (!mounted) return;
-      setState(() => _employees = _backend.employees());
+      if (!mounted) return true;
+      setState(() {
+        _employees = _backend.employees();
+      });
       await context.read<AuthProvider>().refreshSession();
+      return true;
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+        AppToast.of(context).showSnackBar(
+          SnackBar(content: Text(error.toString())),
+          kind: ToastKind.error,
+        );
       }
+      return false;
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  void _openRoleSheet(Employee employee) {
+    if (_busy || employee.authUserId == null) return;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (_) => OfficeRoleSheet(
+        employee: employee,
+        onSave: (role) => _change(employee, role),
+      ),
+    );
   }
 
   @override
@@ -66,8 +91,9 @@ class _OfficeRolesScreenState extends State<OfficeRolesScreen> {
         if (snapshot.hasError) {
           return Center(
             child: TextButton(
-              onPressed: () =>
-                  setState(() => _employees = _backend.employees()),
+              onPressed: () => setState(() {
+                _employees = _backend.employees();
+              }),
               child: const Text('Retry'),
             ),
           );
@@ -95,27 +121,19 @@ class _OfficeRolesScreenState extends State<OfficeRolesScreen> {
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      initialValue: employee.role,
-                      isExpanded: true,
-                      decoration: const InputDecoration(labelText: 'Role'),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'admin',
-                          child: Text('Administrator'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'employee',
-                          child: Text('Employee'),
-                        ),
-                      ],
-                      onChanged: _busy || employee.authUserId == null
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(
+                        employee.isAdmin ? AppIcons.shield : AppIcons.user,
+                        size: AppLayout.compactIconSize,
+                      ),
+                      title: Text(
+                        employee.isAdmin ? 'Administrator' : 'Employee',
+                      ),
+                      trailing: const Icon(AppIcons.chevronRight, size: 20),
+                      onTap: _busy || employee.authUserId == null
                           ? null
-                          : (role) {
-                              if (role != null && role != employee.role) {
-                                _change(employee, role);
-                              }
-                            },
+                          : () => _openRoleSheet(employee),
                     ),
                   ],
                 ),

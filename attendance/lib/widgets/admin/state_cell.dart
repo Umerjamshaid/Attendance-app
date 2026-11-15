@@ -22,7 +22,7 @@ class StatCell extends StatelessWidget {
               fontSize: 28,
               fontWeight: FontWeight.w900,
               height: 1,
-              letterSpacing: -0.5,
+              letterSpacing: 0,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
