@@ -159,3 +159,33 @@ same cleanup failure and two concern different banner callback races).
   rechecked on Storage upgrades. See backend-setup.md for rollback boundaries.
 - The user explicitly approved applying the tested guard live and requested a
   single public ARM64 release APK. Deployment/build results are recorded below.
+
+### Final Follow-Up Delivery
+
+- Source/migration fixes: `36fd27b`, pushed to `fix/coderabbit-issues` / PR #21.
+  All nine original review threads received a fix/test explanation and were
+  resolved; none of the submitted findings was dismissed as invalid.
+- Final full Flutter suite: **213 tests passed**. Final analysis: **no issues
+  found**. Disposable PGlite migration/RLS tests passed again with the measured
+  size, malformed metadata, renamed object and multipart-probe boundary cases.
+- Both new forward migrations were applied to the approved live project.
+  Readback verified their history entries and the trigger's measured-size WHEN
+  condition. Counts remain 19 Storage objects, 11 check-ins and 6 memberships;
+  the media buckets remain private. Final ERROR-level advisors found no issues.
+- One public Supabase ARM64 release APK was rebuilt in the existing location:
+  `build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`, 22,268,188 bytes
+  (about 21.2 MiB), version name `1.1.0`, build argument `14`, APK version code
+  `2014`. This replaces the previous build at that path; no extra variants were
+  generated. Package remains `com.example.attendance`.
+- APK SHA-256:
+  `1FF44392BC95757787F925C413BBBAFEEF5BA9C10080518BC59E195DC1F86230`.
+  Alignment and APK v2 signature verification passed. Signing certificate
+  SHA-256 remains
+  `400660b609acea3238e627da073865006229e231cf9d1f71b6a89e4548851520`.
+  It is the existing Android test/debug signing key for in-place test updates,
+  not a configured Play Store production signing setup. Runtime build is release.
+- Private source hashes remain unchanged. Unrelated handoff edits, attachments,
+  mockups and API/private files were left unstaged. No app uninstall/data reset.
+- Physical-phone GIF playback, live end-to-end upload testing and optional
+  CodeRabbit CLI review remain unrun. Existing Gradle/AGP/Kotlin future-support
+  warnings are documented, not bypassed or upgraded as part of these fixes.
