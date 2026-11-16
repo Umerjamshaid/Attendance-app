@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:attendance/providers/auth_provider.dart';
 import 'package:attendance/providers/profile_provider.dart';
 import 'package:attendance/providers/office_provider.dart';
@@ -10,11 +12,13 @@ import 'package:provider/provider.dart';
 
 import 'app.dart';
 import 'services/company_backend.dart';
+import 'services/profile_image_cache.dart';
 import 'widgets/office/office_scope.dart';
 
 bool _animationLicenseRegistered = false;
 
 void runAttendanceApp({CompanyBackend? backend}) {
+  unawaited(ProfileImageCache.retryFailedCleanups());
   if (!_animationLicenseRegistered) {
     _animationLicenseRegistered = true;
     LicenseRegistry.addLicense(() async* {

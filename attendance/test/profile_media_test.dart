@@ -188,6 +188,55 @@ void main() {
     );
   }
 
+  test('only GIF banners can exceed 5 MB, up to exactly 10 MB', () async {
+    Uint8List gif(int size) =>
+        Uint8List(size)..setRange(0, _animatedGif.length, _animatedGif);
+    final six = gif(6 * 1024 * 1024);
+    expect(
+      ProfileImageFormat.fromBytes(six, banner: true),
+      ProfileImageFormat.gif,
+    );
+    expect(
+      () => ProfileImageFormat.fromBytes(six),
+      throwsA(isA<CompanyException>()),
+    );
+    expect(
+      ProfileImageFormat.fromBytes(
+        gif(ProfileImageFormat.maxGifBannerBytes),
+        banner: true,
+      ),
+      ProfileImageFormat.gif,
+    );
+    expect(
+      () => ProfileImageFormat.fromBytes(
+        gif(ProfileImageFormat.maxGifBannerBytes + 1),
+        banner: true,
+      ),
+      throwsA(
+        isA<CompanyException>().having(
+          (e) => e.message,
+          'message',
+          contains('10 MB'),
+        ),
+      ),
+    );
+    final jpeg = Uint8List(6 * 1024 * 1024)
+      ..setAll(0, [0xff, 0xd8, 0xff, 0xe0]);
+    expect(
+      () => ProfileImageFormat.fromBytes(jpeg, banner: true),
+      throwsA(isA<CompanyException>()),
+    );
+    final backend = _MediaBackend();
+    final profile = ProfileProvider(
+      backend: backend,
+      picker: _Picker(XFile.fromData(six, name: 'banner.gif')),
+    );
+    addTearDown(profile.dispose);
+    await profile.pickBanner('EMP001');
+    expect(backend.kind, 'banner');
+    expect(backend.bytes, orderedEquals(six));
+  });
+
   test(
     'cancellation and rejected input leave the old image untouched',
     () async {

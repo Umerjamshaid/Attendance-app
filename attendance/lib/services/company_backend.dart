@@ -47,7 +47,7 @@ abstract class CompanyBackend {
       throw const CompanyException('Office creation is unavailable.');
   Future<void> updateOffice(
     Office office, {
-    required String name,
+    String? name,
     Uint8List? logo,
     bool removeLogo = false,
   }) async => throw const CompanyException('Office management is unavailable.');
@@ -75,13 +75,13 @@ abstract class CompanyBackend {
   Future<void> changeEmail(String email);
   Future<List<Employee>> employees();
 
-  /// Current profile avatars, separate from attendance photo evidence, keyed by user UUID.
-  Future<Map<String, String>> employeeAvatars(List<Employee> employees) async =>
-      {
-        for (final employee in employees)
-          if (employee.authUserId != null && employee.avatarUrl != null)
-            employee.authUserId!: employee.avatarUrl!,
-      };
+  /// UUID to URL, or null for confirmed removal. Omitted UUIDs failed to refresh.
+  Future<Map<String, String?>> employeeAvatars(
+    List<Employee> employees,
+  ) async => {
+    for (final employee in employees)
+      if (employee.authUserId != null) employee.authUserId!: employee.avatarUrl,
+  };
   Future<List<AttendanceRecord>> history({
     String? employeeId,
     bool todayOnly = false,
@@ -100,6 +100,9 @@ abstract class CompanyBackend {
   Future<AttendancePolicy> policy();
   Future<void> savePolicy(AttendancePolicy policy);
   Future<Map<String, String?>> profileMedia();
+
+  /// Re-signs a previously authorized profile object; the server rechecks RLS.
+  Future<String?> refreshProfileImage(String url) async => url;
   Future<void> saveMedia(String kind, Uint8List? bytes);
   Future<void> invite({
     required String email,

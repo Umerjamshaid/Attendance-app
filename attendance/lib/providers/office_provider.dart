@@ -155,7 +155,7 @@ class OfficeProvider extends ChangeNotifier {
   });
   Future<bool> updateOffice(
     Office office, {
-    required String name,
+    String? name,
     Uint8List? logo,
     bool removeLogo = false,
   }) => _change(() async {

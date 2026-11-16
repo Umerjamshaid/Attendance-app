@@ -14,7 +14,7 @@ await db.exec(`
   create table auth.users(id uuid primary key, email text, email_confirmed_at timestamptz default now());
   create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true),'')::uuid $$;
   create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
-  create table storage.objects(id uuid primary key default gen_random_uuid(),bucket_id text,name text,created_at timestamptz default now());
+  create table storage.objects(id uuid primary key default gen_random_uuid(),bucket_id text,name text,metadata jsonb,created_at timestamptz default now());
   create function storage.foldername(name text) returns text[] language sql immutable as $$ select string_to_array(name,'/') $$;
   alter table storage.objects enable row level security;
   grant select,insert,delete on storage.objects to authenticated;
@@ -55,9 +55,9 @@ assert.deepEqual(
   [
     { id: 'attendance-evidence', public: false, file_size_limit: 2097152, allowed_mime_types: ['image/jpeg', 'image/png'] },
     { id: 'office-logos', public: false, file_size_limit: 2097152, allowed_mime_types: ['image/jpeg', 'image/png'] },
-    { id: 'profile-media', public: false, file_size_limit: 5242880, allowed_mime_types: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'] },
+    { id: 'profile-media', public: false, file_size_limit: 10485760, allowed_mime_types: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'] },
   ],
-  'only profile media gains the 5 MB allowance; privacy, formats and other buckets are preserved',
+  'only profile media gains the 10 MB GIF-banner ceiling; privacy, formats and other buckets are preserved',
 );
 assert.equal((await db.query('select id from public.check_ins')).rows[0].id, before.id);
 assert.equal((await db.query('select count(*)::int as n from public.memberships')).rows[0].n, 3);
@@ -73,6 +73,26 @@ async function role(name, user) {
 /** Reads the scalar assertion value from a test query. */
 async function value(sql) { return (await db.query(sql)).rows[0].value; }
 async function denied(sql) { await assert.rejects(db.exec(sql)); }
+await role('authenticated', employee);
+const media = (name, metadata) => `insert into storage.objects(bucket_id,name,metadata) values ('profile-media','${employee}/${name}','${JSON.stringify(metadata)}'::jsonb)`;
+// Authorization probes roll back; their request length can include multipart overhead.
+await db.exec(`begin; ${media('avatar-probe.png', { contentLength: 5243392, mimetype: 'image/png' })}; rollback;`);
+await db.exec(`begin; ${media('banner-probe.gif', { contentLength: 10486272, mimetype: 'image/gif' })}; rollback;`);
+await db.exec(media('avatar-limit.png', { size: 5242880, mimetype: 'image/png' }));
+await db.exec(media('banner-limit.gif', { size: 10485760, mimetype: 'image/gif' }));
+await denied(media('avatar-large.gif', { size: 5242881, mimetype: 'image/gif' }));
+await denied(media('banner-large.png', { size: 5242881, mimetype: 'image/png' }));
+await denied(media('banner-wrong-type.gif', { size: 5242881, mimetype: 'image/jpeg' }));
+await denied(media('banner-too-large.gif', { size: 10485761, mimetype: 'image/gif' }));
+await denied(media('avatar-conflicting.png', { size: 1, contentLength: 5242881, mimetype: 'image/png' }));
+await denied(media('avatar-invalid.png', { size: -1, mimetype: 'image/png' }));
+await denied(media('avatar-invalid.png', { size: 'invalid', mimetype: 'image/png' }));
+await role('service_role');
+// Storage completion writes bypass RLS; the measured-metadata guard must not.
+await db.exec(`insert into storage.objects(bucket_id,name) values ('profile-media','${employee}/avatar-probe.png')`);
+await denied(`update storage.objects set metadata='{"size":5242881,"mimetype":"image/png"}' where name='${employee}/avatar-probe.png'`);
+await denied(`update storage.objects set name='${employee}/avatar-renamed.gif' where name='${employee}/banner-limit.gif'`);
+await db.exec(`delete from storage.objects where bucket_id='profile-media' and name in ('${employee}/avatar-probe.png','${employee}/avatar-limit.png','${employee}/banner-limit.gif')`);
 await role('anon');
 await denied('select * from public.check_ins');
 await denied('select public.current_employee()');
@@ -167,6 +187,8 @@ await db.exec(`update public.organizations set created_by='${admin}' where id='$
 await role('authenticated', admin);
 await value(`select public.switch_office('${company}') as value`);
 await db.exec(`select public.set_office_role('${company}','${employee}','admin')`);
+await assert.rejects(db.exec(`select public.set_office_role('${company}','${admin}','employee')`), /owner_cannot_demote/,
+  'an owner cannot self-demote even with a second active admin');
 await role('authenticated', employee);
 await value(`select public.switch_office('${company}') as value`);
 await denied(`select public.set_office_role('${company}','${admin}','employee')`);
@@ -174,6 +196,30 @@ await role('authenticated', admin);
 await db.exec(`select public.set_office_role('${company}','${employee}','employee')`);
 await role('service_role');
 await denied(`select public.set_employee_active('${admin}','${created}','ADMIN001',false)`);
+
+// Reissuing a pending invitation changes its responsible admin, but acceptance
+// freezes that provenance even if another active admin retries completion.
+await role('postgres');
+const reissue = '50000000-0000-4000-8000-000000000099';
+const reissuedUser = '20000000-0000-4000-8000-000000000098';
+await db.exec(`
+  update public.memberships set role='admin' where organization_id='${company}' and user_id='${employee}';
+  insert into auth.users(id,email) values('${reissuedUser}','reissued@example.invalid');
+  insert into public.memberships(user_id,organization_id,employee_code) values('${reissuedUser}','${otherCompany}','REISSUE_TEST');
+  insert into public.employee_invitations(id,organization_id,email,employee_code,name,department,user_id,invited_by)
+  values('${reissue}','${company}','reissued@example.invalid','REISSUE','Other','Ops','${reissuedUser}','${admin}');
+`);
+await role('service_role');
+await db.exec(`select public.complete_employee_invitation('${employee}','${reissue}','${reissuedUser}')`);
+await role('postgres');
+assert.equal(await value(`select invited_by as value from public.employee_invitations where id='${reissue}'`), employee);
+await db.exec(`update public.employee_invitations set accepted_at=now() where id='${reissue}'`);
+await role('service_role');
+await db.exec(`select public.complete_employee_invitation('${admin}','${reissue}','${reissuedUser}')`);
+await role('postgres');
+assert.equal(await value(`select invited_by as value from public.employee_invitations where id='${reissue}'`), employee,
+  'an accepted invitation retains its original responsible admin');
+await db.exec(`update public.memberships set role='employee' where organization_id='${company}' and user_id='${employee}'`);
 
 // Existing users accept a second-office invitation without profile duplication.
 const invitation = '50000000-0000-4000-8000-000000000001';
@@ -212,6 +258,13 @@ await db.exec(`insert into storage.objects(bucket_id,name) values('office-logos'
 await role('authenticated', admin);
 await value(`select public.switch_office('${created}') as value`);
 await db.exec(`select public.update_office('${created}','Renamed office','${created}/logo.png')`);
+await db.exec(`select public.update_office_fields('${created}',p_name=>'Concurrent rename')`);
+assert.equal(await value(`select logo_path as value from public.organizations where id='${created}'`), `${created}/logo.png`);
+await db.exec(`select public.update_office_fields('${created}',p_change_logo=>true,p_logo=>null)`);
+assert.equal(await value(`select logo_path as value from public.organizations where id='${created}'`), null);
+assert.equal(await value(`select name as value from public.organizations where id='${created}'`), 'Concurrent rename');
+await db.exec(`select public.update_office_fields('${created}',p_change_logo=>true,p_logo=>'${created}/logo.png')`);
+await denied(`select public.update_office_fields('${otherCompany}',p_name=>'Stolen')`);
 await denied(`select public.update_office('${created}','Renamed office','${otherCompany}/logo.png')`);
 await role('service_role');
 assert.ok(!(await db.query('select * from public.orphaned_media()')).rows.some((row) => row.bucket_id === 'office-logos'));

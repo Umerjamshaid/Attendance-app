@@ -23,6 +23,15 @@ class ProfileProvider extends ChangeNotifier {
   String? get pfpPath => _pfpPath;
   String? get bannerPath => _bannerPath;
 
+  Future<void> retryBanner(String userId) async {
+    final path = _bannerPath;
+    final viewer = imageViewer;
+    if (path != null && viewer != null) {
+      await ProfileImageCache.removeImage(path, viewer: viewer);
+    }
+    await loadProfileData(userId, force: true);
+  }
+
   Future<void> loadProfileData(String userId, {bool force = false}) {
     if (_disposed) return Future<void>.value();
     final pending = _profileFuture;
@@ -47,8 +56,8 @@ class ProfileProvider extends ChangeNotifier {
       try {
         final media = await backend!.profileMedia();
         if (_disposed || generation != _generation) return;
-        _pfpPath = media['avatar'];
-        _bannerPath = media['banner'];
+        if (media.containsKey('avatar')) _pfpPath = media['avatar'];
+        if (media.containsKey('banner')) _bannerPath = media['banner'];
         notifyListeners();
       } catch (_) {
         /* Keep the last image if a refresh fails. */
@@ -102,7 +111,7 @@ class ProfileProvider extends ChangeNotifier {
     if (image != null) {
       if (backend != null) {
         final bytes = await image.readAsBytes();
-        ProfileImageFormat.fromBytes(bytes);
+        ProfileImageFormat.fromBytes(bytes, banner: true);
         await backend!.saveMedia('banner', bytes);
         await loadProfileData(userId, force: true);
         return;

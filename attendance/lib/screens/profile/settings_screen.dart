@@ -368,6 +368,10 @@ class _SettingsProfileHeader extends StatelessWidget {
                             path!,
                             viewer: context.read<ProfileProvider>().imageViewer,
                             width: 228,
+                            refresh: context
+                                .read<ProfileProvider>()
+                                .backend
+                                ?.refreshProfileImage,
                           ),
                           fit: BoxFit.cover,
                           frameBuilder: (_, child, frame, wasSync) =>
