@@ -1,3 +1,4 @@
+import 'package:attendance/widgets/app_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -8,6 +9,7 @@ import '../../models/office_model.dart';
 import '../../providers/office_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/office/office_selector_header.dart';
+import '../../widgets/error_shake.dart';
 import '../admin/employee_management_screen.dart';
 import 'office_roles_screen.dart';
 
@@ -41,10 +43,10 @@ class ManageOfficesScreen extends StatelessWidget {
       if (image == null) return;
       final bytes = await image.readAsBytes();
       // The provider/server still authorize the captured office after the picker returns.
-      await provider.updateOffice(office, name: office.name, logo: bytes);
+      await provider.updateOffice(office, logo: bytes);
     } catch (_) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        AppToast.of(context).showSnackBar(
           const SnackBar(
             content: Text(
               'Could not read that image. Choose a JPEG or PNG smaller than 2 MB.',
@@ -138,7 +140,6 @@ class ManageOfficesScreen extends StatelessWidget {
                             TextButton(
                               onPressed: () => provider.updateOffice(
                                 office,
-                                name: office.name,
                                 removeLogo: true,
                               ),
                               child: const Text('Remove logo'),
@@ -249,12 +250,19 @@ class _OfficeNameDialog extends StatefulWidget {
 class _OfficeNameDialogState extends State<_OfficeNameDialog> {
   late final _name = TextEditingController(text: widget.office?.name ?? '');
   final _form = GlobalKey<FormState>();
+  int _errorRevision = 0;
+  bool _invalid = false;
   void _save() {
     if (widget.office != null && _name.text.trim() == widget.office!.name) {
       return;
     }
     if (_form.currentState!.validate()) {
       Navigator.pop(context, _name.text.trim());
+    } else {
+      setState(() {
+        _invalid = true;
+        _errorRevision++;
+      });
     }
   }
 
@@ -263,18 +271,25 @@ class _OfficeNameDialogState extends State<_OfficeNameDialog> {
     title: Text(widget.office == null ? 'Create Office' : 'Rename Office'),
     content: Form(
       key: _form,
-      child: TextFormField(
-        controller: _name,
-        autofocus: true,
-        textCapitalization: TextCapitalization.words,
-        textInputAction: TextInputAction.done,
-        maxLength: 100,
-        decoration: const InputDecoration(labelText: 'Office name'),
-        validator: (value) => value == null || value.trim().isEmpty
-            ? 'Enter an office name'
-            : null,
-        onChanged: (_) => setState(() {}),
-        onFieldSubmitted: (_) => _save(),
+      child: ErrorShake(
+        error: _invalid ? 'Enter an office name' : null,
+        revision: _errorRevision,
+        child: TextFormField(
+          controller: _name,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          textInputAction: TextInputAction.done,
+          maxLength: 100,
+          decoration: const InputDecoration(labelText: 'Office name'),
+          validator: (value) => value == null || value.trim().isEmpty
+              ? 'Enter an office name'
+              : null,
+          onChanged: (_) {
+            if (_errorRevision > 0) _form.currentState?.validate();
+            setState(() => _invalid = false);
+          },
+          onFieldSubmitted: (_) => _save(),
+        ),
       ),
     ),
     actions: [

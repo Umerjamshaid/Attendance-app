@@ -1,7 +1,7 @@
+import 'package:attendance/config/ui_tokens.dart';
 import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/config/wc_tokens.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class DeviceInfoWidget extends StatelessWidget {
   final String device;
@@ -44,7 +44,7 @@ class DeviceInfoWidget extends StatelessWidget {
                     label!,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
+                    style: AppTypography.inter(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                       color: WC.muted,
@@ -56,7 +56,7 @@ class DeviceInfoWidget extends StatelessWidget {
                   displayDevice,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
+                  style: AppTypography.inter(
                     fontSize: compact ? 11 : 12,
                     fontWeight: FontWeight.w700,
                     color: const Color(0xFF1B1D1F),

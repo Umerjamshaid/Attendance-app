@@ -1,8 +1,8 @@
+import 'package:attendance/config/ui_tokens.dart';
 import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/config/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 /// The primary check-in control: a flat circular button with a soft pulsing
 /// ring while it is available.
@@ -134,7 +134,7 @@ class _AttendanceButtonState extends State<AttendanceButton> {
                               textAlign: TextAlign.center,
                               maxLines: 3,
                               overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.inter(
+                              style: AppTypography.inter(
                                 fontSize: 14,
                                 height: 1.25,
                                 fontWeight: FontWeight.w600,

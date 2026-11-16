@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'config/app_theme.dart';
 import 'screens/login/password_setup_screen.dart';
 import 'widgets/office/office_scope.dart';
+import 'widgets/app_toast.dart';
 
 class AttendanceApp extends StatelessWidget {
   const AttendanceApp({super.key});
@@ -23,6 +24,10 @@ class AttendanceApp extends StatelessWidget {
           ? Duration.zero
           : const Duration(milliseconds: 180),
       debugShowCheckedModeBanner: false,
+      builder: (context, child) => AppToastHost(
+        scopeKey: context.select((AuthProvider auth) => auth.officeScopeKey),
+        child: child ?? const SizedBox.shrink(),
+      ),
       home: Consumer<AuthProvider>(
         builder: (context, auth, _) {
           return switch (auth.status) {

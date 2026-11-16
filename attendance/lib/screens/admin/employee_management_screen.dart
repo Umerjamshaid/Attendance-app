@@ -1,3 +1,4 @@
+import 'package:attendance/widgets/app_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../config/app_icons.dart';
@@ -5,6 +6,7 @@ import '../../models/employees_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/company_backend.dart';
 import '../profile/settings_layout.dart';
+import '../../widgets/error_shake.dart';
 
 class EmployeeManagementScreen extends StatefulWidget {
   const EmployeeManagementScreen({super.key});
@@ -17,7 +19,9 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
   late final CompanyBackend _backend = context.read<AuthProvider>().backend!;
   late Future<List<Employee>> _employees = _backend.employees();
   String? _busy;
-  void _reload() => setState(() => _employees = _backend.employees());
+  void _reload() => setState(() {
+    _employees = _backend.employees();
+  });
   Future<void> _toggle(Employee employee) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -44,7 +48,7 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
       if (mounted) _reload();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        AppToast.of(
           context,
         ).showSnackBar(SnackBar(content: Text(e.toString())));
       }
@@ -126,10 +130,19 @@ class _InviteEmployeeScreenState extends State<InviteEmployeeScreen> {
       _email = TextEditingController(),
       _code = TextEditingController(),
       _department = TextEditingController();
+  late final _fieldKeys = {
+    for (final controller in [_name, _email, _code, _department])
+      controller: GlobalKey<FormFieldState<String>>(),
+  };
   bool _busy = false;
   String? _error;
+  int _errorRevision = 0;
   Future<void> _invite() async {
-    if (_busy || !_form.currentState!.validate()) return;
+    if (_busy) return;
+    if (!_form.currentState!.validate()) {
+      setState(() => _errorRevision++);
+      return;
+    }
     setState(() {
       _busy = true;
       _error = null;
@@ -147,6 +160,7 @@ class _InviteEmployeeScreenState extends State<InviteEmployeeScreen> {
         setState(() {
           _error = e.toString();
           _busy = false;
+          _errorRevision++;
         });
       }
     }
@@ -179,42 +193,62 @@ class _InviteEmployeeScreenState extends State<InviteEmployeeScreen> {
               ])
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16),
-                  child: TextFormField(
-                    controller: field.controller,
-                    readOnly: _busy,
-                    maxLength: field.controller == _code ? 32 : 100,
-                    keyboardType: field.controller == _email
-                        ? TextInputType.emailAddress
-                        : TextInputType.text,
-                    textInputAction: TextInputAction.next,
-                    decoration: InputDecoration(
-                      labelText: field.label,
-                      border: const OutlineInputBorder(),
+                  child: ErrorShake(
+                    error:
+                        _fieldKeys[field.controller]!.currentState?.errorText,
+                    revision: _errorRevision,
+                    child: TextFormField(
+                      key: _fieldKeys[field.controller],
+                      controller: field.controller,
+                      readOnly: _busy,
+                      maxLength: field.controller == _code ? 32 : 100,
+                      keyboardType: field.controller == _email
+                          ? TextInputType.emailAddress
+                          : TextInputType.text,
+                      textInputAction: TextInputAction.next,
+                      decoration: InputDecoration(
+                        labelText: field.label,
+                        errorMaxLines: 8,
+                        border: const OutlineInputBorder(),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Required';
+                        }
+                        if (field.controller == _email &&
+                            !RegExp(
+                              r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                            ).hasMatch(value.trim())) {
+                          return 'Enter a valid email.';
+                        }
+                        if (field.controller == _code &&
+                            !RegExp(
+                              r'^[A-Za-z0-9_-]{1,32}$',
+                            ).hasMatch(value.trim())) {
+                          return 'Use letters, numbers, hyphens or underscores.';
+                        }
+                        return null;
+                      },
+                      onChanged: (_) {
+                        if (_errorRevision > 0) _form.currentState?.validate();
+                        setState(() => _error = null);
+                      },
                     ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Required';
-                      }
-                      if (field.controller == _email &&
-                          !RegExp(
-                            r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
-                          ).hasMatch(value.trim())) {
-                        return 'Enter a valid email.';
-                      }
-                      if (field.controller == _code &&
-                          !RegExp(
-                            r'^[A-Za-z0-9_-]{1,32}$',
-                          ).hasMatch(value.trim())) {
-                        return 'Use letters, numbers, hyphens or underscores.';
-                      }
-                      return null;
-                    },
                   ),
                 ),
               if (_error != null)
-                Text(
-                  _error!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ErrorShake(
+                  error: _error,
+                  revision: _errorRevision,
+                  child: Semantics(
+                    liveRegion: true,
+                    child: Text(
+                      _error!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ),
                 ),
               const SizedBox(height: 12),
               FilledButton(

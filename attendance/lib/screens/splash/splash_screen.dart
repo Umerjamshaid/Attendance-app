@@ -1,6 +1,6 @@
+import 'package:attendance/config/ui_tokens.dart';
 import 'package:attendance/config/app_icons.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../config/app_theme.dart';
@@ -114,7 +114,7 @@ class _SplashScreenState extends State<SplashScreen>
                   if (_packageInfo case final info?)
                     Text(
                       'v${info.version}',
-                      style: GoogleFonts.inter(
+                      style: AppTypography.inter(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                         color: context.colors.onSurfaceVariant,

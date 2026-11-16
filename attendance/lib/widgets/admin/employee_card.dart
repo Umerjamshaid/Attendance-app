@@ -1,3 +1,4 @@
+import 'package:attendance/config/ui_tokens.dart';
 import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/models/attendance_record_model.dart';
@@ -5,10 +6,10 @@ import 'package:attendance/models/employees_model.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../screens/admin/employee_check_ins_sheet.dart';
+import '../profile_image.dart';
 
 /// One employee row in the admin roster.
 ///
@@ -163,13 +164,60 @@ class EmployeeCard extends StatelessWidget {
                           color: context.colors.primaryContainer,
                           shape: BoxShape.circle,
                         ),
-                        child: Text(
-                          _initials(employee.name),
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: context.colors.onPrimaryContainer,
-                          ),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Center(
+                              child: Text(
+                                _initials(employee.name),
+                                style: AppTypography.inter(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: context.colors.onPrimaryContainer,
+                                ),
+                              ),
+                            ),
+                            if (employee.avatarUrl?.isNotEmpty ?? false)
+                              ClipOval(
+                                child: Image(
+                                  image: profileImageProvider(
+                                    employee.avatarUrl!,
+                                    viewer: context
+                                        .read<AuthProvider?>()
+                                        ?.currentUser
+                                        ?.authUserId,
+                                    office: employee.organizationId,
+                                    width: 120,
+                                    refresh: context
+                                        .read<AuthProvider?>()
+                                        ?.backend
+                                        ?.refreshProfileImage,
+                                  ),
+                                  fit: BoxFit.cover,
+                                  excludeFromSemantics: true,
+                                  errorBuilder: (_, _, _) =>
+                                      const SizedBox.shrink(),
+                                  frameBuilder:
+                                      (
+                                        context,
+                                        child,
+                                        frame,
+                                        synchronous,
+                                      ) => synchronous
+                                      ? child
+                                      : AnimatedOpacity(
+                                          opacity: frame == null ? 0 : 1,
+                                          duration:
+                                              MediaQuery.disableAnimationsOf(
+                                                context,
+                                              )
+                                              ? Duration.zero
+                                              : AppMotion.fast,
+                                          child: child,
+                                        ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                       const SizedBox(width: ProfileUi.rowInset),
@@ -244,7 +292,7 @@ class _StatusPill extends StatelessWidget {
         checkInLog
             ? (isPresent ? 'Checked in' : 'Not yet')
             : (isPresent ? 'Present' : 'Absent'),
-        style: GoogleFonts.inter(
+        style: AppTypography.inter(
           fontSize: 11,
           height: 1.2,
           fontWeight: FontWeight.w600,
@@ -305,7 +353,7 @@ class _EmployeeDetailsSheet extends StatelessWidget {
                   ),
                   child: Text(
                     initials,
-                    style: GoogleFonts.inter(
+                    style: AppTypography.inter(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                       color: context.colors.onPrimaryContainer,
@@ -323,7 +371,7 @@ class _EmployeeDetailsSheet extends StatelessWidget {
                           name,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
+                          style: AppTypography.inter(
                             fontSize: 20,
                             height: 1.25,
                             fontWeight: FontWeight.w600,
@@ -425,7 +473,7 @@ class _DetailRow extends StatelessWidget {
             Expanded(child: Text(label, style: ProfileUi.body(context))),
             Text(
               value,
-              style: GoogleFonts.inter(
+              style: AppTypography.inter(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: context.colors.onSurface,

@@ -1,7 +1,7 @@
+import 'package:attendance/config/ui_tokens.dart';
 import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 /// Today / this month / streak, computed from the attendance history.
 ///
@@ -112,7 +112,7 @@ class _Metric extends StatelessWidget {
               child: Text(
                 text,
                 key: ValueKey(text),
-                style: GoogleFonts.inter(
+                style: AppTypography.inter(
                   fontSize: 24,
                   height: 1.2,
                   fontWeight: FontWeight.w600,

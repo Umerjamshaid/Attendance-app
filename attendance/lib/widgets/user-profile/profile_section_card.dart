@@ -1,7 +1,6 @@
 import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/config/ui_tokens.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 /// Layout, colour and type tokens shared by the profile screen.
 ///
@@ -16,17 +15,12 @@ abstract final class ProfileUi {
   static const double iconSize = AppLayout.iconSize;
   static const String fontFamily = AppTypography.fontFamily;
 
-  /// Keeps profile typography local without changing Home or History.
+  /// Ensures pages and nested sheets inherit the same bundled UI typography.
   static ThemeData themeOf(BuildContext context) =>
       AppTypography.themeOf(context);
 
-  static bool _usesProfileFont(BuildContext context) =>
-      Theme.of(context).textTheme.bodyLarge?.fontFamily == fontFamily;
-
   static TextStyle _typeStyle(BuildContext context, FontWeight weight) =>
-      _usesProfileFont(context)
-      ? const TextStyle(fontFamily: fontFamily, letterSpacing: 0)
-      : GoogleFonts.inter(fontWeight: weight);
+      AppTypography.inter(fontWeight: weight);
 
   /// Separators start after the leading icon so they align with row labels.
   static const double dividerIndent = rowInset + iconSize + rowInset;
@@ -37,7 +31,7 @@ abstract final class ProfileUi {
     FontWeight weight = FontWeight.w400,
   }) => _typeStyle(context, weight).copyWith(
     fontSize: 16,
-    height: _usesProfileFont(context) ? 1.4 : 1.25,
+    height: 1.25,
     fontWeight: weight,
     color: color ?? context.colors.onSurface,
   );
@@ -48,7 +42,7 @@ abstract final class ProfileUi {
     FontWeight weight = FontWeight.w400,
   }) => _typeStyle(context, weight).copyWith(
     fontSize: 14,
-    height: _usesProfileFont(context) ? 1.45 : 1.3,
+    height: 1.3,
     fontWeight: weight,
     color: color ?? context.colors.onSurfaceVariant,
   );
@@ -59,7 +53,7 @@ abstract final class ProfileUi {
     FontWeight weight = FontWeight.w500,
   }) => _typeStyle(context, weight).copyWith(
     fontSize: 12,
-    height: _usesProfileFont(context) ? 1.4 : 1.25,
+    height: 1.25,
     fontWeight: weight,
     color: color ?? context.colors.onSurfaceVariant,
   );

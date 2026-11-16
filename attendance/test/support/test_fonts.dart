@@ -40,4 +40,7 @@ Future<void> loadTestFonts() async {
   await (FontLoader(
     'Office Inter',
   )..addFont(rootBundle.load('assets/fonts/OfficeInter.ttf'))).load();
+  await (FontLoader(
+    'Inter',
+  )..addFont(rootBundle.load('assets/fonts/OfficeInter.ttf'))).load();
 }

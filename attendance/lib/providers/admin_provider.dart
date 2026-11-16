@@ -1,4 +1,6 @@
 // ── 3B. AdminProvider  →  powers the Admin Screen
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/attendance_record_model.dart';
@@ -12,6 +14,7 @@ class AdminProvider extends ChangeNotifier {
   final EmployeeService _employeeService;
   bool _disposed = false;
   int _generation = 0;
+  Future<void>? _dashboardFuture;
   bool get usesCheckInLog => _attendanceService.backend != null;
 
   AdminProvider({
@@ -59,12 +62,25 @@ class AdminProvider extends ChangeNotifier {
     notifyListeners(); // UI rebuilds list instantly, no new API call needed
   }
 
-  Future<void> loadDashboard() async {
+  Future<void> loadDashboard() {
+    if (_disposed) return Future<void>.value();
+    final pending = _dashboardFuture;
+    if (pending != null) return pending;
     final generation = ++_generation;
     _isLoading = true;
     _error = null;
+    late final Future<void> request;
+    request = Future<void>.microtask(() => _loadDashboard(generation))
+        .whenComplete(() {
+          if (identical(_dashboardFuture, request)) _dashboardFuture = null;
+        });
+    _dashboardFuture = request;
     notifyListeners();
+    return request;
+  }
 
+  Future<void> _loadDashboard(int generation) async {
+    if (_disposed || generation != _generation) return;
     try {
       // Load employees and today's attendance at the same time (faster)
       final results = await Future.wait([
@@ -75,6 +91,11 @@ class AdminProvider extends ChangeNotifier {
 
       final employees = (results[0] as List<Employee>).where((e) => e.isActive);
       final todayRecords = results[1] as List<AttendanceRecord>;
+      final oldAvatars = {
+        for (final row in _allEmployeeAttendance)
+          if (row.employee.authUserId != null && row.employee.avatarUrl != null)
+            row.employee.authUserId!: row.employee.avatarUrl!,
+      };
 
       // Match each employee to their latest attendance record
       _allEmployeeAttendance = employees.map((emp) {
@@ -84,8 +105,14 @@ class AdminProvider extends ChangeNotifier {
               if (prev == null) return r;
               return r.timestamp.isAfter(prev.timestamp) ? r : prev;
             });
-        return EmployeeAttendance(employee: emp, latestRecord: latestRecord);
+        return EmployeeAttendance(
+          employee: emp.copyWith(
+            avatarUrl: emp.avatarUrl ?? oldAvatars[emp.authUserId],
+          ),
+          latestRecord: latestRecord,
+        );
       }).toList();
+      unawaited(_loadAvatars(employees.toList(), generation));
     } catch (e) {
       if (_disposed || generation != _generation) return;
       _error = 'Failed to load dashboard. Try again.';
@@ -94,6 +121,33 @@ class AdminProvider extends ChangeNotifier {
         _isLoading = false;
         notifyListeners();
       }
+    }
+  }
+
+  Future<void> _loadAvatars(List<Employee> employees, int generation) async {
+    final backend = _employeeService.backend;
+    if (backend == null || employees.isEmpty) return;
+    try {
+      final avatars = await backend
+          .employeeAvatars(employees)
+          .timeout(const Duration(seconds: 10));
+      if (_disposed || generation != _generation) return;
+      _allEmployeeAttendance = _allEmployeeAttendance
+          .map(
+            (data) => EmployeeAttendance(
+              employee: data.employee.copyWith(
+                avatarUrl: avatars[data.employee.authUserId],
+                clearAvatarUrl:
+                    avatars.containsKey(data.employee.authUserId) &&
+                    avatars[data.employee.authUserId] == null,
+              ),
+              latestRecord: data.latestRecord,
+            ),
+          )
+          .toList();
+      notifyListeners();
+    } catch (_) {
+      // Names, status and attendance remain usable when photos are unavailable.
     }
   }
 

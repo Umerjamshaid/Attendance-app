@@ -1,3 +1,4 @@
+import 'package:attendance/widgets/app_toast.dart';
 import 'package:attendance/config/app_icons.dart';
 import '../profile_image.dart';
 
@@ -44,7 +45,7 @@ class ProfileHeader extends StatelessWidget {
   ) async {
     HapticFeedback.selectionClick();
     final provider = context.read<ProfileProvider>();
-    final messenger = ScaffoldMessenger.of(context);
+    final messenger = AppToast.of(context);
     try {
       await pick(provider);
     } catch (error) {
@@ -57,6 +58,7 @@ class ProfileHeader extends StatelessWidget {
           ),
           behavior: SnackBarBehavior.floating,
         ),
+        kind: ToastKind.error,
       );
     }
   }
@@ -64,7 +66,7 @@ class ProfileHeader extends StatelessWidget {
   Future<void> _removeBanner(BuildContext context) async {
     HapticFeedback.selectionClick();
     final provider = context.read<ProfileProvider>();
-    final messenger = ScaffoldMessenger.of(context);
+    final messenger = AppToast.of(context);
     try {
       await provider.removeBanner(employee.id);
       messenger
@@ -74,6 +76,7 @@ class ProfileHeader extends StatelessWidget {
             content: Text('Banner removed'),
             behavior: SnackBarBehavior.floating,
           ),
+          kind: ToastKind.success,
         );
     } catch (_) {
       messenger.showSnackBar(
@@ -81,6 +84,7 @@ class ProfileHeader extends StatelessWidget {
           content: Text('Couldn’t remove the banner. Try again.'),
           behavior: SnackBarBehavior.floating,
         ),
+        kind: ToastKind.error,
       );
     }
   }
@@ -88,7 +92,7 @@ class ProfileHeader extends StatelessWidget {
   Future<void> _openEditSheet(BuildContext context) async {
     HapticFeedback.selectionClick();
     final auth = context.read<AuthProvider>();
-    final messenger = ScaffoldMessenger.of(context);
+    final messenger = AppToast.of(context);
 
     if (auth.isPreview) {
       messenger.showSnackBar(
@@ -138,6 +142,7 @@ class ProfileHeader extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
           ),
         ),
+        kind: ToastKind.success,
       );
     }
   }
@@ -182,6 +187,9 @@ class ProfileHeader extends StatelessWidget {
                   height: _bannerHeight,
                   child: _Banner(
                     path: profile.bannerPath,
+                    viewer: profile.imageViewer,
+                    refresh: profile.backend?.refreshProfileImage,
+                    onRetry: () => profile.retryBanner(employee.id),
                     onTap: () =>
                         _changeImage(context, (p) => p.pickBanner(employee.id)),
                     onRemove: () => _removeBanner(context),
@@ -196,6 +204,8 @@ class ProfileHeader extends StatelessWidget {
                       initial: _initialOf(name),
                       localPath: profile.pfpPath,
                       networkUrl: employee.avatarUrl,
+                      viewer: profile.imageViewer,
+                      refresh: profile.backend?.refreshProfileImage,
                       size: _avatarSize,
                       ring: _ring,
                       onTap: () =>
@@ -331,23 +341,84 @@ class _ProfileChipGroup extends StatelessWidget {
   );
 }
 
-class _Banner extends StatelessWidget {
+class _Banner extends StatefulWidget {
   const _Banner({
     required this.path,
+    required this.viewer,
+    this.refresh,
+    required this.onRetry,
     required this.onTap,
     required this.onRemove,
   });
 
   final String? path;
+  final String? viewer;
+  final Future<String?> Function(String)? refresh;
+  final Future<void> Function() onRetry;
   final VoidCallback onTap;
   final VoidCallback onRemove;
+
+  @override
+  State<_Banner> createState() => _BannerState();
+}
+
+class _BannerState extends State<_Banner> {
+  int _revision = 0;
+  int _imageRevision = 0;
+  bool _retrying = false;
+  bool _failed = false;
+
+  @override
+  void didUpdateWidget(covariant _Banner oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.path == widget.path && oldWidget.viewer == widget.viewer) {
+      return;
+    }
+    _failed = false;
+    _revision++;
+  }
+
+  void _reportFailure(int revision) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && revision == _revision && !_failed) {
+        setState(() => _failed = true);
+      }
+    });
+  }
+
+  Future<void> _retry() async {
+    if (_retrying) return;
+    setState(() {
+      _retrying = true;
+      _failed = false;
+    });
+    try {
+      await widget.onRetry();
+    } catch (_) {
+      // Keep the retry action available if the account or network changed.
+    } finally {
+      if (mounted) {
+        setState(() {
+          _retrying = false;
+          _failed = false;
+          _revision++;
+          _imageRevision++;
+        });
+      }
+    }
+  }
 
   static const int _decodeWidth = 1080;
 
   @override
   Widget build(BuildContext context) {
-    final image = path;
+    final image = widget.path;
+    final viewer = widget.viewer;
+    final refresh = widget.refresh;
+    final onTap = widget.onTap;
+    final onRemove = widget.onRemove;
     final hasBanner = image != null;
+    final revision = _revision;
     return Semantics(
       container: true,
       button: true,
@@ -362,16 +433,28 @@ class _Banner extends StatelessWidget {
               child: !hasBanner
                   ? const _BannerGradient(key: ValueKey('default-banner'))
                   : SizedBox.expand(
-                      key: ValueKey(image),
+                      key: ValueKey(
+                        '${profileImageIdentity(image, viewer: viewer)}:$_imageRevision',
+                      ),
                       child: Image(
-                        image: ResizeImage(
-                          profileImageProvider(image),
+                        image: profileImageProvider(
+                          image,
+                          viewer: viewer,
                           width: _decodeWidth,
+                          refresh: refresh,
                         ),
                         fit: BoxFit.cover,
+                        gaplessPlayback: true,
+                        frameBuilder: (_, child, frame, wasSync) =>
+                            wasSync || frame != null
+                            ? child
+                            : const _BannerGradient(),
                         // The picked file can disappear (cache cleared). The
                         // remove action stays available to clear the stale path.
-                        errorBuilder: (_, _, _) => const _BannerGradient(),
+                        errorBuilder: (_, _, _) {
+                          _reportFailure(revision);
+                          return const _BannerGradient();
+                        },
                       ),
                     ),
             ),
@@ -381,6 +464,20 @@ class _Banner extends StatelessWidget {
                 child: InkWell(onTap: onTap),
               ),
             ),
+            if (_failed)
+              Positioned(
+                top: 4,
+                left: 8,
+                child: IconButton(
+                  tooltip: 'Retry banner',
+                  onPressed: _retrying ? null : _retry,
+                  icon: const Icon(AppIcons.refresh, size: 18),
+                  style: IconButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    backgroundColor: Colors.black.withValues(alpha: .35),
+                  ),
+                ),
+              ),
             if (!hasBanner)
               const Align(
                 alignment: Alignment.topCenter,
@@ -518,6 +615,8 @@ class _Avatar extends StatelessWidget {
     required this.initial,
     required this.localPath,
     required this.networkUrl,
+    required this.viewer,
+    this.refresh,
     required this.size,
     required this.ring,
     required this.onTap,
@@ -526,6 +625,8 @@ class _Avatar extends StatelessWidget {
   final String initial;
   final String? localPath;
   final String? networkUrl;
+  final String? viewer;
+  final Future<String?> Function(String)? refresh;
   final double size;
   final double ring;
   final VoidCallback onTap;
@@ -538,10 +639,14 @@ class _Avatar extends StatelessWidget {
 
     Widget network() {
       if (url == null || url.isEmpty) return const SizedBox.shrink();
-      return Image.network(
-        url,
+      return Image(
+        image: profileImageProvider(
+          url,
+          viewer: viewer,
+          width: _decodeWidth,
+          refresh: refresh,
+        ),
         fit: BoxFit.cover,
-        cacheWidth: _decodeWidth,
         errorBuilder: (_, _, _) => const SizedBox.shrink(),
         frameBuilder: (_, child, frame, wasSync) => wasSync
             ? child
@@ -571,7 +676,12 @@ class _Avatar extends StatelessWidget {
         ),
         if (path != null)
           Image(
-            image: ResizeImage(profileImageProvider(path), width: _decodeWidth),
+            image: profileImageProvider(
+              path,
+              viewer: viewer,
+              width: _decodeWidth,
+              refresh: refresh,
+            ),
             fit: BoxFit.cover,
             errorBuilder: (_, _, _) => network(),
           )

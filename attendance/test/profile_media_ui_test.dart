@@ -1,14 +1,20 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/models/employees_model.dart';
 import 'package:attendance/providers/profile_provider.dart';
 import 'package:attendance/services/company_backend.dart';
+import 'package:attendance/services/profile_image_cache.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:attendance/widgets/user-profile/profile_header.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
 import 'support/test_fonts.dart';
 import 'support/overview_fonts.dart';
@@ -19,6 +25,161 @@ void main() {
     await loadOverviewFonts();
   });
   setUp(() => GoogleFonts.config.allowRuntimeFetching = false);
+
+  testWidgets(
+    'a failed banner exposes retry rather than only a silent fallback',
+    (tester) async {
+      final profile = _Profile();
+      addTearDown(profile.dispose);
+      await tester.pumpWidget(
+        ChangeNotifierProvider<ProfileProvider>.value(
+          value: profile,
+          child: MaterialApp(
+            theme: AppTheme.theme,
+            home: Scaffold(
+              body: ListView(
+                children: [
+                  ProfileHeader(
+                    employee: Employee(
+                      id: 'EMP001',
+                      name: 'Sample Employee',
+                      email: '',
+                      department: '',
+                      role: 'employee',
+                      time: '',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await _pumpUntil(
+        tester,
+        () => find.byTooltip('Retry banner').evaluate().isNotEmpty,
+      );
+      expect(find.byTooltip('Retry banner'), findsOneWidget);
+      await tester.tap(find.byTooltip('Retry banner'));
+      await tester.pumpAndSettle();
+      expect(profile.bannerRetries, 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'signature refresh clears Retry and outgoing banner errors are ignored',
+    (tester) async {
+      final directory = (await tester.runAsync(
+        () => Directory.systemTemp.createTemp('attendance-banner-race-'),
+      ))!;
+      final original = PathProviderPlatform.instance;
+      PathProviderPlatform.instance = _Paths(directory.path);
+      const viewer = 'banner-race';
+      const first =
+          'https://photos.example.invalid/storage/v1/object/sign/profile-media/owner/banner-v1.gif?token=old';
+      const rotated =
+          'https://photos.example.invalid/storage/v1/object/sign/profile-media/owner/banner-v1.gif?token=new';
+      const replacement =
+          'https://photos.example.invalid/storage/v1/object/sign/profile-media/owner/banner-v2.gif?token=new';
+      final profile = _Profile(imageViewer: viewer)..replaceBanner(first);
+      addTearDown(() async {
+        await tester.runAsync(() async {
+          profile.dispose();
+          await ProfileImageCache.clearViewer(viewer);
+          PathProviderPlatform.instance = original;
+          await directory.delete(recursive: true);
+        });
+      });
+      for (final url in [first, replacement]) {
+        await tester.runAsync(() async {
+          final image =
+              ProfileImageCache.image(url, viewer: viewer)
+                  as CachedNetworkImageProvider;
+          await image.cacheManager!.putFile(
+            url,
+            base64Decode(
+              'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+            ),
+            key: image.cacheKey,
+            fileExtension: 'gif',
+          );
+        });
+      }
+      await tester.pumpWidget(
+        ChangeNotifierProvider<ProfileProvider>.value(
+          value: profile,
+          child: MaterialApp(
+            theme: AppTheme.theme,
+            home: Scaffold(
+              body: ProfileHeader(
+                employee: Employee(
+                  id: 'EMP001',
+                  name: 'Sample Employee',
+                  email: '',
+                  department: '',
+                  role: 'employee',
+                  time: '',
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await _pumpUntil(
+        tester,
+        () => find
+            .byType(RawImage)
+            .evaluate()
+            .any((element) => (element.widget as RawImage).image != null),
+      );
+      final firstElement = tester.element(find.byType(Image));
+      final firstImage = tester.widget<Image>(find.byType(Image));
+      firstImage.errorBuilder!(
+        firstElement,
+        StateError('Initial failure'),
+        null,
+      );
+      tester.binding.scheduleFrame();
+      await tester.pump();
+      await tester.pump();
+      expect(find.byTooltip('Retry banner'), findsOneWidget);
+      profile.replaceBanner(rotated);
+      await tester.pump();
+      expect(find.byTooltip('Retry banner'), findsNothing);
+      expect(
+        tester.element(find.byType(Image)),
+        same(firstElement),
+        reason: 'signature rotation keeps the stable image element',
+      );
+      final outgoing = tester.widget<Image>(find.byType(Image));
+      profile.replaceBanner(replacement);
+      await tester.pump();
+      expect(
+        find.byType(Image),
+        findsNWidgets(2),
+        reason: 'outgoing image remains during the transition',
+      );
+      outgoing.errorBuilder!(
+        firstElement,
+        StateError('Late outgoing failure'),
+        null,
+      );
+      tester.binding.scheduleFrame();
+      await tester.pump();
+      await tester.pump();
+      expect(find.byTooltip('Retry banner'), findsNothing);
+      await tester.pumpAndSettle();
+      await _pumpUntil(
+        tester,
+        () => find
+            .byType(RawImage)
+            .evaluate()
+            .any((element) => (element.widget as RawImage).image != null),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   for (final brightness in Brightness.values) {
     testWidgets('profile media icons fit ${brightness.name} UI', (
@@ -84,7 +245,7 @@ void main() {
       expect(tester.takeException(), isNull);
       await tester.tap(find.byIcon(AppIcons.cameraPlus));
       await tester.pumpAndSettle();
-      expect(find.text('Choose an image no larger than 2 MB.'), findsOneWidget);
+      expect(find.text('Choose an image no larger than 5 MB.'), findsOneWidget);
     });
   }
 
@@ -108,7 +269,7 @@ void main() {
                     weight: FontWeight.w600,
                   );
                   expect(profile.fontFamily, ProfileUi.fontFamily);
-                  expect(profile.height, 1.4);
+                  expect(profile.height, 1.25);
                   return const SizedBox.shrink();
                 },
               ),
@@ -140,10 +301,47 @@ void main() {
 }
 
 class _Profile extends ProfileProvider {
+  _Profile({super.imageViewer});
+  String? _banner = 'missing-test-banner.png';
+  void replaceBanner(String? path) {
+    _banner = path;
+    notifyListeners();
+  }
+
+  int bannerRetries = 0;
   @override
-  String? get bannerPath => 'missing-test-banner.png';
+  Future<void> retryBanner(String userId) async {
+    bannerRetries++;
+  }
+
+  @override
+  String? get bannerPath => _banner;
 
   @override
   Future<void> pickPfp(String userId) async =>
-      throw const CompanyException('Choose an image no larger than 2 MB.');
+      throw const CompanyException('Choose an image no larger than 5 MB.');
+}
+
+Future<void> _pumpUntil(WidgetTester tester, bool Function() ready) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 5));
+  while (!ready() && DateTime.now().isBefore(deadline)) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 10)),
+    );
+    await tester.pump();
+  }
+  expect(
+    ready(),
+    isTrue,
+    reason: 'expected UI state did not appear before timeout',
+  );
+}
+
+class _Paths extends PathProviderPlatform {
+  _Paths(this.path);
+  final String path;
+  @override
+  Future<String> getTemporaryPath() async => path;
+  @override
+  Future<String> getApplicationSupportPath() async => path;
 }

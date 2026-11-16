@@ -14,14 +14,15 @@ await db.exec(`
   create table auth.users(id uuid primary key, email text, email_confirmed_at timestamptz default now());
   create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true),'')::uuid $$;
   create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
-  create table storage.objects(id uuid primary key default gen_random_uuid(),bucket_id text,name text,created_at timestamptz default now());
+  create table storage.objects(id uuid primary key default gen_random_uuid(),bucket_id text,name text,metadata jsonb,created_at timestamptz default now());
   create function storage.foldername(name text) returns text[] language sql immutable as $$ select string_to_array(name,'/') $$;
   alter table storage.objects enable row level security;
   grant select,insert,delete on storage.objects to authenticated;
   grant all on storage.objects to service_role;
 `);
 const migrations = (await readdir(new URL('../supabase/migrations/', import.meta.url))).filter((name) => name.endsWith('.sql')).sort();
-for (const file of migrations.filter((name) => !name.endsWith('_multi_office.sql'))) {
+const officeMigration = migrations.find((name) => name.endsWith('_multi_office.sql'));
+for (const file of migrations.filter((name) => name < officeMigration)) {
   await db.exec(await readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), 'utf8'));
 }
 const buckets = (await db.query('select id, public, file_size_limit, allowed_mime_types from storage.buckets order by id')).rows;
@@ -46,9 +47,18 @@ await db.exec(`
 // Seed real legacy evidence and a lease before the expansion, not an empty database.
 const before = (await db.query(`select public.finalize_check_in('${employee}','${request}',now(),'Test device','${company}/${employee}/${request}',24.8,67.0,20,'${installation}','android') as value`)).rows[0].value;
 await db.exec(`select public.claim_submission('${admin}','${request}')`);
-for (const file of migrations.filter((name) => name.endsWith('_multi_office.sql'))) {
+for (const file of migrations.filter((name) => name >= officeMigration)) {
   await db.exec(await readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), 'utf8'));
 }
+assert.deepEqual(
+  (await db.query('select id, public, file_size_limit, allowed_mime_types from storage.buckets order by id')).rows,
+  [
+    { id: 'attendance-evidence', public: false, file_size_limit: 2097152, allowed_mime_types: ['image/jpeg', 'image/png'] },
+    { id: 'office-logos', public: false, file_size_limit: 2097152, allowed_mime_types: ['image/jpeg', 'image/png'] },
+    { id: 'profile-media', public: false, file_size_limit: 10485760, allowed_mime_types: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'] },
+  ],
+  'only profile media gains the 10 MB GIF-banner ceiling; privacy, formats and other buckets are preserved',
+);
 assert.equal((await db.query('select id from public.check_ins')).rows[0].id, before.id);
 assert.equal((await db.query('select count(*)::int as n from public.memberships')).rows[0].n, 3);
 assert.equal((await db.query(`select created_by from public.organizations where id='${company}'`)).rows[0].created_by, null, 'migration must not invent owner privileges');
@@ -63,6 +73,26 @@ async function role(name, user) {
 /** Reads the scalar assertion value from a test query. */
 async function value(sql) { return (await db.query(sql)).rows[0].value; }
 async function denied(sql) { await assert.rejects(db.exec(sql)); }
+await role('authenticated', employee);
+const media = (name, metadata) => `insert into storage.objects(bucket_id,name,metadata) values ('profile-media','${employee}/${name}','${JSON.stringify(metadata)}'::jsonb)`;
+// Authorization probes roll back; their request length can include multipart overhead.
+await db.exec(`begin; ${media('avatar-probe.png', { contentLength: 5243392, mimetype: 'image/png' })}; rollback;`);
+await db.exec(`begin; ${media('banner-probe.gif', { contentLength: 10486272, mimetype: 'image/gif' })}; rollback;`);
+await db.exec(media('avatar-limit.png', { size: 5242880, mimetype: 'image/png' }));
+await db.exec(media('banner-limit.gif', { size: 10485760, mimetype: 'image/gif' }));
+await denied(media('avatar-large.gif', { size: 5242881, mimetype: 'image/gif' }));
+await denied(media('banner-large.png', { size: 5242881, mimetype: 'image/png' }));
+await denied(media('banner-wrong-type.gif', { size: 5242881, mimetype: 'image/jpeg' }));
+await denied(media('banner-too-large.gif', { size: 10485761, mimetype: 'image/gif' }));
+await denied(media('avatar-conflicting.png', { size: 1, contentLength: 5242881, mimetype: 'image/png' }));
+await denied(media('avatar-invalid.png', { size: -1, mimetype: 'image/png' }));
+await denied(media('avatar-invalid.png', { size: 'invalid', mimetype: 'image/png' }));
+await role('service_role');
+// Storage completion writes bypass RLS; the measured-metadata guard must not.
+await db.exec(`insert into storage.objects(bucket_id,name) values ('profile-media','${employee}/avatar-probe.png')`);
+await denied(`update storage.objects set metadata='{"size":5242881,"mimetype":"image/png"}' where name='${employee}/avatar-probe.png'`);
+await denied(`update storage.objects set name='${employee}/avatar-renamed.gif' where name='${employee}/banner-limit.gif'`);
+await db.exec(`delete from storage.objects where bucket_id='profile-media' and name in ('${employee}/avatar-probe.png','${employee}/avatar-limit.png','${employee}/banner-limit.gif')`);
 await role('anon');
 await denied('select * from public.check_ins');
 await denied('select public.current_employee()');
@@ -157,6 +187,8 @@ await db.exec(`update public.organizations set created_by='${admin}' where id='$
 await role('authenticated', admin);
 await value(`select public.switch_office('${company}') as value`);
 await db.exec(`select public.set_office_role('${company}','${employee}','admin')`);
+await assert.rejects(db.exec(`select public.set_office_role('${company}','${admin}','employee')`), /owner_cannot_demote/,
+  'an owner cannot self-demote even with a second active admin');
 await role('authenticated', employee);
 await value(`select public.switch_office('${company}') as value`);
 await denied(`select public.set_office_role('${company}','${admin}','employee')`);
@@ -164,6 +196,30 @@ await role('authenticated', admin);
 await db.exec(`select public.set_office_role('${company}','${employee}','employee')`);
 await role('service_role');
 await denied(`select public.set_employee_active('${admin}','${created}','ADMIN001',false)`);
+
+// Reissuing a pending invitation changes its responsible admin, but acceptance
+// freezes that provenance even if another active admin retries completion.
+await role('postgres');
+const reissue = '50000000-0000-4000-8000-000000000099';
+const reissuedUser = '20000000-0000-4000-8000-000000000098';
+await db.exec(`
+  update public.memberships set role='admin' where organization_id='${company}' and user_id='${employee}';
+  insert into auth.users(id,email) values('${reissuedUser}','reissued@example.invalid');
+  insert into public.memberships(user_id,organization_id,employee_code) values('${reissuedUser}','${otherCompany}','REISSUE_TEST');
+  insert into public.employee_invitations(id,organization_id,email,employee_code,name,department,user_id,invited_by)
+  values('${reissue}','${company}','reissued@example.invalid','REISSUE','Other','Ops','${reissuedUser}','${admin}');
+`);
+await role('service_role');
+await db.exec(`select public.complete_employee_invitation('${employee}','${reissue}','${reissuedUser}')`);
+await role('postgres');
+assert.equal(await value(`select invited_by as value from public.employee_invitations where id='${reissue}'`), employee);
+await db.exec(`update public.employee_invitations set accepted_at=now() where id='${reissue}'`);
+await role('service_role');
+await db.exec(`select public.complete_employee_invitation('${admin}','${reissue}','${reissuedUser}')`);
+await role('postgres');
+assert.equal(await value(`select invited_by as value from public.employee_invitations where id='${reissue}'`), employee,
+  'an accepted invitation retains its original responsible admin');
+await db.exec(`update public.memberships set role='employee' where organization_id='${company}' and user_id='${employee}'`);
 
 // Existing users accept a second-office invitation without profile duplication.
 const invitation = '50000000-0000-4000-8000-000000000001';
@@ -202,8 +258,68 @@ await db.exec(`insert into storage.objects(bucket_id,name) values('office-logos'
 await role('authenticated', admin);
 await value(`select public.switch_office('${created}') as value`);
 await db.exec(`select public.update_office('${created}','Renamed office','${created}/logo.png')`);
+await db.exec(`select public.update_office_fields('${created}',p_name=>'Concurrent rename')`);
+assert.equal(await value(`select logo_path as value from public.organizations where id='${created}'`), `${created}/logo.png`);
+await db.exec(`select public.update_office_fields('${created}',p_change_logo=>true,p_logo=>null)`);
+assert.equal(await value(`select logo_path as value from public.organizations where id='${created}'`), null);
+assert.equal(await value(`select name as value from public.organizations where id='${created}'`), 'Concurrent rename');
+await db.exec(`select public.update_office_fields('${created}',p_change_logo=>true,p_logo=>'${created}/logo.png')`);
+await denied(`select public.update_office_fields('${otherCompany}',p_name=>'Stolen')`);
 await denied(`select public.update_office('${created}','Renamed office','${otherCompany}/logo.png')`);
 await role('service_role');
 assert.ok(!(await db.query('select * from public.orphaned_media()')).rows.some((row) => row.bucket_id === 'office-logos'));
+// Admin avatar access is selected-office scoped and never includes banners or
+// old/unreferenced media. Existing owner-only reads remain available.
+await role('postgres');
+const outsider = '20000000-0000-4000-8000-000000000009';
+const avatar = `${employee}/avatar-current.gif`;
+const ownAvatar = `${admin}/avatar-current.png`;
+const outsiderAvatar = `${outsider}/avatar-current.jpg`;
+const banner = `${employee}/banner-current.png`;
+const oldAvatar = `${employee}/avatar-old.jpg`;
+await db.exec(`
+  insert into auth.users(id,email) values('${outsider}','outsider@example.invalid');
+  insert into public.memberships(organization_id,user_id,employee_code,role)
+    values('${otherCompany}','${outsider}','OUTSIDE','employee');
+  insert into public.profiles(user_id,name,avatar_path)
+    values('${outsider}','Outside office','${outsiderAvatar}');
+  update public.profiles set avatar_path='${avatar}',banner_path='${banner}' where user_id='${employee}';
+  update public.profiles set avatar_path='${ownAvatar}' where user_id='${admin}';
+  insert into storage.objects(bucket_id,name) values
+    ('profile-media','${avatar}'),('profile-media','${ownAvatar}'),
+    ('profile-media','${banner}'),('profile-media','${oldAvatar}'),
+    ('profile-media','${outsiderAvatar}');
+`);
+const visible = (path) => value(`select count(*)::int as value from storage.objects where bucket_id='profile-media' and name='${path}'`);
+await role('authenticated', admin);
+await value(`select public.switch_office('${company}') as value`);
+assert.equal(await visible(avatar), 1, 'office admin can read the current employee avatar');
+assert.equal(await visible(banner), 0, 'admin cannot read employee banners');
+assert.equal(await visible(oldAvatar), 0, 'admin cannot read unreferenced avatars');
+assert.equal(await visible(outsiderAvatar), 0, 'other-office avatar is hidden');
+await value(`select public.switch_office('${otherCompany}') as value`);
+assert.equal(await visible(avatar), 0, 'switching offices removes old-office avatar access');
+assert.equal(await visible(outsiderAvatar), 0, 'admin in A is only an employee in B');
+assert.equal(await visible(ownAvatar), 1, 'own avatar access remains unchanged');
+await role('authenticated', employee);
+assert.equal(await visible(ownAvatar), 0, 'employees cannot read a coworker avatar');
+assert.equal(await visible(avatar), 1, 'employees can still read their own avatar');
+await role('authenticated', other);
+await value(`select public.switch_office('${otherCompany}') as value`);
+assert.equal(await visible(outsiderAvatar), 1, 'office B admin sees only B members');
+assert.equal(await visible(avatar), 0);
+await role('authenticated', admin);
+await value(`select public.switch_office('${company}') as value`);
+assert.equal(await visible(avatar), 1);
+await role('postgres');
+await db.exec(`update public.memberships set role='employee' where user_id='${admin}' and organization_id='${company}'`);
+await role('authenticated', admin);
+assert.equal(await visible(avatar), 0, 'demotion removes coworker avatar access');
+await role('postgres');
+await db.exec(`update public.memberships set role='admin',active=false where user_id='${admin}' and organization_id='${company}'`);
+await role('authenticated', admin);
+assert.equal(await visible(avatar), 0, 'revoked admin access cannot read avatars');
+await role('anon');
+await denied('select * from storage.objects');
 await db.close();
 console.log('PASS: legacy data preservation, multi-office roles, atomic creation, selection authorization, RLS/evidence isolation, invitation acceptance, revocation, scoped leases, logos, retention, and last-admin protection');

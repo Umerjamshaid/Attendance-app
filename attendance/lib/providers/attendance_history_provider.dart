@@ -16,6 +16,8 @@ class AttendanceHistoryProvider extends ChangeNotifier {
   final AttendanceService _service;
   bool _disposed = false;
   int _generation = 0;
+  Future<void>? _historyFuture;
+  String? _loadingUserId;
   bool get usesCheckInLog => _service.backend != null;
   DateTime get _now => _service.backend?.companyNow ?? DateTime.now();
 
@@ -158,6 +160,7 @@ class AttendanceHistoryProvider extends ChangeNotifier {
     required bool isPresent,
     required String device,
   }) async {
+    _retireHistoryLoad();
     // 1. Create the new record locally (The "Optimistic" part)
     final newRecord = AttendanceRecord(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -194,6 +197,7 @@ class AttendanceHistoryProvider extends ChangeNotifier {
 
   // Inside AttendanceHistoryProvider class
   Future<void> addRecordOptimistically(AttendanceRecord record) async {
+    _retireHistoryLoad();
     // 1. Insert at the beginning of the list (index 0)
     _records.insert(0, record);
 
@@ -203,8 +207,7 @@ class AttendanceHistoryProvider extends ChangeNotifier {
 
   void acceptSubmittedRecord(AttendanceRecord record) {
     if (_disposed) return;
-    ++_generation;
-    _isLoading = false;
+    _retireHistoryLoad();
     _records.removeWhere((r) => r.id == record.id);
     _records.insert(0, record);
     _error = null;
@@ -212,13 +215,23 @@ class AttendanceHistoryProvider extends ChangeNotifier {
   }
 
   // ── Actions (UI calls these)
-  Future<void> loadHistory(String userId, {bool force = false}) async {
+  void _retireHistoryLoad() {
+    ++_generation;
+    _historyFuture = null;
+    _loadingUserId = null;
+    _isLoading = false;
+  }
+
+  Future<void> loadHistory(String userId, {bool force = false}) {
+    if (_disposed) return Future<void>.value();
+    final pending = _historyFuture;
+    if (pending != null && _loadingUserId == userId) return pending;
     // Optimization: Don't reload if we already have data for THIS user, unless forced
     if (_records.isNotEmpty &&
         _records.every((r) => r.userId == userId) &&
         !force &&
         !_isLoading) {
-      return;
+      return Future<void>.value();
     }
 
     final generation = ++_generation;
@@ -226,8 +239,22 @@ class AttendanceHistoryProvider extends ChangeNotifier {
     _error = null;
     // Clear old records so they don't show briefly for the new user
     if (_records.any((record) => record.userId != userId)) _records = [];
+    late final Future<void> request;
+    request = Future<void>.microtask(() => _loadHistory(userId, generation))
+        .whenComplete(() {
+          if (identical(_historyFuture, request)) {
+            _historyFuture = null;
+            _loadingUserId = null;
+          }
+        });
+    _historyFuture = request;
+    _loadingUserId = userId;
     notifyListeners();
+    return request;
+  }
 
+  Future<void> _loadHistory(String userId, int generation) async {
+    if (_disposed || generation != _generation) return;
     try {
       final remoteRecords = await _service.getUserAttendance(userId);
       if (_disposed || generation != _generation) return;

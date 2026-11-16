@@ -59,7 +59,8 @@ void main() {
       await tester.enterText(_field('Work email'), 'not-an-email');
       await tester.tap(find.byType(FilledButton));
       await tester.pumpAndSettle();
-      expect(find.text('Enter your email and password.'), findsOneWidget);
+      expect(find.text('Enter a valid work email.'), findsOneWidget);
+      expect(find.text('Enter your password.'), findsOneWidget);
       expect(backend.signIns, isEmpty);
       await tester.enterText(_field('Work email'), 'alex@example.invalid');
       await tester.testTextInput.receiveAction(TextInputAction.next);
@@ -111,6 +112,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('Invalid credentials.'), findsOneWidget);
+      expect(find.byType(SnackBar), findsNothing);
       expect(successes, 0);
       backend.pending = null;
       await tester.tap(find.byType(FilledButton));

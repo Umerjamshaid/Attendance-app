@@ -1,167 +1,87 @@
-<!--
-  Title: P Attendance
-  Description: A modern Flutter attendance app for teams that need location-aware check-ins, attendance history, admin visibility, profile management, and privacy-focused user flows.
-  Author: Umer Jamshaid
-  -->
-
 # P Attendance
 
-<p align='center'>  
- <img src='attendance/screenshots/banner.png' width='100%'/>
-</p>
+A Flutter attendance app for teams, combining photo check-ins, location evidence, and office-specific attendance management.
 
-[![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=flat-square&logo=flutter&logoColor=white)](https://flutter.dev)
-[![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?style=flat-square&logo=dart&logoColor=white)](https://dart.dev)
-[![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS-111111?style=flat-square)](https://flutter.dev/multi-platform)
-[![Status](https://img.shields.io/badge/Status-Portfolio%20Project-2E7BEF?style=flat-square)](https://github.com/Umerjamshaid/Attendance-app)
-<br/>
+P Attendance started as an interface project and has grown into a working app with authenticated accounts, a Supabase backend, and multi-office access. Employees can record and review their check-ins, while administrators manage attendance within their own offices.
 
-### A modern Flutter attendance app for teams that need location-aware check-ins, attendance history, admin visibility, profile management, and privacy-focused user flows.
-#### This repository is prepared as a public portfolio version. Private organization-specific attendance submission code is intentionally excluded from the public build.
+[Try the demo](#try-the-demo) | [Screenshots](#screenshots) | [Development](#development)
 
-<br/>
+## Screenshots
 
-<p align='left'>  
- <img src='attendance/screenshots/Samsung%20Galaxy%20S21%20Ultra%20Screenshot%201.png' width='19%' alt='Attendance home screen'/>  
- <img src='attendance/screenshots/Samsung%20Galaxy%20S21%20Ultra%20Screenshot%202.png' width='19%' alt='Attendance history screen'/>  
- <img src='attendance/screenshots/Samsung%20Galaxy%20S21%20Ultra%20Screenshot%203.png' width='19%' alt='Admin dashboard screen'/>  
- <img src='attendance/screenshots/Samsung%20Galaxy%20S21%20Ultra%20Screenshot%204.png' width='19%' alt='Profile screen'/>  
- <img src='attendance/screenshots/Samsung%20Galaxy%20S21%20Ultra%20Screenshot%205.png' width='19%' alt='Settings screen'/>  
- <img src='attendance/screenshots/Samsung%20Galaxy%20S21%20Ultra%20Screenshot%206.png' width='19%' alt='Privacy policy screen'/>  
-</p>  
-<br/>
+Current Android interface, shown in presentation device frames. Select an image to view it at full size.
 
-## ✨ What It Does
+<table>
+  <tr>
+    <td align="center"><a href="attendance/screenshots/current/attendance.png"><img src="attendance/screenshots/current/attendance.png" width="240" alt="Attendance home with office selection, photo check-in, and daily progress"></a><br><strong>Check-in</strong></td>
+    <td align="center"><a href="attendance/screenshots/current/history.png"><img src="attendance/screenshots/current/history.png" width="240" alt="Attendance history with monthly progress, streaks, and dated check-in records"></a><br><strong>History</strong></td>
+    <td align="center"><a href="attendance/screenshots/current/admin.png"><img src="attendance/screenshots/current/admin.png" width="240" alt="Office administration with attendance totals, schedules, and employee profile photos"></a><br><strong>Administration</strong></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="attendance/screenshots/current/profile.png"><img src="attendance/screenshots/current/profile.png" width="240" alt="Employee profile with a custom cover image, profile photo, tags, and attendance progress"></a><br><strong>Profile</strong></td>
+    <td align="center"><a href="attendance/screenshots/current/settings.png"><img src="attendance/screenshots/current/settings.png" width="240" alt="Settings for profile information, account recovery, and appearance"></a><br><strong>Settings</strong></td>
+    <td></td>
+  </tr>
+</table>
 
-- Lets employees check in from a mobile-first attendance screen.
-- Verifies location before attendance is accepted.
-- Detects mocked locations and rejects low-quality GPS readings.
-- Tracks attendance history with present, absent, pending, and verified states.
-- Shows monthly attendance summaries, streaks, and attendance ratios.
-- Includes an admin dashboard for employee attendance visibility.
-- Allows office location and attendance window configuration.
-- Provides profile, settings, and privacy policy screens.
-- Keeps the public version safe by replacing private attendance submission with a stub.
+## Features
 
-## 🛠️ Tech Stack
+- **Photo and location check-ins.** Capture a photo with verified GPS coordinates, a timestamp, and device information. Evidence can also show a readable address when available.
+- **Separate offices, one account.** Switch between authorized offices, each with its own employees, attendance settings, records, and permissions.
+- **Attendance at a glance.** Review today's status, monthly progress, streaks, and a chronological check-in history.
+- **Practical administration.** Filter the employee roster, view profile photos, set attendance windows, and inspect check-in logs and evidence.
+- **Office-specific access.** Invite employees and manage roles through server-authorized operations.
+- **Personal profiles.** Customize photos, cover images, and tags. Avatars and ordinary banners support up to 5 MB; animated GIF banners support up to 10 MB.
 
-| Area | Tools |
-| --- | --- |
-| App | Flutter, Dart |
-| State management | Provider |
-| Location | Geolocator |
-| Permissions | permission_handler |
-| Camera / image capture | image_picker |
-| Local persistence | SharedPreferences |
-| Networking | http |
-| UI | Material Design, Google Fonts |
+## Interface
 
-## 🏗️ Architecture
+Light and dark themes use soft gray surfaces, teal accents, bundled typography, and consistent iconography. The centered navigation supports synchronized taps and swipes. Bottom sheets, selected animated icons, and haptic feedback add motion while respecting reduced-motion settings.
 
-The project keeps app logic separated into focused layers:
+Validation stays beside the relevant field, and short action feedback uses a shared toast. Profile media is cached per signed-in viewer; attendance evidence uses a separate private loading path.
 
-```text
-lib/
-  app.dart                       App shell and routing root
-  main.dart                      Public entrypoint
-  bootstrap.dart                 Shared provider bootstrap
-  providers/                     App state and business logic
-  services/                      Device, location, storage, API services
-  screens/                       Feature screens
-  widgets/                       Reusable UI components
-```
+## Try The Demo
 
-Attendance submission is abstracted behind `AttendanceSubmissionService`.
+Use a Flutter SDK compatible with Dart `^3.11.4`, plus an Android device or emulator.
 
-- Public build: uses `PublicAttendanceSubmissionService`, which disables private upload behavior safely.
-- Private build: can wire a private implementation through `lib/main_private.dart`.
-
-This keeps the GitHub version buildable without private backend code.
-
-## 🔒 Public vs Private Build
-
-The default public entrypoint is:
-
-```powershell
-flutter run -t lib/main.dart
-```
-
-The private entrypoint is intentionally ignored by Git and can be used locally by the project owner:
-
-```powershell
-flutter run -t lib/main_private.dart
-```
-
-For the public repository, the private attendance submission file is not required and should not be committed.
-
-## 📱 Key Screens
-
-**Attendance**
-
-The attendance screen focuses on quick check-in, status visibility, upload availability, and daily attendance feedback.
-
-**History**
-
-Employees can review past attendance records with clear verification states and monthly summary metrics.
-
-**Admin Dashboard**
-
-Admins can monitor present and absent employees, review live attendance counts, and configure office attendance rules.
-
-**Profile and Settings**
-
-The profile flow includes user details, attendance overview, editable settings, and privacy information.
-
-## 🔐 Privacy Notes
-
-The app is designed around attendance data, location checks, device metadata, and timestamps. The public version does not include private backend submission code or organization-specific secrets.
-
-Before publishing any fork, review local files for private credentials, API keys, or organization-specific endpoints.
-
-## 📊 Project Status
-
-This is an active Flutter portfolio project built to demonstrate:
-
-- practical mobile UI design,
-- provider-based state management,
-- location-aware workflows,
-- clean public/private code separation,
-- and maintainable Flutter project structure.
-
-## 👤 Author
-
-Built by Umer Jamshaid as a Flutter attendance management project.
-
-<br/>
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Flutter SDK installed
-- Android Studio or VS Code
-- Android emulator, iOS simulator, or physical device
-
-### Install
-
-```powershell
+```sh
+git clone https://github.com/Umerjamshaid/Attendance-app.git
+cd Attendance-app/attendance
 flutter pub get
-```
-
-### Run
-
-```powershell
 flutter run
 ```
 
-### Analyze
+Choose **Explore demo** on the sign-in screen. No account is needed. The preview uses sample data, requests no camera or location access, and does not upload anything. Editing and submissions are disabled in this mode.
 
-```powershell
+Live office access is invitation-only. For a trial, contact [Umer Jamshaid](https://github.com/Umerjamshaid). Developers can use the [backend setup guide](attendance/docs/backend-setup.md) to connect their own Supabase project. Keep passwords, access tokens, and employee evidence out of public issues.
+
+## Built With
+
+| Area | Implementation |
+| --- | --- |
+| Application | Flutter and Dart |
+| State management | Provider |
+| Backend | Supabase Auth, Postgres, private Storage, and Edge Functions |
+| Capture and location | image_picker, Geolocator, and reverse geocoding |
+| Interface | Bundled typography, Tabler icons, and selected animated Lucide icons |
+| Profile media | cached_network_image and flutter_cache_manager |
+
+## Development
+
+Run these commands from `attendance/`:
+
+```sh
 flutter analyze
+flutter test
+flutter build apk --release --split-per-abi --target-platform android-arm64
 ```
 
-### Build Debug APK
+Without backend configuration, the build opens the demo-capable sign-in flow. Live builds require the configuration described in the setup guide.
 
-```powershell
-flutter build apk --debug
-```
+This is an actively developed showcase and pilot. Android release builds and automated tests are verified locally; physical-device acceptance and iOS verification remain ongoing. The presentation frames above do not imply iOS verification.
+
+## Design Inspiration
+
+The interface is heavily inspired by [Block Buzz](https://github.com/block/buzz/tree/main/mobile), especially its office/community switching, bottom sheets, typography, navigation, and action feedback. Those ideas are adapted to Attendance's workflows and Provider architecture, rather than bringing across Buzz's backend or identity system.
+
+See [design and animation attribution](attendance/docs/third-party-animations.md) for upstream references, modifications, and bundled license notices.
+
+Built by [**Umer Jamshaid**](https://github.com/Umerjamshaid).
