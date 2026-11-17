@@ -1,6 +1,7 @@
 Source: https://github.com/lportals/portal_labs
-Reference: lib/src/scrollable_subgroups, revision 10f2159.
-Adapted into History's existing viewport with Attendance's theme and data.
+Reference: lib/src/scrollable_subgroups, lib/src/discovery_bar,
+lib/src/tag_selection_interaction and lib/src/common/portal_animations.dart,
+revision 10f2159. Adapted with Attendance's theme, controlled state and data.
 
 MIT License
 

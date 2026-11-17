@@ -8,6 +8,7 @@ import '../../models/employees_model.dart';
 import '../../providers/auth_provider.dart';
 import 'settings_layout.dart';
 import '../../widgets/error_shake.dart';
+import '../../widgets/user-profile/profile_tag_selection.dart';
 
 class ProfileDetailsScreen extends StatefulWidget {
   const ProfileDetailsScreen({super.key, required this.user});
@@ -36,6 +37,18 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
   );
   final _tagDraft = TextEditingController();
   late final _tags = [...widget.user.chips];
+  late final _tagChoices = {
+    for (final tag in [
+      ...widget.user.chips,
+      'Teamwork',
+      'Mentor',
+      'Problem solving',
+      'Communication',
+      'Leadership',
+      'Organized',
+    ])
+      tag.toLowerCase(): tag,
+  };
   bool _saving = false;
   bool _failed = false;
   bool _leaving = false;
@@ -72,7 +85,28 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
       _tags
         ..clear()
         ..addAll(next);
+      for (final tag in next) {
+        _tagChoices[tag.toLowerCase()] = tag;
+      }
       _tagDraft.clear();
+      _failed = false;
+    });
+  }
+
+  void _toggleTag(String tag) {
+    if (_saving) return;
+    final index = _tags.indexWhere(
+      (value) => value.toLowerCase() == tag.toLowerCase(),
+    );
+    if (index < 0 && (_inputError != null || _tagsWithDraft.length >= 12)) {
+      return;
+    }
+    setState(() {
+      if (index >= 0) {
+        _tags.removeAt(index);
+      } else {
+        _tags.add(tag);
+      }
       _failed = false;
     });
   }
@@ -167,39 +201,14 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
             decoration: _decoration(context, 'Headline'),
           ),
           const SizedBox(height: 16),
-          if (_tags.isNotEmpty) ...[
-            LayoutBuilder(
-              builder: (context, constraints) => Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                children: [
-                  for (var index = 0; index < _tags.length; index++)
-                    ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: constraints.maxWidth,
-                      ),
-                      child: InputChip(
-                        label: Text(_tags[index]),
-                        deleteIcon: const Icon(AppIcons.x, size: 18),
-                        backgroundColor: colors.surfaceContainerLow,
-                        side: BorderSide(color: colors.outlineVariant),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        deleteButtonTooltipMessage: 'Remove ${_tags[index]}',
-                        onDeleted: _saving
-                            ? null
-                            : () => setState(() {
-                                _tags.removeAt(index);
-                                _failed = false;
-                              }),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
+          ProfileTagSelection(
+            choices: _tagChoices.values.toList(),
+            selected: _tags,
+            enabled: !_saving,
+            canAdd: _inputError == null && _tagsWithDraft.length < 12,
+            onToggle: _toggleTag,
+          ),
+          const SizedBox(height: 8),
           ErrorShake(
             error: _inputError,
             revision: _errorRevision,

@@ -141,11 +141,13 @@ void main() {
     expect(find.widgetWithText(InputChip, 'Old tag'), findsNothing);
     await tester.enterText(find.byType(TextField).first, 'Team lead');
     await tester.enterText(find.byType(TextField).last, 'design, Team mentor');
-    await tester.pump();
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byTooltip('Add tag'));
     await tester.tap(find.byTooltip('Add tag'));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.widgetWithText(InputChip, 'Team mentor'), findsOneWidget);
     expect(find.byType(InputChip), findsNWidgets(2));
+    await tester.ensureVisible(save);
     await tester.tap(save);
     await tester.pumpAndSettle();
     expect(auth.savedHeadline, 'Team lead');

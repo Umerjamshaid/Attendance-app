@@ -7,6 +7,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/company_backend.dart';
 import '../profile/settings_layout.dart';
 import '../../widgets/error_shake.dart';
+import '../../widgets/admin/employee_discovery_bar.dart';
 
 class EmployeeManagementScreen extends StatefulWidget {
   const EmployeeManagementScreen({super.key});
@@ -19,6 +20,8 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
   late final CompanyBackend _backend = context.read<AuthProvider>().backend!;
   late Future<List<Employee>> _employees = _backend.employees();
   String? _busy;
+  String _query = '';
+  EmployeeAccessFilter _filter = EmployeeAccessFilter.all;
   void _reload() => setState(() {
     _employees = _backend.employees();
   });
@@ -75,6 +78,13 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
         ),
       ),
       const SizedBox(height: 20),
+      EmployeeDiscoveryBar(
+        query: _query,
+        filter: _filter,
+        onQueryChanged: (value) => setState(() => _query = value),
+        onFilterChanged: (value) => setState(() => _filter = value),
+      ),
+      const SizedBox(height: 16),
       FutureBuilder(
         future: _employees,
         builder: (context, snapshot) {
@@ -90,9 +100,48 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
             );
           }
           final employees = snapshot.data ?? [];
+          final terms = _query
+              .trim()
+              .toLowerCase()
+              .split(RegExp(r'\s+'))
+              .where((term) => term.isNotEmpty);
+          final visible = employees.where((employee) {
+            final accessMatches = switch (_filter) {
+              EmployeeAccessFilter.all => true,
+              EmployeeAccessFilter.active => employee.isActive,
+              EmployeeAccessFilter.inactive => !employee.isActive,
+            };
+            final text =
+                '${employee.name} ${employee.id} ${employee.department} ${employee.email}'
+                    .toLowerCase();
+            return accessMatches && terms.every(text.contains);
+          }).toList();
+          if (visible.isEmpty) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Column(
+                children: [
+                  Text(
+                    employees.isEmpty
+                        ? 'No employees yet'
+                        : 'No employees found',
+                  ),
+                  if (_query.isNotEmpty || _filter != EmployeeAccessFilter.all)
+                    TextButton.icon(
+                      onPressed: () => setState(() {
+                        _query = '';
+                        _filter = EmployeeAccessFilter.all;
+                      }),
+                      icon: const Icon(AppIcons.x, size: 18),
+                      label: const Text('Clear filters'),
+                    ),
+                ],
+              ),
+            );
+          }
           return Column(
             children: [
-              for (final employee in employees)
+              for (final employee in visible)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(employee.name),
