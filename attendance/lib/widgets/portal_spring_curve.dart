@@ -5,11 +5,19 @@ import 'package:flutter/physics.dart';
 
 /// A lightly damped spring for position changes, never opacity or color.
 class PortalSpringCurve extends Curve {
-  const PortalSpringCurve();
+  const PortalSpringCurve({
+    this.mass = .5,
+    this.stiffness = 200,
+    this.damping = 18,
+  });
+
+  final double mass;
+  final double stiffness;
+  final double damping;
 
   @override
   double transformInternal(double t) => SpringSimulation(
-    const SpringDescription(mass: .5, stiffness: 200, damping: 18),
+    SpringDescription(mass: mass, stiffness: stiffness, damping: damping),
     0,
     1,
     0,

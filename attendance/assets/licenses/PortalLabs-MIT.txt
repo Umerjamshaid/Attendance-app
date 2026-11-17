@@ -1,6 +1,8 @@
 Source: https://github.com/lportals/portal_labs
 Reference: lib/src/scrollable_subgroups, lib/src/discovery_bar,
-lib/src/tag_selection_interaction and lib/src/common/portal_animations.dart,
+lib/src/tag_selection_interaction, lib/src/inline_delete_interaction,
+example/lib/showcases/inline_delete_interaction_showcase.dart and
+lib/src/common/portal_animations.dart,
 revision 10f2159. Adapted with Attendance's theme, controlled state and data.
 
 MIT License
