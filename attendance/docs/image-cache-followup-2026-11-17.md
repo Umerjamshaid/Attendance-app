@@ -94,3 +94,20 @@
   validation was bypassed or unrelated Android-toolchain upgrade performed.
 - The owner also asked how to stop Cubic automatic reviews. Explained its
   repository-level AI reviews setting; no reviewer settings/config were changed.
+
+## Uploaded Logo Renewal Correction
+
+- The next review correctly identified that `updateOffice` writes
+  `<office-id>/<uuid>.jpg` or `.png`, whereas renewal accepted only `logo-`
+  filenames. Renewal now accepts both existing names and valid UUID JPEG/PNG
+  names. Origin, bucket, two-part path, session and Storage authorization checks
+  are unchanged.
+- The backend regression now uploads both formats through `updateOffice`, uses
+  the resulting stored path for renewal, and also renews a legacy `logo-` name.
+  Invalid names/extensions, nested paths, wrong origin/bucket and server access
+  denials remain covered.
+- All 20 focused backend/cache tests passed; full Flutter analysis found no
+  issues. No database/private source changes or dependency additions. The full
+  suite and optional CodeRabbit CLI review were not rerun for this small fix.
+- The code-2015 APK above predates this filename correction; no new APK was
+  requested or rebuilt in this follow-up.

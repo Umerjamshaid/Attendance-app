@@ -97,6 +97,9 @@ class _Server {
         'signedURL': '${path.replaceFirst('/storage/v1', '')}?token=renewed',
       });
     }
+    if (path.contains('/object/office-logos/')) {
+      return json({'Key': path.split('/object/').last});
+    }
     if (path.endsWith('/update_office_fields')) return json(null);
     if (path.endsWith('/user')) {
       if (rejectPassword) {
@@ -248,6 +251,25 @@ void main() {
       await root.switchOffice(_b);
       final url = offices.first.logoUrl!;
       expect(await backend.refreshOfficeLogo(url), contains('token=renewed'));
+      final uploadedUrls = <String>[];
+      for (final image in [
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aD1sAAAAASUVORK5CYII=',
+        '/9j/4AAQSkZJRgABAQAAAQABAAD/2Q==',
+      ]) {
+        await backend.updateOffice(offices.first, logo: base64Decode(image));
+        final path =
+            (jsonDecode(server.calls.last.body) as Map)['p_logo'] as String;
+        final uploaded = Uri.parse(url)
+            .replace(path: '/storage/v1/object/sign/office-logos/$path')
+            .toString();
+        uploadedUrls.add(uploaded);
+        expect(
+          await backend.refreshOfficeLogo(uploaded),
+          contains('$path?token=renewed'),
+        );
+      }
+      expect(uploadedUrls[0], contains('.png?'));
+      expect(uploadedUrls[1], contains('.jpg?'));
       final before = server.calls.length;
       await expectLater(
         backend.refreshOfficeLogo(
@@ -258,12 +280,25 @@ void main() {
         ),
         throwsA(isA<CompanyException>()),
       );
+      for (final invalid in [
+        url.replaceFirst('logo-current.png', 'not-a-uuid.png'),
+        uploadedUrls.first.replaceFirst('.png?', '.gif?'),
+        url.replaceFirst('logo-current.png', 'nested/logo-current.png'),
+        url.replaceFirst('/office-logos/', '/profile-media/'),
+      ]) {
+        await expectLater(
+          backend.refreshOfficeLogo(invalid),
+          throwsA(isA<CompanyException>()),
+        );
+      }
       expect(server.calls.length, before);
       server.rejectLogo = true;
-      await expectLater(
-        backend.refreshOfficeLogo(url),
-        throwsA(isA<CompanyException>()),
-      );
+      for (final denied in [url, ...uploadedUrls]) {
+        await expectLater(
+          backend.refreshOfficeLogo(denied),
+          throwsA(isA<CompanyException>()),
+        );
+      }
     },
   );
   test(

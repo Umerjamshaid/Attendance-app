@@ -612,9 +612,14 @@ class SupabaseCompanyBackend extends CompanyBackend {
     }
     final path = uri.path.substring(prefix.length);
     final parts = path.split('/');
+    final filename = parts.last.split('.');
+    final uploadedLogo =
+        filename.length == 2 &&
+        ['jpg', 'png'].contains(filename[1]) &&
+        Uuid.isValidUUID(fromString: filename[0]);
     if (parts.length != 2 ||
         parts.any((part) => part.isEmpty || part == '..') ||
-        !parts[1].startsWith('logo-')) {
+        (!parts[1].startsWith('logo-') && !uploadedLogo)) {
       throw const CompanyException('This office logo is not available.');
     }
     // Storage independently checks active membership in this logo's office.
