@@ -94,6 +94,7 @@ flutter:
     - assets/licenses/Buzz-Apache-2.0.txt
     - assets/licenses/Inter-OFL.txt
     - assets/licenses/DiscordBadges-MIT.txt
+    - assets/licenses/PortalLabs-MIT.txt
     - assets/badges/admin-prototype.svg
 
   fonts:
