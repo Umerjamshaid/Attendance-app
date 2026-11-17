@@ -10,6 +10,7 @@ import 'package:attendance/widgets/user-profile/edit_profile_sheet.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../../screens/profile/account_edit_screen.dart';
 import '../../services/company_backend.dart';
@@ -262,7 +263,14 @@ class ProfileHeader extends StatelessWidget {
                   if (role.isNotEmpty)
                     _InfoChip(
                       label: role[0].toUpperCase() + role.substring(1),
-                      icon: AppIcons.idBadge2,
+                      leading: employee.isAdmin && employee.isActive
+                          ? SvgPicture.asset(
+                              'assets/badges/admin-prototype.svg',
+                              width: 16,
+                              height: 16,
+                              excludeFromSemantics: true,
+                            )
+                          : const Icon(AppIcons.idBadge2, size: 16),
                     ),
                   _StatusPill(status: todayStatus),
                 ],
@@ -854,10 +862,10 @@ class _StatusPill extends StatelessWidget {
 }
 
 class _InfoChip extends StatelessWidget {
-  const _InfoChip({required this.label, this.icon});
+  const _InfoChip({required this.label, this.leading});
 
   final String label;
-  final IconData? icon;
+  final Widget? leading;
 
   @override
   Widget build(BuildContext context) {
@@ -870,7 +878,7 @@ class _InfoChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null) ...[Icon(icon, size: 16), const SizedBox(width: 6)],
+          if (leading != null) ...[leading!, const SizedBox(width: 6)],
           Flexible(
             child: Text(
               label,

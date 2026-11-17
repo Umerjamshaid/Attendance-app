@@ -58,6 +58,7 @@ dependencies:
   google_fonts: ^8.1.0
   tabler_icons_plus: ^3.50.0
   flutter_lucide_animated: ^0.0.4
+  flutter_svg: 2.3.4
   image_picker: ^1.1.2
   mime: ^2.1.0
   # For handling permissions
@@ -92,6 +93,8 @@ flutter:
   assets:
     - assets/licenses/Buzz-Apache-2.0.txt
     - assets/licenses/Inter-OFL.txt
+    - assets/licenses/DiscordBadges-MIT.txt
+    - assets/badges/admin-prototype.svg
 
   fonts:
     - family: Inter
