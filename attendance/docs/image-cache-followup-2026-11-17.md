@@ -71,4 +71,26 @@
   tests passed; there are no new database migrations in this change.
 - The optional CodeRabbit CLI review was not rerun. The submitted findings were
   checked against current code and covered by the focused regression tests.
-- APK delivery details are appended after the build finishes.
+
+## Delivery
+
+- Source commit: `1dd2bbe`, pushed to `fix/coderabbit-issues`.
+- Follow-up PR: https://github.com/Umerjamshaid/Attendance-app/pull/23, targeting
+  `main`; no automatic merge. The submitted Logs/avatar, nullable-test, and
+  cleanup-backoff threads on merged PR #22 received fix/test replies and were
+  resolved. The two deactivation-policy threads received deferral explanations.
+- Public/live ARM64 release APK rebuilt at
+  `build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`: 22,333,724 bytes
+  (about 21.3 MiB), version name `1.1.0`, build argument `15`, APK code `2015`,
+  package `com.example.attendance`. This replaces the prior APK at the same path.
+- APK SHA-256:
+  `1493C5F52BACBD4535D9D8B0210CD435EE46386DAD9948823BEE918E20AABCA1`.
+- APK v2 signature and 16 KiB alignment checks passed. The signing certificate
+  SHA-256 remains
+  `400660b609acea3238e627da073865006229e231cf9d1f71b6a89e4548851520`,
+  matching the previous test APK. Runtime is release, but signing still uses
+  the existing Android debug/test certificate, not a Play Store release setup.
+- Existing Gradle/AGP/Kotlin future-support warnings remain; no dependency
+  validation was bypassed or unrelated Android-toolchain upgrade performed.
+- The owner also asked how to stop Cubic automatic reviews. Explained its
+  repository-level AI reviews setting; no reviewer settings/config were changed.
