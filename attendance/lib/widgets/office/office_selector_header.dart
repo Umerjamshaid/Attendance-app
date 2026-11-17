@@ -5,6 +5,7 @@ import '../../config/ui_tokens.dart';
 import '../../models/office_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/office_provider.dart';
+import '../profile_image.dart';
 import 'office_switcher_sheet.dart';
 
 class OfficeSelectorHeader extends StatelessWidget {
@@ -104,6 +105,7 @@ class OfficeAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final auth = context.watch<AuthProvider?>();
     final initials = Center(
       child: Text(
         office.initials,
@@ -123,9 +125,16 @@ class OfficeAvatar extends StatelessWidget {
           color: colors.surfaceContainerHighest,
           child: office.logoUrl == null
               ? initials
-              : Image.network(
-                  office.logoUrl!,
+              : Image(
+                  image: profileImageProvider(
+                    office.logoUrl!,
+                    viewer: auth?.currentUser?.authUserId,
+                    office: office.id,
+                    width: 240,
+                    refresh: auth?.accountBackend?.refreshOfficeLogo,
+                  ),
                   fit: BoxFit.cover,
+                  gaplessPlayback: true,
                   errorBuilder: (_, _, _) => initials,
                 ),
         ),

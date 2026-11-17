@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
 import 'support/test_fonts.dart';
@@ -24,7 +25,10 @@ void main() {
     await loadTestFonts();
     await loadOverviewFonts();
   });
-  setUp(() => GoogleFonts.config.allowRuntimeFetching = false);
+  setUp(() {
+    GoogleFonts.config.allowRuntimeFetching = false;
+    SharedPreferences.setMockInitialValues({});
+  });
 
   testWidgets(
     'a failed banner exposes retry rather than only a silent fallback',
@@ -82,7 +86,10 @@ void main() {
           'https://photos.example.invalid/storage/v1/object/sign/profile-media/owner/banner-v1.gif?token=new';
       const replacement =
           'https://photos.example.invalid/storage/v1/object/sign/profile-media/owner/banner-v2.gif?token=new';
-      final profile = _Profile(imageViewer: viewer)..replaceBanner(first);
+      final avatar = first.replaceFirst('banner-v1', 'avatar-v1');
+      final profile = _Profile(imageViewer: viewer)
+        ..replaceBanner(first)
+        ..replaceAvatar(avatar);
       addTearDown(() async {
         await tester.runAsync(() async {
           profile.dispose();
@@ -91,7 +98,7 @@ void main() {
           await directory.delete(recursive: true);
         });
       });
-      for (final url in [first, replacement]) {
+      for (final url in [first, replacement, avatar]) {
         await tester.runAsync(() async {
           final image =
               ProfileImageCache.image(url, viewer: viewer)
@@ -128,13 +135,29 @@ void main() {
       );
       await _pumpUntil(
         tester,
-        () => find
-            .byType(RawImage)
-            .evaluate()
-            .any((element) => (element.widget as RawImage).image != null),
+        () =>
+            find
+                .byType(RawImage)
+                .evaluate()
+                .where((element) => (element.widget as RawImage).image != null)
+                .length ==
+            2,
       );
-      final firstElement = tester.element(find.byType(Image));
-      final firstImage = tester.widget<Image>(find.byType(Image));
+      final bannerFinder = find.byWidgetPredicate(
+        (widget) =>
+            widget is Image &&
+            widget.image is ResizeImage &&
+            (widget.image as ResizeImage).width == 1080,
+      );
+      final avatarFinder = find.byWidgetPredicate(
+        (widget) =>
+            widget is Image &&
+            widget.image is ResizeImage &&
+            (widget.image as ResizeImage).width == 336,
+      );
+      final firstElement = tester.element(bannerFinder);
+      final avatarElement = tester.element(avatarFinder);
+      final firstImage = tester.widget<Image>(bannerFinder);
       firstImage.errorBuilder!(
         firstElement,
         StateError('Initial failure'),
@@ -145,18 +168,24 @@ void main() {
       await tester.pump();
       expect(find.byTooltip('Retry banner'), findsOneWidget);
       profile.replaceBanner(rotated);
+      profile.replaceAvatar(avatar.replaceFirst('token=old', 'token=new'));
       await tester.pump();
       expect(find.byTooltip('Retry banner'), findsNothing);
       expect(
-        tester.element(find.byType(Image)),
+        tester.element(bannerFinder),
         same(firstElement),
         reason: 'signature rotation keeps the stable image element',
       );
-      final outgoing = tester.widget<Image>(find.byType(Image));
+      expect(
+        tester.element(avatarFinder),
+        same(avatarElement),
+        reason: 'avatar signature rotation must not restart its transition',
+      );
+      final outgoing = tester.widget<Image>(bannerFinder);
       profile.replaceBanner(replacement);
       await tester.pump();
       expect(
-        find.byType(Image),
+        bannerFinder,
         findsNWidgets(2),
         reason: 'outgoing image remains during the transition',
       );
@@ -172,10 +201,13 @@ void main() {
       await tester.pumpAndSettle();
       await _pumpUntil(
         tester,
-        () => find
-            .byType(RawImage)
-            .evaluate()
-            .any((element) => (element.widget as RawImage).image != null),
+        () =>
+            find
+                .byType(RawImage)
+                .evaluate()
+                .where((element) => (element.widget as RawImage).image != null)
+                .length ==
+            2,
       );
       expect(tester.takeException(), isNull);
     },
@@ -303,6 +335,14 @@ void main() {
 class _Profile extends ProfileProvider {
   _Profile({super.imageViewer});
   String? _banner = 'missing-test-banner.png';
+  String? _avatar;
+  void replaceAvatar(String path) {
+    _avatar = path;
+    notifyListeners();
+  }
+
+  @override
+  String? get pfpPath => _avatar;
   void replaceBanner(String? path) {
     _banner = path;
     notifyListeners();

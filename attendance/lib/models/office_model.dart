@@ -14,6 +14,14 @@ class Office {
   final String? logoPath;
   final String? logoUrl;
   final String? createdBy;
+  Office withLogoUrl(String? url) => Office(
+    id: id,
+    name: name,
+    role: role,
+    logoPath: logoPath,
+    logoUrl: url,
+    createdBy: createdBy,
+  );
   bool get isAdmin => role == 'admin';
   String get initials => name
       .trim()

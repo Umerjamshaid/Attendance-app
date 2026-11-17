@@ -45,6 +45,33 @@ void main() {
   });
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
+  testWidgets(
+    'Logs refresh preserves an omitted avatar and clears confirmed removal',
+    (tester) async {
+      final backend = _Backend();
+      final employee = _employee.copyWith(
+        authUserId: 'employee-photo-user',
+        organizationId: 'office-a',
+        avatarUrl: 'https://photos.example.invalid/avatar-current.gif',
+      );
+      await _mount(tester, backend: backend, employee: employee);
+      await _open(tester);
+      await tester.tap(find.byTooltip('Refresh check-in logs'));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('check-in-logs-avatar')),
+        findsOneWidget,
+      );
+      backend.avatarResult = Completer<Map<String, String?>>();
+      await tester.tap(find.byTooltip('Refresh check-in logs'));
+      await tester.pumpAndSettle();
+      backend.avatarResult!.complete({employee.authUserId!: null});
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('check-in-logs-avatar')), findsNothing);
+      expect(find.text('3 check-ins'), findsOneWidget);
+    },
+  );
+
   testWidgets('Logs heading reuses the roster photo without another lookup', (
     tester,
   ) async {
@@ -73,7 +100,7 @@ void main() {
     'missing Logs photo loads separately and failure keeps history usable',
     (tester) async {
       final backend = _Backend();
-      backend.avatarResult = Completer<Map<String, String>>();
+      backend.avatarResult = Completer<Map<String, String?>>();
       final employee = _employee.copyWith(authUserId: 'employee-photo-user');
       await _mount(tester, backend: backend, employee: employee);
       await _open(tester);
@@ -83,7 +110,7 @@ void main() {
       backend.avatarResult!.completeError(StateError('Photo offline'));
       await tester.pumpAndSettle();
       expect(find.text('3 check-ins'), findsOneWidget);
-      backend.avatarResult = Completer<Map<String, String>>();
+      backend.avatarResult = Completer<Map<String, String?>>();
       await tester.tap(find.byTooltip('Refresh check-in logs'));
       await tester.pumpAndSettle();
       expect(backend.avatarRequests, 2);
@@ -412,10 +439,10 @@ class _Backend extends PreviewCompanyBackend {
   final employeeIds = <String?>[];
   final evidenceIds = <String>[];
   final evidenceResult = Completer<Map<String, dynamic>>();
-  Completer<Map<String, String>>? avatarResult;
+  Completer<Map<String, String?>>? avatarResult;
   int avatarRequests = 0;
   @override
-  Future<Map<String, String>> employeeAvatars(List<Employee> employees) {
+  Future<Map<String, String?>> employeeAvatars(List<Employee> employees) {
     avatarRequests++;
     return avatarResult?.future ?? Future.value({});
   }

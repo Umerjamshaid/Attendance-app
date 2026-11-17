@@ -22,6 +22,39 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   test(
+    'failed purges have a cooldown, but a new retired namespace retries immediately',
+    () async {
+      var now = DateTime.utc(2026, 11, 17);
+      var attempts = 0;
+      final queue = ProfileCacheCleanup(
+        now: () => now,
+        purge: (_) async {
+          attempts++;
+          throw const FileSystemException('Still locked');
+        },
+      );
+      await queue.remember('profile-media-v1-first');
+      await queue.retry();
+      for (var i = 0; i < 10; i++) {
+        await queue.retry();
+      }
+      expect(attempts, 1);
+      now = now.add(ProfileCacheCleanup.retryInterval);
+      await queue.retry();
+      expect(attempts, 2);
+      await queue.remember('profile-media-v1-second');
+      await queue.retry();
+      expect(attempts, 4);
+      expect(
+        (await SharedPreferences.getInstance()).getStringList(
+          ProfileCacheCleanup.pendingKey,
+        ),
+        hasLength(2),
+      );
+    },
+  );
+
+  test(
     'failed namespaces survive restart and are removed only after successful cleanup',
     () async {
       const namespace = 'profile-media-v1-viewer';

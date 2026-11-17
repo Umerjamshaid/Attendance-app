@@ -99,7 +99,15 @@ class OfficeProvider extends ChangeNotifier {
       final offices = await backend.offices();
       final invitations = await backend.officeInvitations();
       if (_disposed || generation != _generation) return;
-      _offices = offices;
+      final previous = {for (final office in _offices) office.id: office};
+      _offices = offices.map((office) {
+        final old = previous[office.id];
+        return office.logoUrl == null &&
+                office.logoPath != null &&
+                office.logoPath == old?.logoPath
+            ? office.withLogoUrl(old?.logoUrl)
+            : office;
+      }).toList();
       _invitations = invitations;
       if (activeOfficeId != null &&
           !offices.any((office) => office.id == activeOfficeId)) {

@@ -103,6 +103,7 @@ abstract class CompanyBackend {
 
   /// Re-signs a previously authorized profile object; the server rechecks RLS.
   Future<String?> refreshProfileImage(String url) async => url;
+  Future<String?> refreshOfficeLogo(String url) async => url;
   Future<void> saveMedia(String kind, Uint8List? bytes);
   Future<void> invite({
     required String email,
