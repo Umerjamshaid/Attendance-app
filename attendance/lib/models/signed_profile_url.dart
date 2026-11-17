@@ -37,9 +37,10 @@ class SignedProfileUrl {
       (expiresAt == null ||
           !expiresAt!.isAfter(now.add(const Duration(seconds: 10))));
 
-  static bool isSigned(String url) =>
-      Uri.tryParse(
-        url,
-      )?.path.startsWith('/storage/v1/object/sign/profile-media/') ??
-      false;
+  static bool isSigned(String url) {
+    final path = Uri.tryParse(url)?.path;
+    return path != null &&
+        (path.startsWith('/storage/v1/object/sign/profile-media/') ||
+            path.startsWith('/storage/v1/object/sign/office-logos/'));
+  }
 }

@@ -602,6 +602,36 @@ class SupabaseCompanyBackend extends CompanyBackend {
   }
 
   @override
+  Future<String?> refreshOfficeLogo(String url) => _guard(() async {
+    final uri = Uri.tryParse(url);
+    const prefix = '/storage/v1/object/sign/office-logos/';
+    if (uri == null ||
+        uri.origin != Uri.parse(client.storage.url).origin ||
+        !uri.path.startsWith(prefix)) {
+      throw const CompanyException('This office logo is not available.');
+    }
+    final path = uri.path.substring(prefix.length);
+    final parts = path.split('/');
+    final filename = parts.last.split('.');
+    final uploadedLogo =
+        filename.length == 2 &&
+        ['jpg', 'png'].contains(filename[1]) &&
+        Uuid.isValidUUID(fromString: filename[0]);
+    if (parts.length != 2 ||
+        parts.any((part) => part.isEmpty || part == '..') ||
+        (!parts[1].startsWith('logo-') && !uploadedLogo)) {
+      throw const CompanyException('This office logo is not available.');
+    }
+    // Storage independently checks active membership in this logo's office.
+    final renewed = await client.storage
+        .from('office-logos')
+        .createSignedUrl(path, 900)
+        .timeout(const Duration(seconds: 20));
+    validateContext();
+    return renewed;
+  });
+
+  @override
   Future<void> saveMedia(String kind, Uint8List? bytes) => _guard(() async {
     if (!['avatar', 'banner'].contains(kind)) {
       throw const CompanyException('Invalid profile image.');
@@ -691,22 +721,34 @@ class SupabaseCompanyBackend extends CompanyBackend {
   @override
   Future<List<Office>> offices() => _guard(() async {
     final rows = await _rpc('my_offices') as List;
-    final offices = <Office>[];
-    for (final value in rows) {
-      final row = Map<String, dynamic>.from(value as Map);
-      String? logoUrl;
-      if (row['logo_path'] != null) {
-        try {
-          logoUrl = await client.storage
-              .from('office-logos')
-              .createSignedUrl(row['logo_path'] as String, 900);
-        } catch (_) {
-          /* Initials remain available if logo signing fails. */
+    final paths = rows
+        .map((row) => (row as Map)['logo_path'])
+        .whereType<String>()
+        .toSet()
+        .toList();
+    final urls = <String, String>{};
+    for (var offset = 0; offset < paths.length; offset += 100) {
+      try {
+        final signed = await client.storage
+            .from('office-logos')
+            .createSignedUrlsResult(paths.skip(offset).take(100).toList(), 900)
+            .timeout(const Duration(seconds: 20));
+        validateContext();
+        for (final result in signed) {
+          if (result is SignedUrlSuccess) urls[result.path] = result.signedUrl;
         }
+      } catch (_) {
+        validateContext();
+        // Keep offices usable if their optional logo batch cannot be signed.
       }
-      offices.add(Office.fromMap(row, logoUrl: logoUrl));
     }
-    return offices;
+    return [
+      for (final value in rows)
+        Office.fromMap(
+          Map<String, dynamic>.from(value as Map),
+          logoUrl: urls[value['logo_path']],
+        ),
+    ];
   });
   @override
   Future<List<OfficeInvitation>> officeInvitations() => _guard(() async {

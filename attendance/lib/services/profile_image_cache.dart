@@ -19,7 +19,8 @@ class ProfileImageCache {
   static String key(String url, {required String viewer, String? office}) {
     final uri = Uri.parse(url);
     final version =
-        uri.path.startsWith('/storage/v1/object/sign/profile-media/')
+        (uri.path.startsWith('/storage/v1/object/sign/profile-media/') ||
+            uri.path.startsWith('/storage/v1/object/sign/office-logos/'))
         ? uri.replace(query: '').toString()
         : url;
     return '$viewer:${office ?? "profile"}:$version';

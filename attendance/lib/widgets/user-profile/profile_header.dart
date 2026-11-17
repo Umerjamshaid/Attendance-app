@@ -647,6 +647,7 @@ class _Avatar extends StatelessWidget {
           refresh: refresh,
         ),
         fit: BoxFit.cover,
+        gaplessPlayback: true,
         errorBuilder: (_, _, _) => const SizedBox.shrink(),
         frameBuilder: (_, child, frame, wasSync) => wasSync
             ? child
@@ -683,6 +684,7 @@ class _Avatar extends StatelessWidget {
               refresh: refresh,
             ),
             fit: BoxFit.cover,
+            gaplessPlayback: true,
             errorBuilder: (_, _, _) => network(),
           )
         else
@@ -718,7 +720,20 @@ class _Avatar extends StatelessWidget {
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 250),
                       child: SizedBox.expand(
-                        key: ValueKey('${localPath ?? ''}|${networkUrl ?? ''}'),
+                        key: ValueKey((
+                          localPath == null
+                              ? null
+                              : profileImageIdentity(
+                                  localPath!,
+                                  viewer: viewer,
+                                ),
+                          networkUrl == null
+                              ? null
+                              : profileImageIdentity(
+                                  networkUrl!,
+                                  viewer: viewer,
+                                ),
+                        )),
                         child: _buildImage(context),
                       ),
                     ),

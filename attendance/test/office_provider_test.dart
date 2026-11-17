@@ -39,11 +39,13 @@ class ControlledOfficeBackend extends PreviewCompanyBackend {
   Future<Employee?> restoreSession() async =>
       state.signedIn ? employee(state.active) : null;
   @override
-  Future<List<Office>> offices() async => [
-    const Office(id: 'a', name: 'Office A', role: 'admin'),
-    if (!state.revoked)
-      const Office(id: 'b', name: 'Office B', role: 'employee'),
-  ];
+  Future<List<Office>> offices() async =>
+      state.offices ??
+      [
+        const Office(id: 'a', name: 'Office A', role: 'admin'),
+        if (!state.revoked)
+          const Office(id: 'b', name: 'Office B', role: 'employee'),
+      ];
   @override
   Future<Employee> switchOffice(String officeId) async {
     state.switchCalls++;
@@ -92,6 +94,7 @@ class ControlledOfficeBackend extends PreviewCompanyBackend {
 }
 
 class OfficeTestState {
+  List<Office>? offices;
   String authUserId = 'account-1';
   String active = 'a';
   bool signedIn = true, revoked = false, failSwitch = false;
@@ -102,6 +105,56 @@ class OfficeTestState {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  test(
+    'office reload preserves unchanged logos, not removed or replaced ones',
+    () async {
+      final backend = ControlledOfficeBackend();
+      backend.state.offices = const [
+        Office(
+          id: 'a',
+          name: 'Office A',
+          role: 'admin',
+          logoPath: 'a/logo-v1.png',
+          logoUrl: 'https://example.invalid/old',
+        ),
+      ];
+      final auth = AuthProvider(backend: backend);
+      await Future<void>.delayed(Duration.zero);
+      final offices = OfficeProvider(auth);
+      addTearDown(offices.dispose);
+      addTearDown(auth.dispose);
+      await offices.reload();
+      backend.state.offices = const [
+        Office(
+          id: 'a',
+          name: 'Renamed',
+          role: 'employee',
+          logoPath: 'a/logo-v1.png',
+        ),
+      ];
+      await offices.reload();
+      expect(offices.activeOffice!.logoUrl, 'https://example.invalid/old');
+      expect(offices.activeOffice!.name, 'Renamed');
+      expect(offices.activeOffice!.isAdmin, isFalse);
+      backend.state.offices = const [
+        Office(
+          id: 'a',
+          name: 'Renamed',
+          role: 'employee',
+          logoPath: 'a/logo-v2.png',
+        ),
+      ];
+      await offices.reload();
+      expect(offices.activeOffice!.logoUrl, isNull);
+      backend.state.offices = const [
+        Office(id: 'a', name: 'Renamed', role: 'employee'),
+      ];
+      await offices.reload();
+      expect(offices.activeOffice!.logoPath, isNull);
+      expect(offices.activeOffice!.logoUrl, isNull);
+    },
+  );
 
   test(
     'hiding an office is account-scoped appearance only and can be restored',

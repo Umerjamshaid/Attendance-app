@@ -5,13 +5,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Durable, best-effort retries for retired private-image cache namespaces.
 class ProfileCacheCleanup {
-  ProfileCacheCleanup({Future<void> Function(String)? purge})
-    : _purge = purge ?? _purgeNamespace;
+  ProfileCacheCleanup({
+    Future<void> Function(String)? purge,
+    DateTime Function()? now,
+  }) : _purge = purge ?? _purgeNamespace,
+       _now = now ?? DateTime.now;
 
   static const pendingKey = 'profile-media-pending-purges-v1';
   static final _validNamespace = RegExp(r'^profile-media-v1-[A-Za-z0-9-]+$');
   static int _recoveryId = 0;
   final Future<void> Function(String) _purge;
+  final DateTime Function() _now;
+  static const retryInterval = Duration(minutes: 1);
+  DateTime? _lastFailure;
   final _pending = <String>{};
   bool _loaded = false;
   Future<bool>? _loading;
@@ -35,6 +41,7 @@ class ProfileCacheCleanup {
 
   Future<void> remember(String name) async {
     if (!_validNamespace.hasMatch(name)) return;
+    _lastFailure = null;
     await _load();
     _pending.add(name);
     await _persist();
@@ -80,6 +87,9 @@ class ProfileCacheCleanup {
 
   Future<void> retry() {
     if (_running != null) return _running!;
+    if (_lastFailure?.add(retryInterval).isAfter(_now()) ?? false) {
+      return Future.value();
+    }
     late final Future<void> task;
     task = _retry().whenComplete(() {
       if (identical(_running, task)) _running = null;
@@ -97,6 +107,7 @@ class ProfileCacheCleanup {
         _pending.remove(name);
         await _persist();
       } catch (_) {
+        _lastFailure = _now();
         // A locked file stays queued, without failing sign-out or image loading.
       }
     }

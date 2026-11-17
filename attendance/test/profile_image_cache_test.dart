@@ -143,6 +143,12 @@ void main() {
       String office = 'office-a',
     }) => ProfileImageCache.key(url, viewer: viewer, office: office);
     expect(key(_url), key(_url.replaceFirst('token=old', 'token=new')));
+    final logo = _url.replaceFirst(
+      'profile-media/owner/avatar-v1.gif',
+      'office-logos/office/logo-v1.png',
+    );
+    expect(key(logo), key(logo.replaceFirst('token=old', 'token=new')));
+    expect(SignedProfileUrl.fromUrl(logo).needsRefresh(DateTime.now()), isTrue);
     expect(key(_url), isNot(key(_url.replaceFirst('v1.gif', 'v2.png'))));
     expect(key(_url), isNot(key(_url, viewer: 'other-viewer')));
     expect(key(_url), isNot(key(_url, office: 'office-b')));
@@ -284,60 +290,70 @@ void main() {
     },
   );
 
-  test(
-    'rotated URLs reuse original GIF bytes; sign-out removes disk entries',
-    () async {
-      final directory = await Directory.systemTemp.createTemp(
-        'attendance-image-cache-test-',
-      );
-      final original = PathProviderPlatform.instance;
-      PathProviderPlatform.instance = _Paths(directory.path);
-      final image =
-          profileImageProvider(_url, viewer: 'cache-test-viewer', width: 120)
-              as ResizeImage;
-      final cached = image.imageProvider as CachedNetworkImageProvider;
-      final manager = cached.cacheManager! as ProfileCacheSession;
-      addTearDown(() async {
-        await manager.dispose();
-        PathProviderPlatform.instance = original;
-        await directory.delete(recursive: true);
-      });
-      final gif = base64Decode(
-        'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
-      );
-      await manager.putFile(
-        _url,
-        gif,
-        key: cached.cacheKey,
-        maxAge: const Duration(hours: 1),
-        fileExtension: 'gif',
-      );
-      final rotated =
-          profileImageProvider(
-                _url.replaceFirst('old', 'new'),
-                viewer: 'cache-test-viewer',
-                width: 120,
-              )
-              as ResizeImage;
-      final next = rotated.imageProvider as CachedNetworkImageProvider;
-      expect(
-        await image.obtainKey(ImageConfiguration.empty),
-        await rotated.obtainKey(ImageConfiguration.empty),
-        reason: 'decoded images also survive signature rotation',
-      );
-      expect(
-        next.maxWidth,
-        isNull,
-        reason: 'disk resizing must not flatten GIFs',
-      );
-      expect(identical(cached.cacheManager, next.cacheManager), isTrue);
-      final hit = await manager.getSingleFile(next.url, key: next.cacheKey);
-      expect(await hit.readAsBytes(), gif);
-      expect(image.width, 120);
-      await ProfileImageCache.clearViewer('cache-test-viewer');
-      expect(await manager.getFileFromCache(next.cacheKey!), isNull);
-    },
-  );
+  for (final bucket in ['profile-media', 'office-logos']) {
+    test(
+      '$bucket rotated URLs reuse original GIF bytes; sign-out removes disk entries',
+      () async {
+        final url = bucket == 'profile-media'
+            ? _url
+            : _url.replaceFirst(
+                'profile-media/owner/avatar-v1.gif',
+                'office-logos/office/logo-v1.gif',
+              );
+        final viewer = 'cache-test-$bucket';
+        final directory = await Directory.systemTemp.createTemp(
+          'attendance-image-cache-test-',
+        );
+        final original = PathProviderPlatform.instance;
+        PathProviderPlatform.instance = _Paths(directory.path);
+        final image =
+            profileImageProvider(url, viewer: viewer, width: 120)
+                as ResizeImage;
+        final cached = image.imageProvider as CachedNetworkImageProvider;
+        final manager = cached.cacheManager! as ProfileCacheSession;
+        addTearDown(() async {
+          await manager.dispose();
+          PathProviderPlatform.instance = original;
+          await directory.delete(recursive: true);
+        });
+        final gif = base64Decode(
+          'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+        );
+        await manager.putFile(
+          url,
+          gif,
+          key: cached.cacheKey,
+          maxAge: const Duration(hours: 1),
+          fileExtension: 'gif',
+        );
+        final rotated =
+            profileImageProvider(
+                  url.replaceFirst('old', 'new'),
+                  viewer: viewer,
+                  width: 120,
+                )
+                as ResizeImage;
+        final next = rotated.imageProvider as CachedNetworkImageProvider;
+        expect(
+          await image.obtainKey(ImageConfiguration.empty),
+          await rotated.obtainKey(ImageConfiguration.empty),
+          reason: 'decoded images also survive signature rotation',
+        );
+        expect(
+          next.maxWidth,
+          isNull,
+          reason: 'disk resizing must not flatten GIFs',
+        );
+        expect(identical(cached.cacheManager, next.cacheManager), isTrue);
+        final hit = await manager.getSingleFile(next.url, key: next.cacheKey);
+        expect(await hit.readAsBytes(), gif);
+        expect(image.width, 120);
+        await ProfileImageCache.clearViewer(viewer);
+        expect(await hit.exists(), isFalse);
+        expect(await manager.getFileFromCache(next.cacheKey!), isNull);
+      },
+    );
+  }
 
   test(
     'clearViewer waits for a late download and isolates a subsequent login',

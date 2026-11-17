@@ -131,7 +131,11 @@ class _EmployeeCheckInsSheetState extends State<_EmployeeCheckInsSheet> {
       final avatars = await widget.backend
           .employeeAvatars([widget.employee])
           .timeout(const Duration(seconds: 10));
-      if (!mounted || generation != _avatarGeneration) return;
+      if (!mounted ||
+          generation != _avatarGeneration ||
+          !avatars.containsKey(user)) {
+        return;
+      }
       setState(() => _avatarUrl = avatars[user]);
     } catch (_) {
       // A missing photo must not block attendance history or its retry action.
