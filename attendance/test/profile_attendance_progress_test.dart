@@ -9,6 +9,7 @@ import 'package:attendance/services/preview_company_backend.dart';
 import 'package:attendance/widgets/check_in_summary.dart';
 import 'package:attendance/widgets/user-profile/attendance_progress_ring.dart';
 import 'package:attendance/widgets/user-profile/attendance_stats_card.dart';
+import 'package:portal_labs/portal_labs.dart' as portal;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -87,13 +88,16 @@ void main() {
         expect(history.currentStreak, 3);
         expect(
           tester
-              .widget<CircularProgressIndicator>(
-                find.byType(CircularProgressIndicator),
-              )
+              .widget<portal.ScoreGauge>(find.byType(portal.ScoreGauge))
               .value,
-          closeTo(1 / 3, .001),
+          closeTo(100 / 3, .001),
         );
-        expect(find.text('33%'), findsOneWidget);
+        expect(
+          tester
+              .widget<portal.ScoreGauge>(find.byType(portal.ScoreGauge))
+              .valueFormatter!(100 / 3),
+          '33%',
+        );
         expect(find.text('Days this month'), findsOneWidget);
         expect(find.text('Check-ins'), findsOneWidget);
         expect(find.text('Day streak'), findsOneWidget);
@@ -127,11 +131,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Unavailable'), findsOneWidget);
     expect(
-      tester
-          .widget<CircularProgressIndicator>(
-            find.byType(CircularProgressIndicator),
-          )
-          .value,
+      tester.widget<portal.ScoreGauge>(find.byType(portal.ScoreGauge)).value,
       0,
     );
     expect(tester.takeException(), isNull);
@@ -152,7 +152,12 @@ void main() {
       );
       await tester.pump();
       expect(find.text('7'), findsOneWidget);
-      expect(find.text('33%'), findsOneWidget);
+      expect(
+        tester
+            .widget<portal.ScoreGauge>(find.byType(portal.ScoreGauge))
+            .valueFormatter!(100 / 3),
+        '33%',
+      );
       expect(history.presentThisMonthCount, 5);
       expect(tester.binding.transientCallbackCount, 0);
     },
@@ -182,7 +187,12 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('86%'), findsOneWidget);
+      expect(
+        tester
+            .widget<portal.ScoreGauge>(find.byType(portal.ScoreGauge))
+            .valueFormatter!(1800 / 21),
+        '86%',
+      );
       for (final label in ['Presents', 'Absents', 'Leaves']) {
         expect(find.text(label), findsOneWidget);
       }

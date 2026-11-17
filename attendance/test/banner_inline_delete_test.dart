@@ -5,6 +5,7 @@ import 'package:attendance/models/employees_model.dart';
 import 'package:attendance/providers/profile_provider.dart';
 import 'package:attendance/services/company_backend.dart';
 import 'package:attendance/widgets/user-profile/banner_actions.dart';
+import 'package:attendance/widgets/user-profile/banner_color_sheet.dart';
 import 'package:attendance/widgets/user-profile/profile_header.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -26,6 +27,7 @@ class _Profile extends ProfileProvider {
   String? _banner = 'missing-banner-test.png';
   int removals = 0;
   int picks = 0;
+  final colors = <Color>[];
   bool fail = false;
   Completer<void>? pending;
 
@@ -48,6 +50,12 @@ class _Profile extends ProfileProvider {
 
   @override
   Future<void> pickBanner(String userId) async => picks++;
+  @override
+  Future<void> setBannerColor(String userId, Color color) async {
+    colors.add(color);
+    _banner = 'saved-color-test.png';
+    notifyListeners();
+  }
 }
 
 void main() {
@@ -197,6 +205,52 @@ void main() {
     await tester.pumpAndSettle();
     expect(profile.removals, 0);
     expect(profile.bannerPath, 'replacement-banner-test.png');
+  });
+
+  testWidgets(
+    'banner colors are reached from Profile and cancel never writes',
+    (tester) async {
+      final profile = _Profile();
+      await mount(tester, profile);
+      await open(tester);
+      await tester.tap(find.text('Banner color'));
+      await tester.pumpAndSettle();
+      expect(find.byType(BannerColorSheet), findsOneWidget);
+      await tester.enterText(find.byType(TextField), '#336699');
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Close color picker'));
+      await tester.pumpAndSettle();
+      expect(profile.colors, isEmpty);
+      expect(profile.bannerPath, 'missing-banner-test.png');
+      await open(tester);
+      await tester.tap(find.text('Banner color'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), '#336699');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save color'));
+      await tester.pumpAndSettle();
+      expect(profile.colors, [const Color(0xff336699)]);
+      expect(find.text('Banner color saved'), findsOneWidget);
+      expect(find.byType(BannerColorSheet), findsNothing);
+    },
+  );
+
+  testWidgets('an empty banner offers uploads and colors without Remove', (
+    tester,
+  ) async {
+    final profile = _Profile().._banner = null;
+    await mount(tester, profile);
+    final banner = find.byWidgetPredicate(
+      (w) => w is Semantics && w.properties.label == 'Select cover photo',
+    );
+    final rect = tester.getRect(banner);
+    await tester.tapAt(Offset(rect.center.dx, rect.top + 24));
+    await tester.pumpAndSettle();
+    expect(find.text('Banner color'), findsOneWidget);
+    expect(find.text('Remove banner'), findsNothing);
+    await tester.tap(find.text('Upload banner'));
+    await tester.pumpAndSettle();
+    expect(profile.picks, 1);
   });
 
   for (final dark in [false, true]) {

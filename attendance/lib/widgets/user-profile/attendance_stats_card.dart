@@ -3,7 +3,7 @@ import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/models/employees_model.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
-import 'attendance_progress_ring.dart';
+import 'attendance_score_gauge.dart';
 
 /// Presents / absents / leaves in one grouped surface.
 ///
@@ -28,16 +28,10 @@ class AttendanceStatsCard extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.all(20),
           child: Center(
-            child: AttendanceProgressRing(
+            child: AttendanceScoreGauge(
               progress: isLoading ? null : employee.attendanceRate / 100,
               label: 'Attendance rate',
               isLoading: isLoading,
-              dimension:
-                  112 *
-                  (MediaQuery.textScalerOf(context).scale(14) / 14).clamp(
-                    1.0,
-                    1.5,
-                  ),
             ),
           ),
         ),

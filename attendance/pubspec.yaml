@@ -52,6 +52,7 @@ dependencies:
   geocoding_android: 5.0.0
   # Local storage
   shared_preferences: ^2.5.5
+  path_provider: 2.1.6
   # Date and time handling
   intl: ^0.20.2
   # fonts and icons
@@ -59,6 +60,7 @@ dependencies:
   tabler_icons_plus: ^3.50.0
   flutter_lucide_animated: ^0.0.4
   flutter_svg: 2.3.4
+  portal_labs: ^0.38.0
   image_picker: ^1.1.2
   mime: ^2.1.0
   # For handling permissions

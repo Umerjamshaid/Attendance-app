@@ -45,6 +45,7 @@ abstract final class AppIcons {
   static const refresh = TablerIcons.refresh;
   static const rosetteDiscountCheck = TablerIcons.rosetteDiscountCheck;
   static const search = TablerIcons.search;
+  static const palette = TablerIcons.palette;
   static const settings = TablerIcons.settings;
   static const shield = TablerIcons.shield;
   static const shieldLock = TablerIcons.shieldLock;

@@ -11,15 +11,23 @@ import '../../config/ui_tokens.dart';
 import '../portal_spring_curve.dart';
 import 'profile_section_card.dart';
 
-enum BannerAction { change, remove }
+enum BannerAction { change, color, remove }
 
 /// Banner-only menu: confirmation replaces its destructive row, not the route.
 class BannerActions extends StatefulWidget {
-  const BannerActions({super.key, required this.appearance});
+  const BannerActions({
+    super.key,
+    required this.appearance,
+    this.hasBanner = true,
+  });
 
   final Animation<double> appearance;
+  final bool hasBanner;
 
-  static Future<BannerAction?> open(BuildContext context) {
+  static Future<BannerAction?> open(
+    BuildContext context, {
+    bool hasBanner = true,
+  }) {
     final theme = ProfileUi.themeOf(context);
     return showGeneralDialog<BannerAction>(
       context: context,
@@ -35,7 +43,10 @@ class BannerActions extends StatefulWidget {
               constraints: const BoxConstraints(maxWidth: 400),
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
-                child: BannerActions(appearance: animation),
+                child: BannerActions(
+                  appearance: animation,
+                  hasBanner: hasBanner,
+                ),
               ),
             ),
           ),
@@ -173,7 +184,7 @@ class _BannerActionsState extends State<BannerActions>
             SizedBox(
               height: rowHeight,
               child: _ActionButton(
-                label: 'Change banner',
+                label: widget.hasBanner ? 'Change banner' : 'Upload banner',
                 icon: AppIcons.photoPlus,
                 onTap: () => _finish(BannerAction.change),
               ),
@@ -181,109 +192,123 @@ class _BannerActionsState extends State<BannerActions>
           ),
           _stagger(
             1,
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final stacked = MediaQuery.textScalerOf(context).scale(16) > 22;
-                final confirmHeight =
-                    (stacked ? rowHeight * 2 + 8 : rowHeight) + 16;
-                final confirm = _ActionButton(
-                  label: 'Remove',
-                  color: colors.error,
-                  foreground: colors.onError,
-                  onTap: () => _finish(BannerAction.remove),
-                );
-                final cancel = _ActionButton(
-                  label: 'Cancel',
-                  color: colors.surfaceContainerHighest,
-                  onTap: () => _toggle(false),
-                );
-                return AnimatedBuilder(
-                  animation: _confirm,
-                  builder: (context, _) {
-                    final t = _confirm.value;
-                    return ClipRect(
-                      child: SizedBox(
-                        height: lerpDouble(
-                          rowHeight,
-                          confirmHeight,
-                          t.clamp(0, 1),
-                        ),
-                        child: Stack(
-                          children: [
-                            Positioned(
-                              top: -rowHeight * t,
-                              left: 0,
-                              right: 0,
-                              height: rowHeight,
-                              child: Offstage(
-                                offstage: t >= 1,
-                                child: ExcludeSemantics(
-                                  excluding: _confirming,
-                                  child: IgnorePointer(
-                                    ignoring: _confirming,
-                                    child: Opacity(
-                                      opacity: (1 - t).clamp(0, 1),
-                                      child: _ActionButton(
-                                        label: 'Remove banner',
-                                        icon: AppIcons.trash,
-                                        foreground: colors.error,
-                                        onTap: () => _toggle(true),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Positioned(
-                              top: confirmHeight * (1 - t),
-                              left: 0,
-                              right: 0,
-                              height: confirmHeight,
-                              child: Offstage(
-                                offstage: t <= 0,
-                                child: ExcludeSemantics(
-                                  excluding: !_confirming,
-                                  child: IgnorePointer(
-                                    ignoring: !_confirming,
-                                    child: Opacity(
-                                      opacity: t.clamp(0, 1),
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(8),
-                                        child: stacked
-                                            ? Column(
-                                                children: [
-                                                  Expanded(child: confirm),
-                                                  const SizedBox(height: 8),
-                                                  Expanded(child: cancel),
-                                                ],
-                                              )
-                                            : Row(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.stretch,
-                                                children: [
-                                                  Expanded(
-                                                    flex: 2,
-                                                    child: confirm,
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                  Expanded(child: cancel),
-                                                ],
-                                              ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
+            SizedBox(
+              height: rowHeight,
+              child: _ActionButton(
+                label: 'Banner color',
+                icon: AppIcons.palette,
+                onTap: () => _finish(BannerAction.color),
+              ),
             ),
           ),
+          if (widget.hasBanner)
+            _stagger(
+              2,
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final stacked =
+                      MediaQuery.textScalerOf(context).scale(16) > 22;
+                  final confirmHeight =
+                      (stacked ? rowHeight * 2 + 8 : rowHeight) + 16;
+                  final confirm = _ActionButton(
+                    label: 'Remove',
+                    color: colors.error,
+                    foreground: colors.onError,
+                    onTap: () => _finish(BannerAction.remove),
+                  );
+                  final cancel = _ActionButton(
+                    label: 'Cancel',
+                    color: colors.surfaceContainerHighest,
+                    onTap: () => _toggle(false),
+                  );
+                  return AnimatedBuilder(
+                    animation: _confirm,
+                    builder: (context, _) {
+                      final t = _confirm.value;
+                      return ClipRect(
+                        child: SizedBox(
+                          height: lerpDouble(
+                            rowHeight,
+                            confirmHeight,
+                            t.clamp(0, 1),
+                          ),
+                          child: Stack(
+                            children: [
+                              Positioned(
+                                top: -rowHeight * t,
+                                left: 0,
+                                right: 0,
+                                height: rowHeight,
+                                child: Offstage(
+                                  offstage: t >= 1,
+                                  child: ExcludeSemantics(
+                                    excluding: _confirming,
+                                    child: IgnorePointer(
+                                      ignoring: _confirming,
+                                      child: Opacity(
+                                        opacity: (1 - t).clamp(0, 1),
+                                        child: _ActionButton(
+                                          label: 'Remove banner',
+                                          icon: AppIcons.trash,
+                                          foreground: colors.error,
+                                          onTap: () => _toggle(true),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                top: confirmHeight * (1 - t),
+                                left: 0,
+                                right: 0,
+                                height: confirmHeight,
+                                child: Offstage(
+                                  offstage: t <= 0,
+                                  child: ExcludeSemantics(
+                                    excluding: !_confirming,
+                                    child: IgnorePointer(
+                                      ignoring: !_confirming,
+                                      child: Opacity(
+                                        opacity: t.clamp(0, 1),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(8),
+                                          child: stacked
+                                              ? Column(
+                                                  children: [
+                                                    Expanded(child: confirm),
+                                                    const SizedBox(height: 8),
+                                                    Expanded(child: cancel),
+                                                  ],
+                                                )
+                                              : Row(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment
+                                                          .stretch,
+                                                  children: [
+                                                    Expanded(
+                                                      flex: 2,
+                                                      child: confirm,
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    Expanded(child: cancel),
+                                                  ],
+                                                ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
         ],
       ),
     );

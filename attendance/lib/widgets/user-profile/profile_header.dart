@@ -15,6 +15,7 @@ import 'package:provider/provider.dart';
 import '../../screens/profile/account_edit_screen.dart';
 import '../../services/company_backend.dart';
 import 'banner_actions.dart';
+import 'banner_color_sheet.dart';
 
 /// Whether the employee has checked in today, as derived by the screen from
 /// the attendance history.
@@ -194,6 +195,8 @@ class ProfileHeader extends StatelessWidget {
                     onTap: () =>
                         _changeImage(context, (p) => p.pickBanner(employee.id)),
                     onRemove: () => _removeBanner(context),
+                    onColor: (color) =>
+                        profile.setBannerColor(employee.id, color),
                   ),
                 ),
                 Positioned(
@@ -357,6 +360,7 @@ class _Banner extends StatefulWidget {
     required this.onRetry,
     required this.onTap,
     required this.onRemove,
+    required this.onColor,
   });
 
   final String? path;
@@ -365,6 +369,7 @@ class _Banner extends StatefulWidget {
   final Future<void> Function() onRetry;
   final VoidCallback onTap;
   final Future<void> Function() onRemove;
+  final Future<void> Function(Color) onColor;
 
   @override
   State<_Banner> createState() => _BannerState();
@@ -386,13 +391,25 @@ class _BannerState extends State<_Banner> {
     HapticFeedback.lightImpact();
     BannerAction? action;
     try {
-      action = await BannerActions.open(context);
+      action = await BannerActions.open(context, hasBanner: path != null);
     } finally {
       _optionsOpen = false;
     }
     if (!mounted || path != widget.path || viewer != widget.viewer) return;
     if (action == BannerAction.change) {
       widget.onTap();
+    } else if (action == BannerAction.color) {
+      final messenger = AppToast.of(context);
+      final saved = await BannerColorSheet.open(
+        context,
+        onSave: widget.onColor,
+      );
+      if (saved == true && mounted) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Banner color saved')),
+          kind: ToastKind.success,
+        );
+      }
     } else if (action == BannerAction.remove) {
       setState(() => _removing = true);
       try {
@@ -495,7 +512,13 @@ class _BannerState extends State<_Banner> {
             Positioned.fill(
               child: Material(
                 type: MaterialType.transparency,
-                child: InkWell(onTap: _removing ? null : onTap),
+                child: InkWell(
+                  onTap: _removing
+                      ? null
+                      : hasBanner
+                      ? onTap
+                      : _openOptions,
+                ),
               ),
             ),
             if (_failed)
