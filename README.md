@@ -1,5 +1,7 @@
 # P Attendance
 
+![P Attendance banner with the emerald timecard logo and a sample check-in screen](attendance/screenshots/attendance-banner.png)
+
 A Flutter attendance app for teams, combining photo check-ins, location evidence, and office-specific attendance management.
 
 P Attendance started as an interface project and has grown into a working app with authenticated accounts, a Supabase backend, and multi-office access. Employees can record and review their check-ins, while administrators manage attendance within their own offices.

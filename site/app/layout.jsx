@@ -17,7 +17,10 @@ const description =
 export const metadata = {
   title,
   description,
-  icons: { icon: `${basePath}/brand/icon.png` },
+  icons: {
+    icon: { url: `${basePath}/favicon.ico`, sizes: "any", type: "image/x-icon" },
+    apple: { url: `${basePath}/brand/apple-touch-icon.png`, sizes: "180x180" },
+  },
   openGraph: { title, description, type: "website", siteName: "P Attendance" },
 };
 
