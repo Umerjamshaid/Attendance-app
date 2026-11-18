@@ -362,3 +362,26 @@ Settings and the Flutter splash share the installed version, Attendance mark,
 and "Crafted by Umer Jamshaid" credit with the bundled portrait. The version
 comes from package metadata. The existing native launch configuration and
 session routing are unchanged in this checkpoint.
+
+## Native Startup and Release Notes
+
+- The public entrypoint holds the OS splash while initializing and restoring the
+  launch route and theme. It releases after the selected screen lays out. The
+  startup hold is bounded (8 seconds to initialize, 12 seconds to resolve
+  routing); either failure can show the app's restart message. There is no
+  second branded Flutter splash or extra delay to fetch attendance history.
+- Recreate Android/iOS native assets with `dart run flutter_native_splash:create`
+  after changing `flutter_native_splash.yaml`. The same Attendance mark fits both
+  backgrounds; Android 12+ uses the 960px canvas with the mark centered. The
+  native splash follows the system theme, so an explicit opposite Flutter
+  theme can still change the color when the app opens.
+- Settings keeps the installed build and portrait credit, plus an offline
+  What's New page keyed to the installed version. Add new entries in
+  `lib/screens/profile/whats_new_screen.dart` when publishing a new version.
+- Profile and office images retain their existing viewer/office cache scopes.
+  Synchronous decoded hits paint immediately; the first cold frame fades in
+  unless motion is disabled. Startup exceptions use redacted Flutter diagnostics
+  only; no remote error-reporting destination has been added.
+- Phone check: cold-launch from the app icon on Android 12+ and iOS, in system
+  light and dark. Check the status bar, the first login/home/recovery route, and
+  the failure screen. An iOS simulator or device is needed for native iOS QA.

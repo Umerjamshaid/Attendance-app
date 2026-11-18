@@ -58,6 +58,7 @@ dependencies:
   google_fonts: ^8.1.0
   tabler_icons_plus: ^3.50.0
   flutter_lucide_animated: ^0.0.4
+  flutter_native_splash: 2.4.8
   portal_labs: ^0.38.0
   image_picker: ^1.1.2
   mime: ^2.1.0

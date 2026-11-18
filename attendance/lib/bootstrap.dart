@@ -8,16 +8,48 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'
     show LicenseEntryWithLineBreaks, LicenseRegistry;
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:provider/provider.dart';
 
 import 'app.dart';
+import 'config/app_theme.dart';
+import 'screens/splash/launch_failure_screen.dart';
 import 'services/company_backend.dart';
 import 'services/profile_image_cache.dart';
 import 'widgets/office/office_scope.dart';
 
 bool _animationLicenseRegistered = false;
 
-void runAttendanceApp({CompanyBackend? backend}) {
+abstract final class AttendanceBootstrap {
+  static Future<void> run(Future<CompanyBackend> Function() initialize) async {
+    final binding = WidgetsFlutterBinding.ensureInitialized();
+    FlutterNativeSplash.preserve(widgetsBinding: binding);
+    try {
+      final backend = await initialize().timeout(const Duration(seconds: 8));
+      runAttendanceApp(backend: backend, onReady: FlutterNativeSplash.remove);
+    } catch (_, stack) {
+      runApp(
+        MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.theme,
+          darkTheme: AppTheme.darkTheme,
+          home: const LaunchFailureScreen(),
+        ),
+      );
+      FlutterNativeSplash.remove();
+      // Initialization exceptions can contain backend configuration.
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: StateError('Attendance could not initialize.'),
+          stack: stack,
+          library: 'Attendance startup',
+        ),
+      );
+    }
+  }
+}
+
+void runAttendanceApp({CompanyBackend? backend, VoidCallback? onReady}) {
   unawaited(ProfileImageCache.retryFailedCleanups());
   if (!_animationLicenseRegistered) {
     _animationLicenseRegistered = true;
@@ -53,7 +85,7 @@ void runAttendanceApp({CompanyBackend? backend}) {
             ),
             child: Provider(
               create: (_) => OfficeNavigatorController(),
-              child: const AttendanceApp(),
+              child: AttendanceApp(onReady: onReady),
             ),
           );
         },

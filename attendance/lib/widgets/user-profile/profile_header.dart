@@ -445,10 +445,9 @@ class _BannerState extends State<_Banner> {
                         ),
                         fit: BoxFit.cover,
                         gaplessPlayback: true,
-                        frameBuilder: (_, child, frame, wasSync) =>
-                            wasSync || frame != null
-                            ? child
-                            : const _BannerGradient(),
+                        frameBuilder: profileImageFrame(
+                          const _BannerGradient(),
+                        ),
                         // The picked file can disappear (cache cleared). The
                         // remove action stays available to clear the stale path.
                         errorBuilder: (_, _, _) {
@@ -649,13 +648,7 @@ class _Avatar extends StatelessWidget {
         fit: BoxFit.cover,
         gaplessPlayback: true,
         errorBuilder: (_, _, _) => const SizedBox.shrink(),
-        frameBuilder: (_, child, frame, wasSync) => wasSync
-            ? child
-            : AnimatedOpacity(
-                opacity: frame == null ? 0 : 1,
-                duration: const Duration(milliseconds: 250),
-                child: child,
-              ),
+        frameBuilder: profileImageFrame(const SizedBox.shrink()),
       );
     }
 

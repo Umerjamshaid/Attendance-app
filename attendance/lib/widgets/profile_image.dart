@@ -3,6 +3,26 @@ import 'package:flutter/material.dart';
 import '../services/profile_image_cache.dart';
 import '../services/profile_cache_session.dart';
 
+/// Paints decoded cache hits immediately and fades in the first cold frame.
+ImageFrameBuilder profileImageFrame(Widget placeholder) =>
+    (context, child, frame, wasSync) {
+      if (wasSync) return child;
+      if (MediaQuery.disableAnimationsOf(context)) {
+        return frame == null ? placeholder : child;
+      }
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          placeholder,
+          AnimatedOpacity(
+            opacity: frame == null ? 0 : 1,
+            duration: const Duration(milliseconds: 160),
+            child: child,
+          ),
+        ],
+      );
+    };
+
 String profileImageIdentity(String path, {String? viewer}) =>
     viewer == null ? path : ProfileImageCache.key(path, viewer: viewer);
 

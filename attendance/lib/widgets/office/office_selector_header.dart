@@ -126,6 +126,12 @@ class OfficeAvatar extends StatelessWidget {
           child: office.logoUrl == null
               ? initials
               : Image(
+                  key: ValueKey(
+                    profileImageIdentity(
+                      office.logoUrl!,
+                      viewer: auth?.currentUser?.authUserId,
+                    ),
+                  ),
                   image: profileImageProvider(
                     office.logoUrl!,
                     viewer: auth?.currentUser?.authUserId,
@@ -135,6 +141,7 @@ class OfficeAvatar extends StatelessWidget {
                   ),
                   fit: BoxFit.cover,
                   gaplessPlayback: true,
+                  frameBuilder: profileImageFrame(initials),
                   errorBuilder: (_, _, _) => initials,
                 ),
         ),

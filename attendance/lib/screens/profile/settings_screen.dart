@@ -17,6 +17,7 @@ import 'appearance_screen.dart';
 import 'privacy_screen.dart';
 import 'profile_details_screen.dart';
 import 'settings_layout.dart';
+import 'whats_new_screen.dart';
 import 'account_edit_screen.dart';
 import 'account_security_screen.dart';
 import '../admin/employee_management_screen.dart';
@@ -295,6 +296,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           title: 'About',
           rows: [
             SettingsRow(
+              "What's new",
+              onTap: () => Navigator.of(context).push<void>(
+                MaterialPageRoute(builder: (_) => const WhatsNewScreen()),
+              ),
+            ),
+            SettingsRow(
               'Privacy & security',
               onTap: () => Navigator.of(context).push<void>(
                 MaterialPageRoute(builder: (_) => const PrivacyScreen()),
@@ -361,8 +368,7 @@ class _SettingsProfileHeader extends StatelessWidget {
                                 ?.refreshProfileImage,
                           ),
                           fit: BoxFit.cover,
-                          frameBuilder: (_, child, frame, wasSync) =>
-                              wasSync || frame != null ? child : fallback,
+                          frameBuilder: profileImageFrame(fallback),
                           errorBuilder: (_, _, _) => fallback,
                         ),
                 ),

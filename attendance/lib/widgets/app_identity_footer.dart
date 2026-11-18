@@ -18,11 +18,9 @@ class AttendanceMark extends StatelessWidget {
   );
 }
 
-/// The same installed build and maker credit on startup and in Settings.
+/// The installed build and maker credit shown in Settings.
 class AppIdentityFooter extends StatefulWidget {
-  const AppIdentityFooter({super.key, this.showMark = true});
-
-  final bool showMark;
+  const AppIdentityFooter({super.key});
 
   @override
   State<AppIdentityFooter> createState() => _AppIdentityFooterState();
@@ -42,10 +40,8 @@ class _AppIdentityFooterState extends State<AppIdentityFooter> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (widget.showMark) ...[
-          const AttendanceMark(size: 36),
-          const SizedBox(height: 4),
-        ],
+        const AttendanceMark(size: 36),
+        const SizedBox(height: 4),
         FutureBuilder(
           future: _package,
           builder: (context, snapshot) {

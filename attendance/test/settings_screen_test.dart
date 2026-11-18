@@ -107,6 +107,12 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Umer Jamshaid'), findsOneWidget);
+    final whatsNew = find.text("What's new");
+    await _scrollTo(tester, whatsNew);
+    await tester.tap(whatsNew.hitTestable());
+    await tester.pumpAndSettle();
+    expect(find.text('Version 1.1.0 (Build 6)'), findsOneWidget);
+    expect(find.text('Office invitations'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
