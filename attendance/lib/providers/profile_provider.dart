@@ -1,8 +1,12 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
+import '../services/banner_color_image.dart';
 import '../services/company_backend.dart';
 import '../services/profile_media.dart';
 import '../services/profile_image_cache.dart';
@@ -134,6 +138,32 @@ class ProfileProvider extends ChangeNotifier {
     _retireProfileLoad();
     await prefs.remove('${userId}_banner');
     _bannerPath = null;
+    notifyListeners();
+  }
+
+  Future<void> setBannerColor(String userId, Color color) async {
+    if (backend?.isPreview ?? false) {
+      throw const CompanyException(
+        'Profile editing is unavailable in the preview.',
+      );
+    }
+    final bytes = await bannerColorPng(color);
+    if (_disposed) return;
+    if (backend != null) {
+      await backend!.saveMedia('banner', bytes);
+      await loadProfileData(userId, force: true);
+      return;
+    }
+    final directory = await getApplicationSupportDirectory();
+    final file = File(
+      '${directory.path}/banner-color-${const Uuid().v4()}.png',
+    );
+    await file.writeAsBytes(bytes, flush: true);
+    final prefs = await SharedPreferences.getInstance();
+    _retireProfileLoad();
+    await prefs.setString('${userId}_banner', file.path);
+    if (_disposed) return;
+    _bannerPath = file.path;
     notifyListeners();
   }
 

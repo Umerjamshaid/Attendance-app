@@ -8,6 +8,7 @@ import 'package:attendance/providers/attendance_history_provider.dart';
 import 'package:attendance/providers/auth_provider.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:attendance/widgets/demo_mode_notice.dart';
+import 'package:attendance/widgets/history/history_subgroups.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -104,12 +105,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
         // Start the spinner below the pinned app bar.
         edgeOffset: MediaQuery.paddingOf(context).top + kToolbarHeight,
         onRefresh: _onRefresh,
-        child: CustomScrollView(
+        child: HistorySubgroups(
           controller: _scroll,
-          physics: const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics(),
-          ),
-          slivers: [
+          groups: historyProvider.isLoading || historyProvider.error != null
+              ? const []
+              : groups,
+          sidePadding: sidePad + ProfileUi.gutter,
+          pinnedTop: MediaQuery.paddingOf(context).top + kToolbarHeight + 1,
+          bottomPadding: 40 + MediaQuery.paddingOf(context).bottom,
+          itemBuilder: (context, record) =>
+              _AttendanceRecordRow(record: record),
+          leadingSlivers: [
             _buildSliverAppBar(),
             if (historyProvider.isDemoMode)
               SliverPadding(
@@ -168,20 +174,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ),
               )
             else
-              SliverPadding(
-                padding: EdgeInsets.fromLTRB(
-                  sidePad,
-                  0,
-                  sidePad,
-                  40 + MediaQuery.paddingOf(context).bottom,
-                ),
-                sliver: SliverList.builder(
-                  itemCount: groups.length,
-                  itemBuilder: (context, index) {
-                    return _AttendanceDateGroup(group: groups[index]);
-                  },
-                ),
-              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 8)),
           ],
         ),
       ),
@@ -530,24 +523,6 @@ class _MonthRing extends StatelessWidget {
 }
 
 // --- Grouped attendance history ---
-
-class _AttendanceDateGroup extends StatelessWidget {
-  const _AttendanceDateGroup({required this.group});
-
-  final AttendanceGroup group;
-
-  @override
-  Widget build(BuildContext context) {
-    return ProfileSectionCard(
-      label: group.date,
-      dividerIndent: ProfileUi.rowInset + 18 + 12,
-      children: [
-        for (final record in group.records)
-          _AttendanceRecordRow(record: record),
-      ],
-    );
-  }
-}
 
 class _AttendanceRecordRow extends StatelessWidget {
   const _AttendanceRecordRow({required this.record});

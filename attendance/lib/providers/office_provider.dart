@@ -49,6 +49,16 @@ class OfficeProvider extends ChangeNotifier {
   bool get isPreview => auth.isPreview;
   bool get isSupported => auth.accountBackend?.supportsOffices ?? false;
   bool get canManage => !isPreview && _offices.any((o) => o.isAdmin);
+  bool get canManageActiveRoles {
+    final office = activeOffice;
+    final userId = auth.currentUser?.authUserId;
+    return !isPreview &&
+        office != null &&
+        office.isAdmin &&
+        userId != null &&
+        office.createdBy == userId;
+  }
+
   String? get error => _error;
   CompanyBackend get _backend => auth.accountBackend!;
 

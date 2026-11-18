@@ -7,11 +7,6 @@ ThemeData utilitySurfaceThemeData(ThemeData theme) {
   if (theme.extension<_UtilitySurfaceMarker>() != null) return theme;
   final colors = theme.colorScheme;
   return theme.copyWith(
-    scaffoldBackgroundColor: colors.surfaceContainerHighest,
-    colorScheme: colors.copyWith(
-      surface: colors.surfaceContainerHighest,
-      surfaceContainerHighest: colors.surface,
-    ),
     inputDecorationTheme: theme.inputDecorationTheme.copyWith(
       fillColor: colors.surface,
       border: _rounded(theme.inputDecorationTheme.border),

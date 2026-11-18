@@ -3,12 +3,15 @@ import 'dart:async';
 import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/models/employees_model.dart';
 import 'package:attendance/providers/auth_provider.dart';
+import 'package:attendance/screens/login/email_code_screen.dart';
 import 'package:attendance/screens/login/login_screen.dart';
+import 'package:attendance/screens/login/office_code_screen.dart';
 import 'package:attendance/screens/profile/account_edit_screen.dart';
 import 'package:attendance/services/company_backend.dart';
 import 'package:attendance/services/preview_company_backend.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:portal_labs/portal_labs.dart' show LoadingShapes;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -23,6 +26,14 @@ void main() {
       'company Login ${dark ? 'dark' : 'light'} design and responsive form',
       (tester) async {
         await _mount(tester, _Backend(), dark: dark);
+        final mark = find.byType(Image);
+        await tester.runAsync(
+          () => precacheImage(
+            tester.widget<Image>(mark).image,
+            tester.element(mark),
+          ),
+        );
+        await tester.pumpAndSettle();
         await expectLater(
           find.byType(LoginScreen),
           matchesGoldenFile(
@@ -105,6 +116,8 @@ void main() {
       );
       expect(tester.widget<TextField>(_field('Work email')).readOnly, true);
       expect(tester.widget<TextField>(_field('Password')).readOnly, true);
+      expect(find.text('Signing in'), findsOneWidget);
+      expect(find.byType(LoadingShapes), findsNothing);
       await tester.testTextInput.receiveAction(TextInputAction.done);
       expect(backend.signIns.length, 1);
       backend.pending!.completeError(
@@ -144,6 +157,74 @@ void main() {
       find.text('If the account exists, a recovery email will arrive shortly.'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('grouped code options open their routes with the work email', (
+    tester,
+  ) async {
+    await _mount(tester, _Backend());
+    const email = 'alex@example.invalid';
+    await tester.enterText(_field('Work email'), email);
+
+    await tester.tap(find.text('Use office code'));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<OfficeCodeScreen>(find.byType(OfficeCodeScreen))
+          .signInEmail,
+      email,
+    );
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Use email code'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<EmailCodeScreen>(find.byType(EmailCodeScreen)).email,
+      email,
+    );
+  });
+
+  testWidgets('sign-in spring holds its size and uses the Portal Labs loader', (
+    tester,
+  ) async {
+    final backend = _Backend()..pending = Completer<Employee>();
+    await _mount(tester, backend, reduced: false);
+    await tester.pumpAndSettle();
+    await tester.enterText(_field('Work email'), 'alex@example.invalid');
+    await tester.enterText(_field('Password'), 'test password');
+    final action = find.byType(FilledButton);
+    final bounds = tester.getRect(action);
+    double radius() {
+      final shape = tester
+          .widget<FilledButton>(action)
+          .style!
+          .shape!
+          .resolve({});
+      return (shape! as RoundedSuperellipseBorder).borderRadius
+          .resolve(TextDirection.ltr)
+          .topLeft
+          .x;
+    }
+
+    final rest = radius();
+    final gesture = await tester.startGesture(bounds.center);
+    await tester.pump(const Duration(milliseconds: 150));
+    await tester.pump(const Duration(milliseconds: 40));
+    expect(radius(), lessThan(rest));
+    expect(tester.getRect(action), bounds);
+    await gesture.up();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.byType(LoadingShapes), findsOneWidget);
+    expect(find.text('Signing in'), findsOneWidget);
+    backend.pending!.completeError(
+      const CompanyException('Invalid credentials.'),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(LoadingShapes), findsNothing);
+    expect(find.text('Invalid credentials.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets(
@@ -211,6 +292,8 @@ class _Backend extends PreviewCompanyBackend {
   String? recoveryEmail;
   @override
   bool get isPreview => false;
+  @override
+  bool get supportsOfficeInviteCodes => true;
   @override
   Future<Employee?> restoreSession() async => null;
   @override

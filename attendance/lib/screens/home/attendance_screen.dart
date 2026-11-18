@@ -26,30 +26,18 @@ import 'package:provider/provider.dart';
 class AttendanceScreen extends StatefulWidget {
   final Employee employee;
 
-  /// Whether this screen is the currently visible tab. When false (e.g. the
-  /// user is on another tab inside the [IndexedStack]) the pulsing animation is
-  /// paused so the app stops rendering frames continuously in the background.
-  final bool isActive;
-
-  const AttendanceScreen({
-    super.key,
-    required this.employee,
-    this.isActive = true,
-  });
+  const AttendanceScreen({super.key, required this.employee});
 
   @override
   State<AttendanceScreen> createState() => _AttendanceScreenState();
 }
 
 class _AttendanceScreenState extends State<AttendanceScreen>
-    with TickerProviderStateMixin, WidgetsBindingObserver {
+    with SingleTickerProviderStateMixin {
   bool _isCheckedIn = false;
   String _checkInTime = '';
   bool _isLocalLoading = false;
-  bool _appResumed = true;
-  late AnimationController _pulseController;
   late AnimationController _successController;
-  late Animation<double> _pulseAnimation;
   late Animation<double> _scaleAnimation;
 
   // Scroll-driven app bar divider. Only the divider rebuilds.
@@ -59,7 +47,6 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _scroll.addListener(_onScroll);
 
     _isCheckedIn = widget.employee.isPresentToday;
@@ -70,15 +57,6 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       context.read<AttendanceProvider>().initialize();
       context.read<AttendanceHistoryProvider>().loadHistory(widget.employee.id);
     });
-
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    );
-
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.08).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
 
     _successController = AnimationController(
       vsync: this,
@@ -92,33 +70,11 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     if (_isCheckedIn) {
       _successController.forward();
     }
-    _syncPulse();
   }
 
   void _onScroll() {
     if (!_scroll.hasClients) return;
     _scrolled.value = _scroll.offset > 4;
-  }
-
-  /// Runs the looping pulse animation only when it is actually needed: the tab
-  /// is visible, the app is in the foreground and the user has not checked in
-  /// yet. This prevents the never-ending frame rendering that floods logcat
-  /// with `BLASTBufferQueue ... acquireNextBufferLocked` errors.
-  void _syncPulse() {
-    final shouldPulse = widget.isActive && _appResumed && !_isCheckedIn;
-    if (shouldPulse) {
-      if (!_pulseController.isAnimating) {
-        _pulseController.repeat(reverse: true);
-      }
-    } else if (_pulseController.isAnimating) {
-      _pulseController.stop();
-    }
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    _appResumed = state == AppLifecycleState.resumed;
-    _syncPulse();
   }
 
   void _handleCheckIn() async {
@@ -232,7 +188,6 @@ class _AttendanceScreenState extends State<AttendanceScreen>
             _checkInTime = attendanceProvider.checkInTime;
           });
           _successController.forward();
-          _syncPulse();
           AppToast.of(context).showSnackBar(
             const SnackBar(content: Text('Check-in saved.')),
             kind: ToastKind.success,
@@ -268,7 +223,6 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           _checkInTime = attendanceProvider.checkInTime;
         });
         _successController.forward();
-        _syncPulse();
 
         // 8. Mark attendance in history (Persists to backend)
         final success = await historyProvider.markAttendanceNow(
@@ -308,7 +262,6 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           _checkInTime = '';
         });
         _successController.reverse();
-        _syncPulse();
 
         AppToast.of(context).showSnackBar(
           SnackBar(
@@ -356,20 +309,12 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       } else {
         _successController.reverse();
       }
-      _syncPulse();
       context.read<AttendanceHistoryProvider>().loadHistory(widget.employee.id);
-    }
-
-    // Pause/resume the pulse when this tab's visibility changes.
-    if (oldWidget.isActive != widget.isActive) {
-      _syncPulse();
     }
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _pulseController.dispose();
     _successController.dispose();
     _scroll
       ..removeListener(_onScroll)
@@ -383,6 +328,11 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     final attendanceProvider = context.watch<AttendanceProvider>();
     final historyProvider = context.watch<AttendanceHistoryProvider>();
     final submissionService = attendanceSubmissionService;
+    final canUpload =
+        attendanceProvider.isUploadEnabled &&
+        (attendanceProvider.isCompanyMode
+            ? !attendanceProvider.isPreview
+            : submissionService.isAvailable);
 
     bool isCheckedIn;
     if (attendanceProvider.isCompanyMode) {
@@ -435,14 +385,12 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                         child: AttendanceButton(
                           isLoading:
                               _isLocalLoading || attendanceProvider.isLoading,
-                          pulseAnimation: _pulseAnimation,
                           onTap: _handleCheckIn,
-                          isUploadEnabled:
-                              attendanceProvider.isUploadEnabled &&
-                              (attendanceProvider.isCompanyMode
-                                  ? !attendanceProvider.isPreview
-                                  : submissionService.isAvailable),
-                          uploadLabel: attendanceProvider.isPreview
+                          pulseEnabled: !isCheckedIn,
+                          isUploadEnabled: canUpload,
+                          uploadLabel: canUpload
+                              ? 'Check in'
+                              : attendanceProvider.isPreview
                               ? 'Read-only preview'
                               : (attendanceProvider.isCompanyMode ||
                                     submissionService.isAvailable)

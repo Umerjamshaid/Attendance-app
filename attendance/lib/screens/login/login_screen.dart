@@ -3,13 +3,18 @@ import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/providers/auth_provider.dart';
 import 'package:attendance/widgets/demo_mode_notice.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'package:motor/motor.dart';
+import 'package:portal_labs/portal_labs.dart'
+    show LoadingShapes, LoadingShapesStyle;
 import 'package:provider/provider.dart';
 
 import '../../config/app_theme.dart';
 import '../../config/app_info.dart';
 import '../../config/ui_tokens.dart';
-import '../../widgets/spring_scale.dart';
+import '../../config/utility_surface_theme.dart';
+import '../../widgets/app_identity_footer.dart';
 import '../../widgets/error_shake.dart';
 import '../profile/account_edit_screen.dart';
 import 'email_code_screen.dart';
@@ -134,12 +139,24 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   @override
-  Widget build(BuildContext context) => AutofillGroup(
-    child: Theme(
-      data: AppTypography.themeOf(context),
-      child: Builder(builder: _buildContent),
-    ),
-  );
+  Widget build(BuildContext context) {
+    final theme = utilitySurfaceThemeData(AppTypography.themeOf(context));
+    final colors = theme.colorScheme;
+    return AutofillGroup(
+      child: Theme(
+        data: theme.copyWith(
+          inputDecorationTheme: theme.inputDecorationTheme.copyWith(
+            fillColor: colors.surfaceContainerLow,
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppLayout.groupRadius),
+              borderSide: BorderSide(color: colors.outlineVariant),
+            ),
+          ),
+        ),
+        child: Builder(builder: _buildContent),
+      ),
+    );
+  }
 
   Widget _buildContent(BuildContext context) {
     final auth = context.watch<AuthProvider>();
@@ -153,10 +170,10 @@ class _LoginScreenState extends State<LoginScreen>
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 488),
-            child: CustomScrollView(
-              slivers: [
-                SliverFillRemaining(
-                  hasScrollBody: false,
+            child: LayoutBuilder(
+              builder: (context, viewport) => SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: viewport.maxHeight),
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: FadeTransition(
@@ -165,9 +182,10 @@ class _LoginScreenState extends State<LoginScreen>
                         position: _riseIn,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const _BrandHeader(),
-                            const SizedBox(height: 40),
+                            const SizedBox(height: 28),
                             Semantics(
                               header: true,
                               namesRoute: true,
@@ -178,16 +196,16 @@ class _LoginScreenState extends State<LoginScreen>
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 12),
-                            Text(
-                              company
-                                  ? 'Sign in with your company account.'
-                                  : 'Enter your employee ID to continue.',
-                              style: AppTypography.body.copyWith(
-                                color: context.colors.onSurfaceVariant,
+                            if (!company) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                'Enter your employee ID to continue.',
+                                style: AppTypography.body.copyWith(
+                                  color: context.colors.onSurfaceVariant,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 32),
+                            ],
+                            const SizedBox(height: 20),
                             if (company) ...[
                               ErrorShake(
                                 error: _idError,
@@ -225,7 +243,7 @@ class _LoginScreenState extends State<LoginScreen>
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 12),
                               ErrorShake(
                                 error: _passwordError,
                                 revision: _errorRevision,
@@ -303,101 +321,21 @@ class _LoginScreenState extends State<LoginScreen>
                                     ),
                                   ),
                                 ),
-                              Wrap(
-                                alignment: WrapAlignment.end,
-                                spacing: 4,
-                                children: [
-                                  if (auth.backend?.supportsOfficeInviteCodes ==
-                                      true)
-                                    TextButton(
-                                      onPressed: isLoading || !auth.isConfigured
-                                          ? null
-                                          : () => Navigator.of(context).push<void>(
-                                              MaterialPageRoute(
-                                                builder: (_) => OfficeCodeScreen(
-                                                  signInEmail: _controller.text,
-                                                  join:
-                                                      (
-                                                        code,
-                                                        email,
-                                                        password,
-                                                      ) async {
-                                                        final joined = await auth
-                                                            .loginWithOfficeCode(
-                                                              email,
-                                                              password,
-                                                              code,
-                                                            );
-                                                        return joined
-                                                            ? null
-                                                            : auth.error ??
-                                                                  'Could not join. Try again.';
-                                                      },
-                                                ),
-                                              ),
-                                            ),
-                                      child: const Text('Use office code'),
-                                    ),
-                                  TextButton(
-                                    onPressed: isLoading || !auth.isConfigured
-                                        ? null
-                                        : () =>
-                                              Navigator.of(context).push<void>(
-                                                MaterialPageRoute(
-                                                  builder: (_) =>
-                                                      EmailCodeScreen(
-                                                        backend: auth.backend!,
-                                                        email: _controller.text,
-                                                      ),
-                                                ),
-                                              ),
-                                    child: const Text('Use email code'),
+                              Align(
+                                alignment: AlignmentDirectional.centerEnd,
+                                child: TextButton(
+                                  onPressed: isLoading || !auth.isConfigured
+                                      ? null
+                                      : () => _openPasswordRecovery(
+                                          context,
+                                          auth,
+                                        ),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: context.colors.primary,
+                                    minimumSize: const Size(0, 48),
                                   ),
-                                  TextButton(
-                                    onPressed: isLoading || !auth.isConfigured
-                                        ? null
-                                        : () => Navigator.of(context).push(
-                                            MaterialPageRoute(
-                                              builder: (routeContext) =>
-                                                  AccountEditScreen(
-                                                    title: 'Reset password',
-                                                    label: 'Work email',
-                                                    email: true,
-                                                    requireChange: false,
-                                                    initialValue:
-                                                        _controller.text,
-                                                    actionLabel:
-                                                        'Send recovery email',
-                                                    onSave: (value) => auth
-                                                        .backend!
-                                                        .resetPassword(value),
-                                                    onSaved: () {
-                                                      if (!context.mounted ||
-                                                          ModalRoute.of(
-                                                                routeContext,
-                                                              )?.isCurrent !=
-                                                              true) {
-                                                        return;
-                                                      }
-                                                      Navigator.pop(
-                                                        routeContext,
-                                                      );
-                                                      AppToast.of(
-                                                        context,
-                                                      ).showSnackBar(
-                                                        const SnackBar(
-                                                          content: Text(
-                                                            'If the account exists, a recovery email will arrive shortly.',
-                                                          ),
-                                                        ),
-                                                      );
-                                                    },
-                                                  ),
-                                            ),
-                                          ),
-                                    child: const Text('Forgot password?'),
-                                  ),
-                                ],
+                                  child: const Text('Forgot password?'),
+                                ),
                               ),
                               if (!auth.isConfigured)
                                 const Text(
@@ -431,18 +369,25 @@ class _LoginScreenState extends State<LoginScreen>
                                 ),
                               ),
                             ],
-                            const Spacer(),
-                            const SizedBox(height: 24),
+                            SizedBox(height: company ? 8 : 20),
                             _SignInButton(
                               loading: isLoading,
                               onPressed: _signIn,
                             ),
-                            if (company)
-                              TextButton(
+                            if (company) ...[
+                              const SizedBox(height: 24),
+                              _companyOptions(context, auth, isLoading),
+                              const SizedBox(height: 8),
+                              TextButton.icon(
                                 onPressed: isLoading ? null : auth.enterPreview,
-                                child: const Text('Explore demo'),
+                                style: TextButton.styleFrom(
+                                  minimumSize: const Size(0, 48),
+                                ),
+                                icon: const Icon(AppIcons.play, size: 20),
+                                label: const Text('Explore demo'),
                               ),
-                            const SizedBox(height: 12),
+                            ],
+                            const SizedBox(height: 8),
                             Text(
                               company
                                   ? 'Company access is by invitation.'
@@ -458,13 +403,140 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                   ),
                 ),
-              ],
+              ),
             ),
           ),
         ),
       ),
     );
   }
+
+  Widget _companyOptions(BuildContext context, AuthProvider auth, bool busy) {
+    final colors = context.colors;
+    final enabled = !busy && auth.isConfigured;
+    final hasOfficeCode = auth.backend?.supportsOfficeInviteCodes == true;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsetsDirectional.only(start: 12, bottom: 8),
+          child: Semantics(
+            header: true,
+            child: Text(
+              'Other ways to sign in',
+              style: AppTypography.label.copyWith(color: colors.primary),
+            ),
+          ),
+        ),
+        Material(
+          color: colors.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(AppLayout.groupRadius),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              if (hasOfficeCode) ...[
+                _LoginMethod(
+                  label: 'Use office code',
+                  icon: AppIcons.idBadge2,
+                  onTap: enabled ? () => _openOfficeCode(context, auth) : null,
+                ),
+                const Divider(height: 1, indent: 52, endIndent: 16),
+              ],
+              _LoginMethod(
+                label: 'Use email code',
+                icon: AppIcons.mail,
+                onTap: enabled
+                    ? () => Navigator.of(context).push<void>(
+                        MaterialPageRoute(
+                          builder: (_) => EmailCodeScreen(
+                            backend: auth.backend!,
+                            email: _controller.text,
+                          ),
+                        ),
+                      )
+                    : null,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _openOfficeCode(BuildContext context, AuthProvider auth) {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => OfficeCodeScreen(
+          signInEmail: _controller.text,
+          join: (code, email, password) async {
+            final joined = await auth.loginWithOfficeCode(
+              email,
+              password,
+              code,
+            );
+            return joined ? null : auth.error ?? 'Could not join. Try again.';
+          },
+        ),
+      ),
+    );
+  }
+
+  void _openPasswordRecovery(BuildContext context, AuthProvider auth) {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (routeContext) => AccountEditScreen(
+          title: 'Reset password',
+          label: 'Work email',
+          email: true,
+          requireChange: false,
+          initialValue: _controller.text,
+          actionLabel: 'Send recovery email',
+          onSave: (value) => auth.backend!.resetPassword(value),
+          onSaved: () {
+            if (!context.mounted ||
+                ModalRoute.of(routeContext)?.isCurrent != true) {
+              return;
+            }
+            Navigator.pop(routeContext);
+            AppToast.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'If the account exists, a recovery email will arrive shortly.',
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _LoginMethod extends StatelessWidget {
+  const _LoginMethod({required this.label, required this.icon, this.onTap});
+
+  final String label;
+  final IconData icon;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+    enabled: onTap != null,
+    leading: Icon(icon, size: AppLayout.compactIconSize),
+    trailing: const Icon(
+      AppIcons.chevronRight,
+      size: AppLayout.compactIconSize,
+    ),
+    title: Text(label),
+    titleTextStyle: AppTypography.label.copyWith(
+      color: onTap == null
+          ? context.colors.onSurfaceVariant
+          : context.colors.onSurface,
+    ),
+    minTileHeight: AppLayout.controlHeight,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+    onTap: onTap,
+  );
 }
 
 class _BrandHeader extends StatelessWidget {
@@ -475,19 +547,7 @@ class _BrandHeader extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: context.colors.primary,
-            borderRadius: BorderRadius.circular(AppLayout.fieldRadius),
-          ),
-          child: Icon(
-            AppIcons.fingerprint,
-            color: context.colors.onPrimary,
-            size: 24,
-          ),
-        ),
+        const AttendanceMark(size: 52),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -580,7 +640,16 @@ class _SignInButtonState extends State<_SignInButton> {
 
   void _updatePress() {
     final pressed = _states.value.contains(WidgetState.pressed);
-    if (pressed != _pressed) setState(() => _pressed = pressed);
+    if (pressed == _pressed) return;
+    // FilledButton can clear the pressed state during its build when disabled.
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _updatePress();
+      });
+    } else {
+      setState(() => _pressed = pressed);
+    }
   }
 
   @override
@@ -591,58 +660,77 @@ class _SignInButtonState extends State<_SignInButton> {
 
   @override
   Widget build(BuildContext context) {
-    return SpringScale(
-      pressed: _pressed,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: AppLayout.controlHeight),
-        child: FilledButton(
+    final colors = context.colors;
+    final animate =
+        !MediaQuery.disableAnimationsOf(context) &&
+        TickerMode.valuesOf(context).enabled;
+    final style = FilledButton.styleFrom(
+      minimumSize: const Size(0, 58),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      textStyle: AppTypography.body.copyWith(
+        fontSize: 18,
+        fontWeight: FontWeight.w700,
+      ),
+      disabledBackgroundColor: colors.primaryContainer,
+      disabledForegroundColor: colors.onPrimaryContainer,
+      animationDuration: Duration.zero,
+    );
+
+    return Semantics(
+      liveRegion: widget.loading,
+      child: SingleMotionBuilder(
+        motion: const MaterialSpringMotion.expressiveSpatialFast(),
+        active: animate,
+        value: _pressed && animate && !widget.loading ? 16.0 : 29.0,
+        builder: (_, radius, child) => FilledButton(
           statesController: _states,
           onPressed: widget.loading ? null : widget.onPressed,
-          style: FilledButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            textStyle: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
-            disabledBackgroundColor: context.colors.surfaceContainerHighest,
-            disabledForegroundColor: context.colors.onSurfaceVariant,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppLayout.fieldRadius),
+          style: style.copyWith(
+            shape: WidgetStatePropertyAll(
+              RoundedSuperellipseBorder(
+                borderRadius: BorderRadius.circular(radius.clamp(16.0, 29.0)),
+              ),
             ),
           ),
-          child: AnimatedSwitcher(
-            duration: AppMotion.duration(context, AppMotion.fast),
-            switchInCurve: AppMotion.enterCurve,
-            switchOutCurve: AppMotion.exitCurve,
-            child: widget.loading
-                ? Row(
-                    key: const ValueKey('signing-in'),
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          color: context.colors.onSurfaceVariant,
-                          strokeWidth: 2,
+          child: child!,
+        ),
+        child: AnimatedSwitcher(
+          duration: AppMotion.duration(context, AppMotion.fast),
+          switchInCurve: AppMotion.enterCurve,
+          switchOutCurve: AppMotion.exitCurve,
+          child: widget.loading
+              ? Row(
+                  key: const ValueKey('signing-in'),
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (animate)
+                      LoadingShapes(
+                        style: LoadingShapesStyle(
+                          size: 20,
+                          color: colors.onPrimaryContainer,
+                          enableHaptics: false,
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      const Flexible(
-                        child: Text('Signing in', textAlign: TextAlign.center),
-                      ),
-                    ],
-                  )
-                : const Row(
-                    key: ValueKey('sign-in'),
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Flexible(child: Text('Sign in')),
-                      SizedBox(width: 10),
-                      Icon(
-                        AppIcons.arrowRight,
+                      )
+                    else
+                      const Icon(
+                        AppIcons.clock,
                         size: AppLayout.compactIconSize,
                       ),
-                    ],
-                  ),
-          ),
+                    const SizedBox(width: 10),
+                    const Flexible(
+                      child: Text('Signing in', textAlign: TextAlign.center),
+                    ),
+                  ],
+                )
+              : const Row(
+                  key: ValueKey('sign-in'),
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(child: Text('Sign in')),
+                    SizedBox(width: 10),
+                    Icon(AppIcons.arrowRight, size: AppLayout.compactIconSize),
+                  ],
+                ),
         ),
       ),
     );

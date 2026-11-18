@@ -5,9 +5,21 @@ import 'app_icons.dart';
 import 'buzz_color_scheme.dart';
 import 'ui_tokens.dart';
 
+enum AppPalette {
+  olive('Olive & Gold'),
+  tide('Tide', Color(0xFF006D73)),
+  iris('Iris', Color(0xFF7155A2)),
+  graphite('Graphite', Color(0xFF53605F));
+
+  const AppPalette(this.label, [this.seed]);
+
+  final String label;
+  final Color? seed;
+}
+
 class AppTheme {
-  static const Color primaryPetrol = Color(0xFF167D8D);
-  static const Color darkPetrol = Color(0xFF242629);
+  static const Color primaryPetrol = Color(0xFF4B571F);
+  static const Color darkPetrol = Color(0xFF292D29);
   // Keep the existing color names compatible for downstream callers.
   static const Color primaryNavy = primaryPetrol;
   static const Color darkNavy = darkPetrol;
@@ -18,13 +30,54 @@ class AppTheme {
   static const Color errorRed = Color(0xFFEF4444);
   static const Color successGreen = Color(0xFF10B981);
 
-  static final theme = _build(Brightness.light);
-  static final darkTheme = _build(Brightness.dark);
+  static final theme = _build(buzzLightScheme);
+  static final darkTheme = _build(buzzDarkScheme);
+  static final _themes = {
+    for (final palette in AppPalette.values)
+      if (palette.seed != null)
+        for (final brightness in Brightness.values)
+          (palette, brightness): _build(_scheme(palette, brightness)),
+  };
 
-  static ThemeData _build(Brightness brightness) {
-    final dark = brightness == Brightness.dark;
-    final colors = dark ? buzzDarkScheme : buzzLightScheme;
-    final background = dark ? colors.surface : const Color(0xFFF7F9FA);
+  static ThemeData forPalette(AppPalette palette, Brightness brightness) =>
+      _themes[(palette, brightness)] ??
+      (brightness == Brightness.dark ? darkTheme : theme);
+
+  static ColorScheme _scheme(AppPalette palette, Brightness brightness) {
+    final colors = ColorScheme.fromSeed(
+      seedColor: palette.seed!,
+      brightness: brightness,
+      dynamicSchemeVariant: palette == AppPalette.graphite
+          ? DynamicSchemeVariant.neutral
+          : DynamicSchemeVariant.tonalSpot,
+      surfaceTint: Colors.transparent,
+    );
+    if (brightness == Brightness.light) {
+      return colors.copyWith(
+        surfaceContainerHighest: Color.alphaBlend(
+          const Color(0x80FFFFFF),
+          colors.surfaceContainerHighest,
+        ),
+      );
+    }
+
+    // Keep the dark surfaces closer to charcoal than black.
+    Color lift(Color tone) => Color.alphaBlend(const Color(0x15FFFFFF), tone);
+    return colors.copyWith(
+      surface: lift(colors.surface),
+      surfaceDim: lift(colors.surfaceDim),
+      surfaceBright: lift(colors.surfaceBright),
+      surfaceContainerLowest: lift(colors.surfaceContainerLowest),
+      surfaceContainerLow: lift(colors.surfaceContainerLow),
+      surfaceContainer: lift(colors.surfaceContainer),
+      surfaceContainerHigh: lift(colors.surfaceContainerHigh),
+      surfaceContainerHighest: lift(colors.surfaceContainerHighest),
+    );
+  }
+
+  static ThemeData _build(ColorScheme colors) {
+    final dark = colors.brightness == Brightness.dark;
+    final background = colors.surface;
     final control = dark
         ? colors.surfaceContainerHigh
         : colors.primaryContainer;
@@ -171,8 +224,8 @@ class AppTheme {
         ),
       ),
       bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: colors.surface,
-        modalBackgroundColor: colors.surface,
+        backgroundColor: colors.surfaceContainerHighest,
+        modalBackgroundColor: colors.surfaceContainerHighest,
         elevation: 0,
         dragHandleSize: const Size(36, 4),
         shape: const RoundedRectangleBorder(
@@ -209,7 +262,7 @@ extension AttendanceThemeContext on BuildContext {
       _dark ? const Color(0xFF3DD68C) : const Color(0xFF1C7A50);
   Color get attendanceAbsent => colors.error;
   Color get attendanceWarning =>
-      _dark ? const Color(0xFFFFCA16) : const Color(0xFF925300);
+      _dark ? const Color(0xFFF2D779) : const Color(0xFF805B0E);
 }
 
 // ─────────────────────────── THEME ───────────────────────────

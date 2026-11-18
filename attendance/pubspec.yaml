@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.1.0+18
+version: 1.1.0+19
 
 environment:
   sdk: ^3.11.4
@@ -58,8 +58,11 @@ dependencies:
   google_fonts: ^8.1.0
   tabler_icons_plus: ^3.50.0
   flutter_lucide_animated: ^0.0.4
+  flutter_native_splash: 2.4.8
   portal_labs: ^0.38.0
+  motor: ^1.1.0
   image_picker: ^1.1.2
+  path_provider: 2.1.6
   mime: ^2.1.0
   # For handling permissions
   permission_handler: ^12.0.1
@@ -94,6 +97,7 @@ flutter:
     - assets/licenses/Buzz-Apache-2.0.txt
     - assets/licenses/Inter-OFL.txt
     - assets/licenses/PortalLabs-MIT.txt
+    - assets/fonts/OFL-NanumPenScript.txt
     - assets/logos/credits.jpeg
     - android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
 
@@ -107,6 +111,9 @@ flutter:
     - family: DM Sans
       fonts:
         - asset: assets/fonts/DMSans.ttf
+    - family: Nanum Pen Script
+      fonts:
+        - asset: assets/fonts/NanumPenScript-Regular.ttf
 
   # To add assets to your application, add an assets section, like this:
   # assets:

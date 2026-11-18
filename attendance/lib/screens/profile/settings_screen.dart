@@ -17,6 +17,7 @@ import 'appearance_screen.dart';
 import 'privacy_screen.dart';
 import 'profile_details_screen.dart';
 import 'settings_layout.dart';
+import 'whats_new_screen.dart';
 import 'account_edit_screen.dart';
 import 'account_security_screen.dart';
 import '../admin/employee_management_screen.dart';
@@ -164,7 +165,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final user = auth.currentUser;
-    final mode = context.select((ThemeProvider provider) => provider.mode);
+    final (mode, palette) = context.select(
+      (ThemeProvider provider) => (provider.mode, provider.palette),
+    );
     final avatar = context.select(
       (ProfileProvider provider) => provider.pfpPath,
     );
@@ -241,7 +244,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           rows: [
             SettingsRow(
               'Theme',
-              detail: themeModeLabel(mode),
+              detail: '${themeModeLabel(mode)} · ${palette.label}',
               onTap: () => Navigator.of(context).push<void>(
                 MaterialPageRoute(builder: (_) => const AppearanceScreen()),
               ),
@@ -294,6 +297,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         SettingsSection(
           title: 'About',
           rows: [
+            SettingsRow(
+              "What's new",
+              onTap: () => Navigator.of(context).push<void>(
+                MaterialPageRoute(builder: (_) => const WhatsNewScreen()),
+              ),
+            ),
             SettingsRow(
               'Privacy & security',
               onTap: () => Navigator.of(context).push<void>(
@@ -361,8 +370,7 @@ class _SettingsProfileHeader extends StatelessWidget {
                                 ?.refreshProfileImage,
                           ),
                           fit: BoxFit.cover,
-                          frameBuilder: (_, child, frame, wasSync) =>
-                              wasSync || frame != null ? child : fallback,
+                          frameBuilder: profileImageFrame(fallback),
                           errorBuilder: (_, _, _) => fallback,
                         ),
                 ),

@@ -362,3 +362,78 @@ Settings and the Flutter splash share the installed version, Attendance mark,
 and "Crafted by Umer Jamshaid" credit with the bundled portrait. The version
 comes from package metadata. The existing native launch configuration and
 session routing are unchanged in this checkpoint.
+
+## Native Startup and Release Notes
+
+- The public entrypoint holds the OS splash while initializing and restoring the
+  launch route and theme. It releases after the selected screen lays out. The
+  startup hold is bounded (8 seconds to initialize, 12 seconds to resolve
+  routing); either failure can show the app's restart message. There is no
+  second branded Flutter splash or extra delay to fetch attendance history.
+- Recreate Android/iOS native assets with `dart run flutter_native_splash:create`
+  after changing `flutter_native_splash.yaml`. The same Attendance mark fits both
+  backgrounds; Android 12+ uses the 960px canvas with the mark centered. The
+  native splash follows the system theme, so an explicit opposite Flutter
+  theme can still change the color when the app opens.
+- Settings keeps the installed build and portrait credit, plus an offline
+  What's New page keyed to the installed version. Add new entries in
+  `lib/screens/profile/whats_new_screen.dart` when publishing a new version.
+- Profile and office images retain their existing viewer/office cache scopes.
+  Synchronous decoded hits paint immediately; the first cold frame fades in
+  unless motion is disabled. Startup exceptions use redacted Flutter diagnostics
+  only; no remote error-reporting destination has been added.
+- Phone check: cold-launch from the app icon on Android 12+ and iOS, in system
+  light and dark. Check the status bar, the first login/home/recovery route, and
+  the failure screen. An iOS simulator or device is needed for native iOS QA.
+
+## Olive and Gold
+
+- The shared light and dark themes now use olive and soft gold accents. Present
+  and absent keep their green and red meanings. Native splash colors match the
+  new light and dark scaffold colors; regenerate with the same splash command.
+- Settings and Profile share the installed version, portrait, and handwritten
+  maker credit. Nanum Pen Script is bundled under its original OFL license.
+- Appearance has a light/dark preview that does not change the saved theme.
+  Office-logo-derived color is confined to the avatar rim in the switcher and
+  reuses the existing office-scoped image provider.
+
+## Combined APK Source
+
+- Use `codex/combined-attendance-test` for the APK that combines the native
+  splash, olive and gold theme, shared maker credit, and public sign-in with the
+  Portal Labs prototype features from `codex/profile-gauge-bloom`.
+- Profile includes the animated Score Gauge, Bloom banner color picker,
+  inline banner removal, tag selection and the role-based Admin chip. History
+  has the date subgroups; employee search and Reveal & Copy remain available.
+- The shareable APK uses an existing Tabler shield in the Admin chip. The
+  original Discord artwork stays in the local prototype checkout.
+- Use the public entrypoint and the project's publishable Auth configuration
+  when building an APK with company sign-in. A build without the two Supabase
+  defines intentionally offers demo only.
+
+## App Mark and Startup Alerts
+
+- The punched timecard symbol is under `assets/logos/attendance-symbol.png`.
+  The emerald launcher tile is set in Android's `ic_launcher_background.xml`
+  and shared by the export script.
+  On Windows, `./tool/export_app_icon.ps1` regenerates the Android and iOS
+  launcher icons and the two native splash inputs. Then run
+  `dart run flutter_native_splash:create` to regenerate native splash resources.
+- Startup failures still render a restart screen and release the splash before
+  reporting. A build can opt in with
+  `--dart-define=ATTENDANCE_STARTUP_REPORT_URL=https://your-receiver.example/startup`.
+  The receiver gets one best-effort JSON POST per failed launch: event,
+  category, platform, and installed version/build when available.
+- Use an HTTPS receiver you control. Validate the expected fields and rate-limit
+  it. Any Telegram or Slack credential must stay on the receiver, not in the
+  Flutter build. No stack traces, account identifiers, credentials, or
+  attendance data are sent. Without the define, reporting stays local.
+
+## Color Palettes
+
+- Settings > Theme lets users choose Olive & Gold, Tide, Iris, or Graphite
+  separately from System, Light, or Dark. Older installs keep their saved
+  brightness and default to Olive & Gold. The preview sheet uses the selected
+  palette and does not save its light/dark preview toggle.
+- Native splash still uses the original system-light/system-dark backgrounds.
+  Flutter applies any alternate palette when the first screen opens.

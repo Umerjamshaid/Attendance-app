@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../config/app_icons.dart';
 import '../config/ui_tokens.dart';
 import '../providers/attendance_history_provider.dart';
-import 'user-profile/attendance_progress_ring.dart';
+import 'user-profile/attendance_score_gauge.dart';
 import 'user-profile/profile_section_card.dart';
 
 class CheckInSummary extends StatelessWidget {
@@ -20,30 +20,16 @@ class CheckInSummary extends StatelessWidget {
           padding: const EdgeInsets.all(20),
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
-              final ringSize = 104 * scale.clamp(1.0, 1.5);
-              final ring = AttendanceProgressRing(
+              final gauge = AttendanceScoreGauge(
                 progress: unknown ? null : history.monthlyRate,
                 label: 'This month',
                 isLoading: unknown && history.isLoading,
-                dimension: ringSize,
               );
               final days = _ActivityMetric(
                 value: unknown ? null : history.presentThisMonthCount,
                 label: 'Days this month',
               );
-              if (constraints.maxWidth < ringSize + 24 + 100 * scale) {
-                return Column(
-                  children: [ring, const SizedBox(height: 20), days],
-                );
-              }
-              return Row(
-                children: [
-                  ring,
-                  const SizedBox(width: 24),
-                  Expanded(child: days),
-                ],
-              );
+              return Column(children: [gauge, const SizedBox(height: 12), days]);
             },
           ),
         ),

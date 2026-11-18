@@ -59,7 +59,6 @@ void main() {
     await _swipe(tester, -360);
     _expectSelected(tester, 'History', 1);
     final home = find.byType(AttendanceScreen, skipOffstage: false);
-    expect(tester.widget<AttendanceScreen>(home).isActive, false);
     expect(TickerMode.valuesOf(tester.element(home)).enabled, false);
     await _swipe(tester, 360);
     _expectSelected(tester, 'Home', 0);

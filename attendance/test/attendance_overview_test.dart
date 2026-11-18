@@ -135,11 +135,12 @@ void main() {
             ],
             child: _app(
               Brightness.light,
-              AttendanceScreen(employee: employee, isActive: false),
+              AttendanceScreen(employee: employee),
             ),
           ),
         );
-        await tester.pumpAndSettle();
+        // The idle check-in halo keeps scheduling frames in company mode.
+        await tester.pump();
         expect(find.byType(AttendanceSummaryCard), findsOneWidget);
         expect(find.text('Your attendance'), findsOneWidget);
         expect(find.text('Not yet'), findsOneWidget);
@@ -163,6 +164,19 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('Present'), findsOneWidget);
         expect(find.text('Not yet'), findsNothing);
+        expect(find.byKey(const ValueKey('check-in-pulse')), findsNothing);
+        expect(
+          find.text(preview ? 'Read-only preview' : 'Check in'),
+          findsOneWidget,
+        );
+        final checkIn = find.descendant(
+          of: find.byType(AttendanceButton),
+          matching: find.byType(InkWell),
+        );
+        expect(
+          tester.widget<InkWell>(checkIn).onTap,
+          preview ? isNull : isNotNull,
+        );
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox.shrink());
       },

@@ -13,6 +13,8 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../screens/profile/account_edit_screen.dart';
 import '../../services/company_backend.dart';
+import 'banner_actions.dart';
+import 'banner_color_sheet.dart';
 
 /// Whether the employee has checked in today, as derived by the screen from
 /// the attendance history.
@@ -64,7 +66,6 @@ class ProfileHeader extends StatelessWidget {
   }
 
   Future<void> _removeBanner(BuildContext context) async {
-    HapticFeedback.selectionClick();
     final provider = context.read<ProfileProvider>();
     final messenger = AppToast.of(context);
     try {
@@ -193,6 +194,8 @@ class ProfileHeader extends StatelessWidget {
                     onTap: () =>
                         _changeImage(context, (p) => p.pickBanner(employee.id)),
                     onRemove: () => _removeBanner(context),
+                    onColor: (color) =>
+                        profile.setBannerColor(employee.id, color),
                   ),
                 ),
                 Positioned(
@@ -262,7 +265,9 @@ class ProfileHeader extends StatelessWidget {
                   if (role.isNotEmpty)
                     _InfoChip(
                       label: role[0].toUpperCase() + role.substring(1),
-                      icon: AppIcons.idBadge2,
+                      leading: employee.isAdmin && employee.isActive
+                          ? const Icon(AppIcons.shieldCheck, size: 16)
+                          : const Icon(AppIcons.idBadge2, size: 16),
                     ),
                   _StatusPill(status: todayStatus),
                 ],
@@ -349,6 +354,7 @@ class _Banner extends StatefulWidget {
     required this.onRetry,
     required this.onTap,
     required this.onRemove,
+    required this.onColor,
   });
 
   final String? path;
@@ -356,7 +362,8 @@ class _Banner extends StatefulWidget {
   final Future<String?> Function(String)? refresh;
   final Future<void> Function() onRetry;
   final VoidCallback onTap;
-  final VoidCallback onRemove;
+  final Future<void> Function() onRemove;
+  final Future<void> Function(Color) onColor;
 
   @override
   State<_Banner> createState() => _BannerState();
@@ -367,6 +374,45 @@ class _BannerState extends State<_Banner> {
   int _imageRevision = 0;
   bool _retrying = false;
   bool _failed = false;
+  bool _optionsOpen = false;
+  bool _removing = false;
+
+  Future<void> _openOptions() async {
+    if (_optionsOpen || _removing) return;
+    final path = widget.path;
+    final viewer = widget.viewer;
+    _optionsOpen = true;
+    HapticFeedback.lightImpact();
+    BannerAction? action;
+    try {
+      action = await BannerActions.open(context, hasBanner: path != null);
+    } finally {
+      _optionsOpen = false;
+    }
+    if (!mounted || path != widget.path || viewer != widget.viewer) return;
+    if (action == BannerAction.change) {
+      widget.onTap();
+    } else if (action == BannerAction.color) {
+      final messenger = AppToast.of(context);
+      final saved = await BannerColorSheet.open(
+        context,
+        onSave: widget.onColor,
+      );
+      if (saved == true && mounted) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Banner color saved')),
+          kind: ToastKind.success,
+        );
+      }
+    } else if (action == BannerAction.remove) {
+      setState(() => _removing = true);
+      try {
+        await widget.onRemove();
+      } finally {
+        if (mounted) setState(() => _removing = false);
+      }
+    }
+  }
 
   @override
   void didUpdateWidget(covariant _Banner oldWidget) {
@@ -416,7 +462,6 @@ class _BannerState extends State<_Banner> {
     final viewer = widget.viewer;
     final refresh = widget.refresh;
     final onTap = widget.onTap;
-    final onRemove = widget.onRemove;
     final hasBanner = image != null;
     final revision = _revision;
     return Semantics(
@@ -445,10 +490,9 @@ class _BannerState extends State<_Banner> {
                         ),
                         fit: BoxFit.cover,
                         gaplessPlayback: true,
-                        frameBuilder: (_, child, frame, wasSync) =>
-                            wasSync || frame != null
-                            ? child
-                            : const _BannerGradient(),
+                        frameBuilder: profileImageFrame(
+                          const _BannerGradient(),
+                        ),
                         // The picked file can disappear (cache cleared). The
                         // remove action stays available to clear the stale path.
                         errorBuilder: (_, _, _) {
@@ -461,7 +505,13 @@ class _BannerState extends State<_Banner> {
             Positioned.fill(
               child: Material(
                 type: MaterialType.transparency,
-                child: InkWell(onTap: onTap),
+                child: InkWell(
+                  onTap: _removing
+                      ? null
+                      : hasBanner
+                      ? onTap
+                      : _openOptions,
+                ),
               ),
             ),
             if (_failed)
@@ -493,7 +543,23 @@ class _BannerState extends State<_Banner> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _RemoveBannerButton(onPressed: onRemove),
+                    if (_removing)
+                      const SizedBox(
+                        width: 44,
+                        height: 44,
+                        child: Center(
+                          child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      _RemoveBannerButton(onPressed: _openOptions),
                     const SizedBox(width: 2),
                     const IgnorePointer(child: _CameraChip()),
                   ],
@@ -649,13 +715,7 @@ class _Avatar extends StatelessWidget {
         fit: BoxFit.cover,
         gaplessPlayback: true,
         errorBuilder: (_, _, _) => const SizedBox.shrink(),
-        frameBuilder: (_, child, frame, wasSync) => wasSync
-            ? child
-            : AnimatedOpacity(
-                opacity: frame == null ? 0 : 1,
-                duration: const Duration(milliseconds: 250),
-                child: child,
-              ),
+        frameBuilder: profileImageFrame(const SizedBox.shrink()),
       );
     }
 
@@ -854,10 +914,10 @@ class _StatusPill extends StatelessWidget {
 }
 
 class _InfoChip extends StatelessWidget {
-  const _InfoChip({required this.label, this.icon});
+  const _InfoChip({required this.label, this.leading});
 
   final String label;
-  final IconData? icon;
+  final Widget? leading;
 
   @override
   Widget build(BuildContext context) {
@@ -870,7 +930,7 @@ class _InfoChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null) ...[Icon(icon, size: 16), const SizedBox(width: 6)],
+          if (leading != null) ...[leading!, const SizedBox(width: 6)],
           Flexible(
             child: Text(
               label,

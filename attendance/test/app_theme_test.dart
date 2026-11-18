@@ -4,45 +4,97 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  for (final brightness in Brightness.values) {
+    test('${brightness.name} palettes are distinct and readable', () {
+      final accents = <Color>{};
+      for (final palette in AppPalette.values) {
+        final theme = AppTheme.forPalette(palette, brightness);
+        final colors = theme.colorScheme;
+        accents.add(colors.primary);
+        expect(colors.brightness, brightness);
+        expect(theme.scaffoldBackgroundColor, colors.surface);
+        final pairs = [
+          (colors.onPrimary, colors.primary),
+          (colors.onPrimaryContainer, colors.primaryContainer),
+          (colors.onTertiaryContainer, colors.tertiaryContainer),
+          (colors.onSurfaceVariant, colors.surfaceContainerHigh),
+          for (final surface in [
+            colors.surface,
+            colors.surfaceContainerLow,
+            colors.surfaceContainerHighest,
+          ]) ...[
+            (colors.onSurface, surface),
+            (colors.onSurfaceVariant, surface),
+            (colors.error, surface),
+            (
+              brightness == Brightness.dark
+                  ? const Color(0xFF3DD68C)
+                  : const Color(0xFF1C7A50),
+              surface,
+            ),
+            (
+              brightness == Brightness.dark
+                  ? const Color(0xFFF2D779)
+                  : const Color(0xFF805B0E),
+              surface,
+            ),
+          ],
+        ];
+        for (final (foreground, background) in pairs) {
+          expect(
+            _contrast(foreground, background),
+            greaterThanOrEqualTo(4.5),
+            reason: '${palette.label}: $foreground on $background',
+          );
+        }
+      }
+      expect(accents.length, AppPalette.values.length);
+    });
+  }
+
   for (final dark in [false, true]) {
     final theme = dark ? AppTheme.darkTheme : AppTheme.theme;
     final colors = theme.colorScheme;
 
+    test('${dark ? 'dark' : 'light'} uses the olive and gold palette', () {
+      expect(
+        colors.primary,
+        dark ? const Color(0xFFD6E886) : const Color(0xFF4B571F),
+      );
+      expect(
+        colors.primaryContainer,
+        dark ? const Color(0xFF3C4926) : const Color(0xFFE2E9C9),
+      );
+      expect(
+        theme.scaffoldBackgroundColor,
+        dark ? const Color(0xFF292D29) : const Color(0xFFF8F8F5),
+      );
+      expect(colors.surface, theme.scaffoldBackgroundColor);
+      expect(theme.appBarTheme.backgroundColor, theme.scaffoldBackgroundColor);
+      expect(theme.textTheme.bodyLarge?.fontFamily, 'Inter');
+    });
+
     test(
-      '${dark ? 'dark' : 'light'} uses soft gray surfaces and teal accents',
+      '${dark ? 'dark' : 'light'} utility surfaces keep the warmer groups',
       () {
+        final utility = utilitySurfaceThemeData(theme);
+        expect(identical(utilitySurfaceThemeData(utility), utility), isTrue);
+        expect(utility.scaffoldBackgroundColor, colors.surface);
         expect(
-          colors.primary,
-          dark ? const Color(0xFF67D5E5) : const Color(0xFF167D8D),
+          utility.colorScheme.surfaceContainerHighest,
+          colors.surfaceContainerHighest,
         );
         expect(
-          colors.primaryContainer,
-          dark ? const Color(0xFF30484D) : const Color(0xFFDFF1F3),
+          utility.bottomSheetTheme.backgroundColor,
+          colors.surfaceContainerHighest,
         );
         expect(
-          theme.scaffoldBackgroundColor,
-          dark ? const Color(0xFF242629) : const Color(0xFFF7F9FA),
+          (utility.inputDecorationTheme.focusedBorder as OutlineInputBorder)
+              .borderRadius,
+          BorderRadius.circular(22),
         );
-        expect(colors.surface, dark ? const Color(0xFF242629) : Colors.white);
-        expect(
-          theme.appBarTheme.backgroundColor,
-          theme.scaffoldBackgroundColor,
-        );
-        expect(theme.textTheme.bodyLarge?.fontFamily, 'Inter');
       },
     );
-
-    test('${dark ? 'dark' : 'light'} utility surfaces do not swap twice', () {
-      final utility = utilitySurfaceThemeData(theme);
-      expect(identical(utilitySurfaceThemeData(utility), utility), isTrue);
-      expect(utility.scaffoldBackgroundColor, colors.surfaceContainerHighest);
-      expect(utility.colorScheme.surfaceContainerHighest, colors.surface);
-      expect(
-        (utility.inputDecorationTheme.focusedBorder as OutlineInputBorder)
-            .borderRadius,
-        BorderRadius.circular(22),
-      );
-    });
 
     test('${dark ? 'dark' : 'light'} text pairs retain AA contrast', () {
       final pairs = [
@@ -50,6 +102,8 @@ void main() {
         (colors.onPrimaryContainer, colors.primaryContainer),
         (colors.onSecondary, colors.secondary),
         (colors.onSecondaryContainer, colors.secondaryContainer),
+        (colors.onTertiary, colors.tertiary),
+        (colors.onTertiaryContainer, colors.tertiaryContainer),
         (colors.onError, colors.error),
         (colors.onErrorContainer, colors.errorContainer),
         (colors.onInverseSurface, colors.inverseSurface),
@@ -98,7 +152,7 @@ void main() {
                 expect(context.attendanceAbsent, colors.error);
                 expect(
                   context.attendanceWarning,
-                  dark ? const Color(0xFFFFCA16) : const Color(0xFF925300),
+                  dark ? const Color(0xFFF2D779) : const Color(0xFF805B0E),
                 );
                 for (final status in [
                   context.attendancePresent,
@@ -109,6 +163,7 @@ void main() {
                     theme.scaffoldBackgroundColor,
                     colors.surface,
                     colors.surfaceContainerLow,
+                    colors.surfaceContainerHighest,
                   ]) {
                     expect(
                       _contrast(status, background),
