@@ -4,6 +4,10 @@ class BackendConfig {
     'SUPABASE_PUBLISHABLE_KEY',
   );
   static const authRedirect = 'workcheck://auth/callback';
+  static bool isAuthCallback(Uri uri) =>
+      uri.scheme == 'workcheck' &&
+      uri.authority == 'auth' &&
+      uri.path == '/callback';
   static bool get isConfigured =>
       Uri.tryParse(url)?.scheme == 'https' &&
       publishableKey.startsWith('sb_publishable_');

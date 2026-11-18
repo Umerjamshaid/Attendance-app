@@ -7,10 +7,13 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../config/app_theme.dart';
+import '../../config/app_info.dart';
 import '../../config/ui_tokens.dart';
 import '../../widgets/spring_scale.dart';
 import '../../widgets/error_shake.dart';
 import '../profile/account_edit_screen.dart';
+import 'email_code_screen.dart';
+import 'office_code_screen.dart';
 
 class UpperCaseTextFormatter extends TextInputFormatter {
   @override
@@ -290,40 +293,111 @@ class _LoginScreenState extends State<LoginScreen>
                                   ),
                                 ),
                               ],
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: TextButton(
-                                  onPressed: isLoading || !auth.isConfigured
-                                      ? null
-                                      : () => Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (_) => AccountEditScreen(
-                                              title: 'Reset password',
-                                              label: 'Work email',
-                                              email: true,
-                                              requireChange: false,
-                                              initialValue: _controller.text,
-                                              actionLabel:
-                                                  'Send recovery email',
-                                              onSave: (value) => auth.backend!
-                                                  .resetPassword(value),
-                                              onSaved: () {
-                                                Navigator.pop(context);
-                                                AppToast.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text(
-                                                      'If the account exists, a recovery email will arrive shortly.',
-                                                    ),
+                              if (auth.authLinkError case final error?)
+                                Semantics(
+                                  liveRegion: true,
+                                  child: Text(
+                                    error,
+                                    style: AppTypography.caption.copyWith(
+                                      color: context.colors.error,
+                                    ),
+                                  ),
+                                ),
+                              Wrap(
+                                alignment: WrapAlignment.end,
+                                spacing: 4,
+                                children: [
+                                  if (auth.backend?.supportsOfficeInviteCodes ==
+                                      true)
+                                    TextButton(
+                                      onPressed: isLoading || !auth.isConfigured
+                                          ? null
+                                          : () => Navigator.of(context).push<void>(
+                                              MaterialPageRoute(
+                                                builder: (_) => OfficeCodeScreen(
+                                                  signInEmail: _controller.text,
+                                                  join:
+                                                      (
+                                                        code,
+                                                        email,
+                                                        password,
+                                                      ) async {
+                                                        final joined = await auth
+                                                            .loginWithOfficeCode(
+                                                              email,
+                                                              password,
+                                                              code,
+                                                            );
+                                                        return joined
+                                                            ? null
+                                                            : auth.error ??
+                                                                  'Could not join. Try again.';
+                                                      },
+                                                ),
+                                              ),
+                                            ),
+                                      child: const Text('Use office code'),
+                                    ),
+                                  TextButton(
+                                    onPressed: isLoading || !auth.isConfigured
+                                        ? null
+                                        : () =>
+                                              Navigator.of(context).push<void>(
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      EmailCodeScreen(
+                                                        backend: auth.backend!,
+                                                        email: _controller.text,
+                                                      ),
+                                                ),
+                                              ),
+                                    child: const Text('Use email code'),
+                                  ),
+                                  TextButton(
+                                    onPressed: isLoading || !auth.isConfigured
+                                        ? null
+                                        : () => Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                              builder: (routeContext) =>
+                                                  AccountEditScreen(
+                                                    title: 'Reset password',
+                                                    label: 'Work email',
+                                                    email: true,
+                                                    requireChange: false,
+                                                    initialValue:
+                                                        _controller.text,
+                                                    actionLabel:
+                                                        'Send recovery email',
+                                                    onSave: (value) => auth
+                                                        .backend!
+                                                        .resetPassword(value),
+                                                    onSaved: () {
+                                                      if (!context.mounted ||
+                                                          ModalRoute.of(
+                                                                routeContext,
+                                                              )?.isCurrent !=
+                                                              true) {
+                                                        return;
+                                                      }
+                                                      Navigator.pop(
+                                                        routeContext,
+                                                      );
+                                                      AppToast.of(
+                                                        context,
+                                                      ).showSnackBar(
+                                                        const SnackBar(
+                                                          content: Text(
+                                                            'If the account exists, a recovery email will arrive shortly.',
+                                                          ),
+                                                        ),
+                                                      );
+                                                    },
                                                   ),
-                                                );
-                                              },
                                             ),
                                           ),
-                                        ),
-                                  child: const Text('Forgot password?'),
-                                ),
+                                    child: const Text('Forgot password?'),
+                                  ),
+                                ],
                               ),
                               if (!auth.isConfigured)
                                 const Text(
@@ -420,7 +494,7 @@ class _BrandHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'WorkCheck',
+                AppInfo.name,
                 style: AppTypography.title.copyWith(
                   color: context.colors.onSurface,
                 ),

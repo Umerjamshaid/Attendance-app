@@ -54,7 +54,7 @@ class AccountSecurityScreen extends StatelessWidget {
                           title: 'Change password',
                           label: 'New password',
                           password: true,
-                          onSave: auth.backend!.setPassword,
+                          onSave: auth.accountBackend!.setPassword,
                         ),
                       ),
                     ),

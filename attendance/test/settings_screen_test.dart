@@ -10,6 +10,7 @@ import 'package:attendance/screens/profile/appearance_screen.dart';
 import 'package:attendance/screens/profile/profile_details_screen.dart';
 import 'package:attendance/screens/profile/settings_screen.dart';
 import 'package:attendance/services/local_storage_service.dart';
+import 'package:attendance/widgets/app_identity_footer.dart';
 import 'package:attendance/widgets/user-profile/profile_header.dart';
 import 'package:attendance/widgets/user-profile/profile_menu_item.dart';
 import 'package:flutter/material.dart';
@@ -99,6 +100,13 @@ void main() {
     expect(find.byType(SettingsScreen), findsOneWidget);
     await _scrollTo(tester, find.textContaining('Build 6'));
     expect(find.textContaining('Version 1.1.0'), findsOneWidget);
+    expect(find.byType(AttendanceMark), findsOneWidget);
+    expect(find.text('Crafted by'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('developer-credit-photo')),
+      findsOneWidget,
+    );
+    expect(find.text('Umer Jamshaid'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -141,11 +149,13 @@ void main() {
     expect(find.widgetWithText(InputChip, 'Old tag'), findsNothing);
     await tester.enterText(find.byType(TextField).first, 'Team lead');
     await tester.enterText(find.byType(TextField).last, 'design, Team mentor');
-    await tester.pump();
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byTooltip('Add tag'));
     await tester.tap(find.byTooltip('Add tag'));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.widgetWithText(InputChip, 'Team mentor'), findsOneWidget);
     expect(find.byType(InputChip), findsNWidgets(2));
+    await tester.ensureVisible(save);
     await tester.tap(save);
     await tester.pumpAndSettle();
     expect(auth.savedHeadline, 'Team lead');

@@ -13,12 +13,14 @@ class AccountEditScreen extends StatefulWidget {
     this.email = false,
     this.actionLabel = 'Save changes',
     this.onSaved,
+    this.onCancel,
     this.requireChange = true,
   });
   final String title, label, initialValue, actionLabel;
   final bool password, email, requireChange;
   final Future<void> Function(String) onSave;
   final VoidCallback? onSaved;
+  final Future<void> Function()? onCancel;
   @override
   State<AccountEditScreen> createState() => _AccountEditScreenState();
 }
@@ -54,6 +56,7 @@ class _AccountEditScreenState extends State<AccountEditScreen> {
       await widget.onSave(value);
       if (!mounted) return;
       if (widget.onSaved != null) {
+        setState(() => _saving = false);
         widget.onSaved!();
         return;
       }
@@ -72,7 +75,7 @@ class _AccountEditScreenState extends State<AccountEditScreen> {
   }
 
   Future<void> _back(bool didPop) async {
-    if (didPop || _saving || _leaving) return;
+    if (didPop || _saving || _leaving || widget.onCancel != null) return;
     final discard = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -95,6 +98,21 @@ class _AccountEditScreenState extends State<AccountEditScreen> {
     if (mounted) Navigator.pop(context);
   }
 
+  Future<void> _cancelSetup() async {
+    setState(() => _saving = true);
+    try {
+      await widget.onCancel!();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _errorRevision++;
+      });
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -103,10 +121,11 @@ class _AccountEditScreenState extends State<AccountEditScreen> {
 
   @override
   Widget build(BuildContext context) => PopScope(
-    canPop: !_saving && (!_dirty || _leaving),
+    canPop: widget.onCancel == null && !_saving && (!_dirty || _leaving),
     onPopInvokedWithResult: (didPop, _) => _back(didPop),
     child: SettingsLayout(
       title: widget.title,
+      showBackButton: widget.onCancel == null,
       children: [
         ErrorShake(
           error: _error,
@@ -153,6 +172,11 @@ class _AccountEditScreenState extends State<AccountEditScreen> {
                 )
               : Text(widget.actionLabel),
         ),
+        if (widget.onCancel != null)
+          TextButton(
+            onPressed: _saving ? null : _cancelSetup,
+            child: const Text('Back to sign in'),
+          ),
       ],
     ),
   );

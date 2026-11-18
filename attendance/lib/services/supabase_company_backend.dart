@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:uuid/uuid.dart';
 
@@ -14,16 +15,53 @@ import 'company_backend.dart';
 import 'profile_media.dart';
 
 class _OfficeSession {
+  _OfficeSession(this.preferences)
+    : passwordRecoverySession = preferences?.getString(_recoveryKey);
+
+  static const _recoveryKey = 'attendance.pending_password_recovery';
+  final SharedPreferences? preferences;
   String? officeId;
   int generation = 0;
   bool switching = false;
   bool recoveryRequired = false;
-  bool passwordRecovery = false;
+  String? passwordRecoverySession;
+  Session? recoveryWithoutId;
+
+  // This is a UI gate only. Membership and API authorization are unchanged.
+  bool needsRecovery(Session? session) {
+    if (session == null) return false;
+    final id = _sessionId(session);
+    return id != null
+        ? id == passwordRecoverySession
+        : identical(session, recoveryWithoutId);
+  }
+
+  Future<void> setRecovery(Session? session) async {
+    final id = session == null ? null : _sessionId(session);
+    passwordRecoverySession = id;
+    recoveryWithoutId = id == null ? session : null;
+    final prefs = preferences;
+    if (prefs == null) return;
+    if (id == null) {
+      await prefs.remove(_recoveryKey);
+    } else {
+      await prefs.setString(_recoveryKey, id);
+    }
+  }
+
+  static String? _sessionId(Session session) {
+    try {
+      final id = decodeJwt(session.accessToken).payload.claims['session_id'];
+      return id is String ? id : null;
+    } on AuthException {
+      return null;
+    }
+  }
 }
 
 class SupabaseCompanyBackend extends CompanyBackend {
-  SupabaseCompanyBackend(this.client)
-    : _session = _OfficeSession(),
+  SupabaseCompanyBackend(this.client, {SharedPreferences? preferences})
+    : _session = _OfficeSession(preferences),
       _userId = null,
       _officeId = null,
       _generation = null,
@@ -51,6 +89,8 @@ class SupabaseCompanyBackend extends CompanyBackend {
 
   @override
   bool get supportsOffices => true;
+  @override
+  bool get supportsOfficeInviteCodes => true;
   @override
   CompanyBackend forAccount(Employee employee) =>
       SupabaseCompanyBackend._scoped(
@@ -110,16 +150,20 @@ class SupabaseCompanyBackend extends CompanyBackend {
       tz.TZDateTime.now(tz.getLocation(_policy.timezone));
   @override
   bool get needsPasswordSetup =>
-      _session.passwordRecovery ||
+      _session.needsRecovery(client.auth.currentSession) ||
       (client.auth.currentUser != null &&
           client.auth.currentUser!.userMetadata?['password_set'] != true);
   @override
-  Stream<void> get authChanges => client.auth.onAuthStateChange.map((event) {
-    if (event.event == AuthChangeEvent.passwordRecovery) {
-      _session.passwordRecovery = true;
+  Stream<void> get authChanges => client.auth.onAuthStateChange.asyncMap((
+    event,
+  ) async {
+    if (event.event == AuthChangeEvent.passwordRecovery &&
+        event.session?.accessToken == client.auth.currentSession?.accessToken) {
+      await _session.setRecovery(event.session);
     }
-    if (event.event == AuthChangeEvent.signedOut) {
-      _session.passwordRecovery = false;
+    if (event.event == AuthChangeEvent.signedOut &&
+        client.auth.currentSession == null) {
+      await _session.setRecovery(null);
     }
   });
 
@@ -167,6 +211,10 @@ class SupabaseCompanyBackend extends CompanyBackend {
           'office_required' => 'Update the app and select an office.',
           'duplicate_employee' =>
             'That employee number is already in use in this office.',
+          'office_code_account_required' =>
+            'Use email for this employee. They need a verified Attendance account to use an office code.',
+          'invalid_office_code' =>
+            'This office code is invalid, expired, or not for your account.',
           'last_admin' => 'The last active administrator must keep their role.',
           'owner_cannot_demote' =>
             'The office owner must remain an administrator.',
@@ -253,11 +301,31 @@ class SupabaseCompanyBackend extends CompanyBackend {
     }
   });
   @override
+  Future<Employee> signInWithOfficeCode(
+    String email,
+    String password,
+    String code,
+  ) => _guard(() async {
+    await client.auth.signInWithPassword(email: email, password: password);
+    try {
+      if (needsPasswordSetup) {
+        throw const CompanyException(
+          'Finish setting up your account before joining with an office code.',
+        );
+      }
+      final office = await redeemOfficeInviteCode(code);
+      return await switchOffice(office);
+    } catch (_) {
+      await client.auth.signOut();
+      rethrow;
+    }
+  });
+  @override
   Future<void> signOut() => _guard(() async {
     _session.generation++;
     _session.officeId = null;
     await client.auth.signOut();
-    _session.passwordRecovery = false;
+    await _session.setRecovery(null);
   });
   @override
   Future<Employee> updateProfile({
@@ -296,11 +364,48 @@ class SupabaseCompanyBackend extends CompanyBackend {
   Future<void> resetPassword(String email) => _guard(
     () => client.auth
         .resetPasswordForEmail(email, redirectTo: BackendConfig.authRedirect)
-        .timeout(const Duration(seconds: 20)),
+        .timeout(
+          const Duration(seconds: 20),
+          onTimeout: () => throw const CompanyException(
+            'Email delivery could not be confirmed. Check your inbox before trying again.',
+          ),
+        ),
   );
   @override
+  Future<void> verifyEmailCode(
+    String email,
+    String code,
+    CompanyEmailCode type,
+  ) => _guard(() async {
+    try {
+      final result = await client.auth
+          .verifyOTP(
+            email: email,
+            token: code,
+            type: type == CompanyEmailCode.invitation
+                ? OtpType.invite
+                : OtpType.recovery,
+          )
+          .timeout(const Duration(seconds: 20));
+      if (result.session == null) {
+        throw const CompanyException(
+          'No session was created. Request a new email.',
+        );
+      }
+    } on AuthException catch (error) {
+      if (error.code == 'otp_expired' || error.code == 'otp_disabled') {
+        throw const CompanyException(
+          'This code is invalid or no longer usable. Request a fresh email or use its link.',
+        );
+      }
+      rethrow;
+    }
+  });
+  @override
   Future<void> setPassword(String password) => _guard(() async {
-    await client.auth
+    final session = client.auth.currentSession;
+    if (session == null) throw const CompanyAccessException('Sign in again.');
+    final updated = await client.auth
         .updateUser(
           UserAttributes(password: password, data: {'password_set': true}),
         )
@@ -312,7 +417,17 @@ class SupabaseCompanyBackend extends CompanyBackend {
           ),
         );
     validateContext();
-    _session.passwordRecovery = false;
+    final current = client.auth.currentSession;
+    if (current == null ||
+        updated.user?.id != session.user.id ||
+        current.user.id != session.user.id ||
+        _OfficeSession._sessionId(current) !=
+            _OfficeSession._sessionId(session)) {
+      throw const CompanyAccessException(
+        'Your account changed. Sign in again.',
+      );
+    }
+    await _session.setRecovery(null);
   });
   @override
   Future<void> changeEmail(String email) => _guard(() async {
@@ -698,6 +813,32 @@ class SupabaseCompanyBackend extends CompanyBackend {
       'department': department,
     });
   });
+  @override
+  Future<String> createOfficeInviteCode({
+    required String email,
+    required String name,
+    required String employeeCode,
+    required String department,
+  }) => _guard(
+    () async =>
+        await _rpc(
+              'create_office_invite_code',
+              params: {
+                'p_organization': _office,
+                'p_email': email,
+                'p_name': name,
+                'p_employee_code': employeeCode,
+                'p_department': department,
+              },
+            )
+            as String,
+  );
+  @override
+  Future<String> redeemOfficeInviteCode(String code) => _guard(
+    () async =>
+        await _rpc('redeem_office_invite_code', params: {'p_code': code})
+            as String,
+  );
   @override
   Future<void> setEmployeeActive(String employeeId, bool active) =>
       _guard(() async {

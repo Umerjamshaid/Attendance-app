@@ -179,6 +179,10 @@ class OfficeProvider extends ChangeNotifier {
     final id = await _backend.acceptOfficeInvitation(invitationId);
     await auth.switchOffice(id);
   });
+  Future<bool> redeemInviteCode(String code) => _change(() async {
+    final id = await _backend.redeemOfficeInviteCode(code);
+    await auth.switchOffice(id);
+  });
   Future<void> _saveVisibility(Set<String> hidden, String accountKey) async {
     final key = _visibilityKey;
     if (key != null) {

@@ -16,6 +16,8 @@ class CompanyAccessException extends CompanyException {
   const CompanyAccessException(super.message);
 }
 
+enum CompanyEmailCode { invitation, recovery }
+
 class AttendancePolicy {
   const AttendancePolicy({
     this.mode = 'period',
@@ -32,6 +34,21 @@ class AttendancePolicy {
 /// Company integrations are injected; the private entrypoint keeps legacy services.
 abstract class CompanyBackend {
   bool get supportsOffices => false;
+  bool get supportsOfficeInviteCodes => false;
+
+  Future<String> createOfficeInviteCode({
+    required String email,
+    required String name,
+    required String employeeCode,
+    required String department,
+  }) async => throw const CompanyException('Office codes are unavailable.');
+  Future<String> redeemOfficeInviteCode(String code) async =>
+      throw const CompanyException('Office codes are unavailable.');
+  Future<Employee> signInWithOfficeCode(
+    String email,
+    String password,
+    String code,
+  ) async => throw const CompanyException('Office codes are unavailable.');
 
   /// Immutable request scope; legacy integrations retain their original behavior.
   CompanyBackend forOffice(Employee employee) => this;
@@ -71,6 +88,11 @@ abstract class CompanyBackend {
     List<String>? chips,
   });
   Future<void> resetPassword(String email);
+  Future<void> verifyEmailCode(
+    String email,
+    String code,
+    CompanyEmailCode type,
+  ) async => throw const CompanyException('Email code sign-in is unavailable.');
   Future<void> setPassword(String password);
   Future<void> changeEmail(String email);
   Future<List<Employee>> employees();

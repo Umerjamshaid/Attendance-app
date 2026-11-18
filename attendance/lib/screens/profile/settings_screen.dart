@@ -1,8 +1,8 @@
 import 'package:attendance/widgets/app_toast.dart';
+import '../../widgets/app_identity_footer.dart';
 import '../../widgets/profile_image.dart';
 
 import 'package:flutter/material.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 
@@ -29,7 +29,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  late final Future<PackageInfo> _package = PackageInfo.fromPlatform();
   late var _permissions = _readPermissions();
   late final AppLifecycleListener _lifecycle;
   bool _signingOut = false;
@@ -166,7 +165,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final auth = context.watch<AuthProvider>();
     final user = auth.currentUser;
     final mode = context.select((ThemeProvider provider) => provider.mode);
-    final colors = Theme.of(context).colorScheme;
     final avatar = context.select(
       (ProfileProvider provider) => provider.pfpPath,
     );
@@ -304,20 +302,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ],
         ),
-        FutureBuilder(
-          future: _package,
-          builder: (context, snapshot) {
-            final info = snapshot.data;
-            return Text(
-              info == null
-                  ? 'Attendance'
-                  : 'Attendance · Version ${info.version} (Build ${info.buildNumber})',
-              textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
-            );
-          },
+        const Padding(
+          padding: EdgeInsets.only(top: 28, bottom: 8),
+          child: AppIdentityFooter(),
         ),
       ],
     );

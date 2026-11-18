@@ -355,3 +355,10 @@ The source retains the verified 119 passing tests and clean analyzer result.
 Existing test signing, shared application ID and Gradle/AGP/Kotlin warnings
 remain. Physical-device and iOS testing are still outstanding. The APK is local,
 ignored and not uploaded as a GitHub release asset.
+
+## Attendance Identity Footer
+
+Settings and the Flutter splash share the installed version, Attendance mark,
+and "Crafted by Umer Jamshaid" credit with the bundled portrait. The version
+comes from package metadata. The existing native launch configuration and
+session routing are unchanged in this checkpoint.

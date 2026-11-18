@@ -23,6 +23,7 @@ class AuthProvider extends ChangeNotifier {
   AuthStatus _status = AuthStatus.initial;
   Employee? _currentUser;
   String? _error;
+  String? _authLinkError;
 
   AuthProvider({EmployeeService? employeeService, CompanyBackend? backend})
     : _employeeService = employeeService ?? EmployeeService(),
@@ -31,13 +32,22 @@ class AuthProvider extends ChangeNotifier {
     if (backend == null) {
       _checkLoginStatus();
     } else {
-      _authSubscription = backend.authChanges.listen((_) {
-        if (_backend == backend &&
-            !_changingOffice &&
-            _status != AuthStatus.authenticating) {
-          refreshSession();
-        }
-      });
+      _authSubscription = backend.authChanges.listen(
+        (_) {
+          if (_backend == backend &&
+              !_changingOffice &&
+              _status != AuthStatus.authenticating) {
+            if (needsPasswordSetup) notifyListeners();
+            unawaited(refreshSession());
+          }
+        },
+        onError: (Object error, StackTrace stack) {
+          if (_backend != backend || _currentUser != null) return;
+          _authLinkError =
+              'Could not open the sign-in link. Try the newest email on this phone or use its code.';
+          notifyListeners();
+        },
+      );
       refreshSession();
     }
   }
@@ -45,6 +55,7 @@ class AuthProvider extends ChangeNotifier {
   AuthStatus get status => _status;
   Employee? get currentUser => _currentUser;
   String? get error => _error;
+  String? get authLinkError => _authLinkError;
   bool get isAuthenticated => _status == AuthStatus.authenticated;
   bool get isDemoMode => _backend?.isPreview ?? _employeeService.isDemoMode;
   bool get isPublicBuild => _liveBackend != null;
@@ -141,6 +152,7 @@ class AuthProvider extends ChangeNotifier {
           ? AuthStatus.unauthenticated
           : AuthStatus.authenticated;
       _error = null;
+      if (user != null) _authLinkError = null;
     } catch (e) {
       if (_disposed || generation != _sessionGeneration) return;
       if (e is CompanyAccessException) _adopt(null);
@@ -162,6 +174,23 @@ class AuthProvider extends ChangeNotifier {
     _status = AuthStatus.authenticated;
     _error = null;
     notifyListeners();
+  }
+
+  Future<void> finishPasswordSetup(String password) async {
+    final source = _backend;
+    if (source == null || !needsPasswordSetup) {
+      throw const CompanyException(
+        'Open the newest password email and try again.',
+      );
+    }
+    await (_accountBackend ?? source).setPassword(password);
+    if (_disposed || _backend != source) return;
+
+    // A confirmed password save must not wait for another membership request.
+    // Accounts without an already verified employee still need that lookup.
+    if (_currentUser == null) _status = AuthStatus.initial;
+    notifyListeners();
+    unawaited(refreshSession());
   }
 
   Future<void> _checkLoginStatus() async {
@@ -201,18 +230,44 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> login(String employeeId, {String password = ''}) async {
+  Future<bool> login(String employeeId, {String password = ''}) =>
+      _login(employeeId, password);
+
+  Future<bool> loginWithOfficeCode(
+    String email,
+    String password,
+    String code,
+  ) => _login(email, password, officeCode: code);
+
+  Future<bool> _login(
+    String employeeId,
+    String password, {
+    String? officeCode,
+  }) async {
     if (_status == AuthStatus.authenticating) return false;
+    if (officeCode != null) ++_sessionGeneration;
     _status = AuthStatus.authenticating;
     _error = null;
+    _authLinkError = null;
     notifyListeners();
 
     try {
       if (_backend != null) {
-        _adopt(await _backend!.signIn(employeeId.trim(), password));
+        _adopt(
+          officeCode == null
+              ? await _backend!.signIn(employeeId.trim(), password)
+              : await _backend!.signInWithOfficeCode(
+                  employeeId.trim(),
+                  password,
+                  officeCode,
+                ),
+        );
         _status = AuthStatus.authenticated;
         notifyListeners();
         return true;
+      }
+      if (officeCode != null) {
+        throw const CompanyException('Office codes are unavailable.');
       }
       // Simulate API call
       await Future.delayed(const Duration(milliseconds: 900));
