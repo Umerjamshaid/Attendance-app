@@ -396,3 +396,17 @@ session routing are unchanged in this checkpoint.
 - Appearance has a light/dark preview that does not change the saved theme.
   Office-logo-derived color is confined to the avatar rim in the switcher and
   reuses the existing office-scoped image provider.
+
+## Combined APK Source
+
+- Use `codex/combined-attendance-test` for the APK that combines the native
+  splash, olive and gold theme, shared maker credit, and public sign-in with the
+  Portal Labs prototype features from `codex/profile-gauge-bloom`.
+- Profile includes the animated Score Gauge, Bloom banner color picker,
+  inline banner removal, tag selection and the role-based Admin chip. History
+  has the date subgroups; employee search and Reveal & Copy remain available.
+- The shareable APK uses an existing Tabler shield in the Admin chip. The
+  original Discord artwork stays in the local prototype checkout.
+- Use the public entrypoint and the project's publishable Auth configuration
+  when building an APK with company sign-in. A build without the two Supabase
+  defines intentionally offers demo only.

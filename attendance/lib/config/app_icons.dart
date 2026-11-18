@@ -44,8 +44,11 @@ abstract final class AppIcons {
   static const plus = TablerIcons.plus;
   static const refresh = TablerIcons.refresh;
   static const rosetteDiscountCheck = TablerIcons.rosetteDiscountCheck;
+  static const search = TablerIcons.search;
+  static const palette = TablerIcons.palette;
   static const settings = TablerIcons.settings;
   static const shield = TablerIcons.shield;
+  static const shieldCheck = TablerIcons.shieldCheck;
   static const shieldLock = TablerIcons.shieldLock;
   static const sun = TablerIcons.sun;
   static const trash = TablerIcons.trash;
@@ -53,5 +56,4 @@ abstract final class AppIcons {
   static const users = TablerIcons.users;
   static const userOff = TablerIcons.userOff;
   static const x = TablerIcons.x;
-  static const search = TablerIcons.search;
 }

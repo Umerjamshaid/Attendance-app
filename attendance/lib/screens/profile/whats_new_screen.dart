@@ -11,6 +11,10 @@ const _releaseNotes = {
       'Olive and gold accents, a softer dark theme, and a light and dark preview in Appearance.',
     ),
     (
+      'Profile and history',
+      'Animated attendance gauge, custom banner colors, profile tags, and grouped dates in History.',
+    ),
+    (
       'Office invitations',
       'Administrators can share an office code or send an email invitation.',
     ),

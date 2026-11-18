@@ -253,6 +253,7 @@ void main() {
     expect(find.text('mentor'), findsNothing);
     final headline = tester.getTopLeft(find.text('Team lead')).dy;
     expect(tester.getTopLeft(find.text('Admin')).dy, lessThan(headline));
+    expect(find.byIcon(AppIcons.shieldCheck), findsOneWidget);
     expect(
       tester.getTopLeft(find.text('Present today')).dy,
       lessThan(headline),
