@@ -23,6 +23,11 @@ leave `NEXT_PUBLIC_BASE_PATH` unset. A repository Pages URL such as
 2. Open **Settings > Pages** and choose **GitHub Actions** as the source.
 3. In **Actions**, manually run **Publish Attendance site** on the default branch.
 
+If **Configure Pages** fails with `Get Pages site failed` and a 404, check
+**Settings > Pages** and select **GitHub Actions** as the publishing source
+before rerunning. The workflow cannot create the Pages site; this step
+fails before the Next.js build begins.
+
 The workflow configures the Pages base path and uploads only `site/out/`.
 For another static host, set `site/` as the project directory,
 `npm run build` as the build command, and `out/` as the publish directory.
