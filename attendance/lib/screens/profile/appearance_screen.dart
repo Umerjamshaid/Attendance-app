@@ -45,10 +45,161 @@ class AppearanceScreen extends StatelessWidget {
               ),
           ],
         ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton.icon(
+            onPressed: () => showModalBottomSheet<void>(
+              context: context,
+              useSafeArea: true,
+              showDragHandle: true,
+              isScrollControlled: true,
+              builder: (_) => _PalettePreview(
+                startsDark: Theme.of(context).brightness == Brightness.dark,
+              ),
+            ),
+            icon: const Icon(AppIcons.eye, size: 20),
+            label: const Text('Preview theme'),
+          ),
+        ),
         if (provider.busy) const Center(child: LinearProgressIndicator()),
       ],
     );
   }
+}
+
+class _PalettePreview extends StatefulWidget {
+  const _PalettePreview({required this.startsDark});
+
+  final bool startsDark;
+
+  @override
+  State<_PalettePreview> createState() => _PalettePreviewState();
+}
+
+class _PalettePreviewState extends State<_PalettePreview> {
+  late bool _dark = widget.startsDark;
+
+  @override
+  Widget build(BuildContext context) {
+    final preview = _dark ? AppTheme.darkTheme : AppTheme.theme;
+    final colors = preview.colorScheme;
+    return SafeArea(
+      top: false,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Theme preview',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 16),
+            SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(
+                  value: false,
+                  icon: Icon(AppIcons.sun),
+                  label: Text('Light'),
+                ),
+                ButtonSegment(
+                  value: true,
+                  icon: Icon(AppIcons.moon),
+                  label: Text('Dark'),
+                ),
+              ],
+              selected: {_dark},
+              onSelectionChanged: (value) =>
+                  setState(() => _dark = value.single),
+            ),
+            const SizedBox(height: 16),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: colors.surface,
+                border: Border.all(color: colors.outlineVariant),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Attendance',
+                      style: preview.textTheme.titleMedium?.copyWith(
+                        color: colors.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _PreviewLabel(
+                          'Check in',
+                          AppIcons.fingerprint,
+                          colors.primary,
+                          colors.onPrimary,
+                        ),
+                        Theme(
+                          data: preview,
+                          child: Builder(
+                            builder: (context) => _PreviewLabel(
+                              'Present',
+                              AppIcons.circleCheck,
+                              colors.surfaceContainerHighest,
+                              context.attendancePresent,
+                            ),
+                          ),
+                        ),
+                        _PreviewLabel(
+                          'Day streak',
+                          AppIcons.flame,
+                          colors.tertiaryContainer,
+                          colors.onTertiaryContainer,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PreviewLabel extends StatelessWidget {
+  const _PreviewLabel(this.label, this.icon, this.background, this.foreground);
+
+  final String label;
+  final IconData icon;
+  final Color background;
+  final Color foreground;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: background,
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: foreground),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(label, style: TextStyle(color: foreground)),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _ThemeOption extends StatelessWidget {

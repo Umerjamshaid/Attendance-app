@@ -82,6 +82,21 @@ void main() {
     expect(appearance, findsOneWidget);
     expect(Theme.of(tester.element(appearance)).brightness, Brightness.light);
 
+    final preview = find.text('Preview theme');
+    await _scrollTo(tester, preview);
+    await tester.tap(preview.hitTestable());
+    await tester.pumpAndSettle();
+    final sheet = find.byType(BottomSheet);
+    final checkIn = find.descendant(of: sheet, matching: find.text('Check in'));
+    expect(tester.widget<Text>(checkIn).style!.color, Colors.white);
+    final previewDark = find.descendant(of: sheet, matching: find.text('Dark'));
+    await tester.tap(previewDark);
+    await tester.pumpAndSettle();
+    expect(tester.widget<Text>(checkIn).style!.color, const Color(0xFF252B17));
+    expect(Theme.of(tester.element(appearance)).brightness, Brightness.light);
+    Navigator.of(tester.element(sheet)).pop();
+    await tester.pumpAndSettle();
+    await _scrollTo(tester, find.text('Dark'));
     await tester.tap(find.text('Dark'));
     await tester.pumpAndSettle();
     expect(Theme.of(tester.element(appearance)).brightness, Brightness.dark);
@@ -107,6 +122,10 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Umer Jamshaid'), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.text('Umer Jamshaid')).style!.fontFamily,
+      'Nanum Pen Script',
+    );
     final whatsNew = find.text("What's new");
     await _scrollTo(tester, whatsNew);
     await tester.tap(whatsNew.hitTestable());

@@ -127,8 +127,10 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        for (final label in ['Attendance', 'Version 1.1.0 (Build 6)']) {
-          final finder = find.text(label);
+        for (final finder in [
+          find.textContaining('Version 1.1.0 (Build 6)'),
+          find.text('Umer Jamshaid'),
+        ]) {
           await tester.ensureVisible(finder);
           await tester.pumpAndSettle();
           final color = tester.widget<Text>(finder).style!.color!;
@@ -142,6 +144,14 @@ void main() {
             greaterThanOrEqualTo(4.5),
           );
         }
+        expect(
+          find.byKey(const ValueKey('developer-credit-photo')),
+          findsOneWidget,
+        );
+        expect(
+          tester.widget<Text>(find.text('Umer Jamshaid')).style!.fontFamily,
+          'Nanum Pen Script',
+        );
         expect(tester.takeException(), isNull);
       },
     );

@@ -16,8 +16,8 @@ import 'package:attendance/widgets/user-profile/profile_menu_item.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
 import '../../widgets/check_in_summary.dart';
+import '../../widgets/app_identity_footer.dart';
 import 'package:flutter/services.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 
@@ -35,9 +35,6 @@ class _ProfileScreenState extends State<ProfileScreen>
   static const int _sectionCount = 5;
 
   bool _notificationsEnabled = true;
-
-  // App version and build number, loaded from the platform.
-  PackageInfo? _packageInfo;
 
   // Scroll-driven app bar state. Only the title and divider rebuild.
   final ScrollController _scroll = ScrollController();
@@ -58,16 +55,6 @@ class _ProfileScreenState extends State<ProfileScreen>
   });
   bool _entranceStarted = false;
 
-  Future<void> _loadAppInfo() async {
-    final packageInfo = await PackageInfo.fromPlatform();
-
-    if (!mounted) return;
-
-    setState(() {
-      _packageInfo = packageInfo;
-    });
-  }
-
   void _onScroll() {
     if (!_scroll.hasClients) return;
     final offset = _scroll.offset;
@@ -79,7 +66,6 @@ class _ProfileScreenState extends State<ProfileScreen>
   void initState() {
     super.initState();
     _scroll.addListener(_onScroll);
-    _loadAppInfo();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final auth = context.read<AuthProvider>();
@@ -264,7 +250,18 @@ class _ProfileScreenState extends State<ProfileScreen>
                   children: [
                     for (var i = 0; i < sections.length; i++)
                       _Reveal(animation: _reveals[i], child: sections[i]),
-                    _buildFooter(context),
+                    const SafeArea(
+                      top: false,
+                      child: Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          ProfileUi.gutter,
+                          28,
+                          ProfileUi.gutter,
+                          24,
+                        ),
+                        child: AppIdentityFooter(),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -328,43 +325,6 @@ class _ProfileScreenState extends State<ProfileScreen>
               color: context.colors.outlineVariant,
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFooter(BuildContext context) {
-    final muted = context.colors.onSurfaceVariant;
-
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          ProfileUi.gutter,
-          16,
-          ProfileUi.gutter,
-          24,
-        ),
-        child: Column(
-          children: [
-            Text(
-              AppInfo.name,
-              style: ProfileUi.caption(
-                context,
-                color: muted,
-                weight: FontWeight.w600,
-              ),
-            ),
-            // Hidden until the platform reports a version.
-            if (_packageInfo case final info?) ...[
-              const SizedBox(height: 2),
-              Text(
-                AppInfo.versionLabel(info),
-                textAlign: TextAlign.center,
-                style: ProfileUi.caption(context, color: muted),
-              ),
-            ],
-          ],
         ),
       ),
     );

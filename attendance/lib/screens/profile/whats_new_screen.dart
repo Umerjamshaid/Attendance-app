@@ -7,6 +7,10 @@ import 'settings_layout.dart';
 const _releaseNotes = {
   '1.1.0': [
     (
+      'Appearance',
+      'Olive and gold accents, a softer dark theme, and a light and dark preview in Appearance.',
+    ),
+    (
       'Office invitations',
       'Administrators can share an office code or send an email invitation.',
     ),

@@ -18,7 +18,7 @@ class AttendanceMark extends StatelessWidget {
   );
 }
 
-/// The installed build and maker credit shown in Settings.
+/// The installed build and maker credit shared by Profile and Settings.
 class AppIdentityFooter extends StatefulWidget {
   const AppIdentityFooter({super.key});
 
@@ -32,10 +32,11 @@ class _AppIdentityFooterState extends State<AppIdentityFooter> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final creditStyle = AppTypography.caption.copyWith(
+    final creditStyle = TextStyle(
       color: colors.onSurfaceVariant,
-      fontFamily: 'DM Sans',
-      fontSize: 13,
+      fontFamily: 'Nanum Pen Script',
+      fontSize: 22,
+      height: 1.1,
     );
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -53,6 +54,7 @@ class _AppIdentityFooterState extends State<AppIdentityFooter> {
               textAlign: TextAlign.center,
               style: AppTypography.caption.copyWith(
                 color: colors.onSurfaceVariant,
+                fontFamily: 'monospace',
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             );
@@ -83,15 +85,7 @@ class _AppIdentityFooterState extends State<AppIdentityFooter> {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(
-                      'Umer Jamshaid',
-                      style: creditStyle.copyWith(
-                        color: colors.onSurface,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
+                  Flexible(child: Text('Umer Jamshaid', style: creditStyle)),
                 ],
               ),
             ],

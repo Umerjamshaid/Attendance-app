@@ -6,8 +6,8 @@ import 'buzz_color_scheme.dart';
 import 'ui_tokens.dart';
 
 class AppTheme {
-  static const Color primaryPetrol = Color(0xFF167D8D);
-  static const Color darkPetrol = Color(0xFF242629);
+  static const Color primaryPetrol = Color(0xFF4B571F);
+  static const Color darkPetrol = Color(0xFF292D29);
   // Keep the existing color names compatible for downstream callers.
   static const Color primaryNavy = primaryPetrol;
   static const Color darkNavy = darkPetrol;
@@ -24,7 +24,7 @@ class AppTheme {
   static ThemeData _build(Brightness brightness) {
     final dark = brightness == Brightness.dark;
     final colors = dark ? buzzDarkScheme : buzzLightScheme;
-    final background = dark ? colors.surface : const Color(0xFFF7F9FA);
+    final background = colors.surface;
     final control = dark
         ? colors.surfaceContainerHigh
         : colors.primaryContainer;
@@ -171,8 +171,8 @@ class AppTheme {
         ),
       ),
       bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: colors.surface,
-        modalBackgroundColor: colors.surface,
+        backgroundColor: colors.surfaceContainerHighest,
+        modalBackgroundColor: colors.surfaceContainerHighest,
         elevation: 0,
         dragHandleSize: const Size(36, 4),
         shape: const RoundedRectangleBorder(
@@ -209,7 +209,7 @@ extension AttendanceThemeContext on BuildContext {
       _dark ? const Color(0xFF3DD68C) : const Color(0xFF1C7A50);
   Color get attendanceAbsent => colors.error;
   Color get attendanceWarning =>
-      _dark ? const Color(0xFFFFCA16) : const Color(0xFF925300);
+      _dark ? const Color(0xFFF2D779) : const Color(0xFF805B0E);
 }
 
 // ─────────────────────────── THEME ───────────────────────────

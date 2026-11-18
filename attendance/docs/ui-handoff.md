@@ -385,3 +385,14 @@ session routing are unchanged in this checkpoint.
 - Phone check: cold-launch from the app icon on Android 12+ and iOS, in system
   light and dark. Check the status bar, the first login/home/recovery route, and
   the failure screen. An iOS simulator or device is needed for native iOS QA.
+
+## Olive and Gold
+
+- The shared light and dark themes now use olive and soft gold accents. Present
+  and absent keep their green and red meanings. Native splash colors match the
+  new light and dark scaffold colors; regenerate with the same splash command.
+- Settings and Profile share the installed version, portrait, and handwritten
+  maker credit. Nanum Pen Script is bundled under its original OFL license.
+- Appearance has a light/dark preview that does not change the saved theme.
+  Office-logo-derived color is confined to the avatar rim in the switcher and
+  reuses the existing office-scoped image provider.

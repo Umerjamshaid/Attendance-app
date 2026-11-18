@@ -58,6 +58,7 @@ void runAttendanceApp({CompanyBackend? backend, VoidCallback? onReady}) {
         'Buzz design and animation adaptations':
             'assets/licenses/Buzz-Apache-2.0.txt',
         'Inter': 'assets/licenses/Inter-OFL.txt',
+        'Nanum Pen Script': 'assets/fonts/OFL-NanumPenScript.txt',
       }.entries) {
         yield LicenseEntryWithLineBreaks([
           entry.key,

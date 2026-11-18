@@ -43,4 +43,7 @@ Future<void> loadTestFonts() async {
   await (FontLoader(
     'Inter',
   )..addFont(rootBundle.load('assets/fonts/OfficeInter.ttf'))).load();
+  await (FontLoader('Nanum Pen Script')
+        ..addFont(rootBundle.load('assets/fonts/NanumPenScript-Regular.ttf')))
+      .load();
 }

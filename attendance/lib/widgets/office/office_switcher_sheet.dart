@@ -510,6 +510,7 @@ class _OfficeSwitcherSheetState extends State<OfficeSwitcherSheet>
                           child: OfficeAvatar(
                             office: office,
                             fontFamily: _officeFont,
+                            tintLogo: true,
                           ),
                         ),
                       ),
