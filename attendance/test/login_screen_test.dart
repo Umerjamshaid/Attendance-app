@@ -25,11 +25,23 @@ void main() {
       await tester.pumpWidget(_login(dark: dark));
       await tester.pumpAndSettle();
       final action = find.byType(FilledButton);
-      expect(tester.getBottomLeft(action).dy, greaterThan(700));
+      final field = find.byType(TextField);
+      expect(
+        tester.getTopLeft(action).dy - tester.getBottomLeft(field).dy,
+        lessThan(160),
+      );
       expect(
         tester.widget<TextField>(find.byType(TextField)).focusNode!.hasFocus,
         isTrue,
       );
+      final mark = find.byType(Image);
+      await tester.runAsync(
+        () => precacheImage(
+          tester.widget<Image>(mark).image,
+          tester.element(mark),
+        ),
+      );
+      await tester.pumpAndSettle();
       await expectLater(
         find.byKey(const ValueKey('login-preview')),
         matchesGoldenFile('goldens/login_${dark ? 'dark' : 'light'}.png'),

@@ -1,5 +1,6 @@
 import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/app.dart';
+import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/models/employees_model.dart';
 import 'package:attendance/providers/attendance_provider.dart';
 import 'package:attendance/providers/auth_provider.dart';
@@ -44,6 +45,27 @@ void main() {
     }
     provider.dispose();
   });
+
+  test(
+    'palettes persist independently of an existing brightness choice',
+    () async {
+      SharedPreferences.setMockInitialValues({'theme_mode': 'dark'});
+      final provider = ThemeProvider();
+      addTearDown(provider.dispose);
+      await provider.ready;
+      expect(provider.palette, AppPalette.olive);
+      expect(provider.mode, ThemeMode.dark);
+
+      for (final palette in AppPalette.values.reversed) {
+        await provider.selectPalette(palette);
+        final restored = ThemeProvider();
+        addTearDown(restored.dispose);
+        await restored.ready;
+        expect(restored.palette, palette);
+        expect(restored.mode, ThemeMode.dark);
+      }
+    },
+  );
 
   testWidgets('Settings and Appearance fit at 320dp with 2x text', (
     tester,
@@ -110,6 +132,32 @@ void main() {
     await tester.pumpAndSettle();
     expect(Theme.of(tester.element(appearance)).brightness, Brightness.dark);
 
+    final tide = find.text('Tide');
+    await _scrollTo(tester, tide);
+    await tester.tap(tide.hitTestable());
+    await tester.pumpAndSettle();
+    final tideDark = AppTheme.forPalette(AppPalette.tide, Brightness.dark);
+    expect(
+      Theme.of(tester.element(appearance)).colorScheme,
+      tideDark.colorScheme,
+    );
+    expect(
+      tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
+      ThemeMode.system,
+    );
+
+    await Scrollable.ensureVisible(tester.element(preview), alignment: .45);
+    await tester.pumpAndSettle();
+    await tester.tap(preview.hitTestable());
+    await tester.pumpAndSettle();
+    expect(find.text('Tide preview'), findsOneWidget);
+    expect(
+      tester.widget<Text>(checkIn).style!.color,
+      tideDark.colorScheme.onPrimary,
+    );
+    Navigator.of(tester.element(sheet)).pop();
+    await tester.pumpAndSettle();
+
     await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
     expect(find.byType(SettingsScreen), findsOneWidget);
@@ -132,6 +180,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Version 1.1.0 (Build 6)'), findsOneWidget);
     expect(find.text('Office invitations'), findsOneWidget);
+    expect(find.text('New app icon'), findsOneWidget);
+    expect(find.text('Color palettes'), findsOneWidget);
+    expect(find.text('Startup recovery'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

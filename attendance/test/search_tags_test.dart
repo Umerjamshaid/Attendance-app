@@ -2,12 +2,17 @@ import 'dart:async';
 
 import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/models/employees_model.dart';
+import 'package:attendance/models/office_model.dart';
 import 'package:attendance/providers/auth_provider.dart';
+import 'package:attendance/providers/office_provider.dart';
 import 'package:attendance/screens/admin/employee_management_screen.dart';
+import 'package:attendance/screens/office/manage_offices_screen.dart';
+import 'package:attendance/screens/office/office_roles_screen.dart';
 import 'package:attendance/screens/profile/profile_details_screen.dart';
 import 'package:attendance/services/company_backend.dart';
 import 'package:attendance/services/preview_company_backend.dart';
 import 'package:attendance/widgets/admin/employee_discovery_bar.dart';
+import 'package:attendance/widgets/office/office_role_sheet.dart';
 import 'package:attendance/widgets/user-profile/profile_tag_selection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -37,6 +42,7 @@ final _sam = Employee(
 
 class _Backend extends PreviewCompanyBackend {
   List<Employee> roster = [_alice, _sam];
+  Office? office;
   int reads = 0;
   final writes = <(String, bool)>[];
   bool failRead = false;
@@ -45,7 +51,11 @@ class _Backend extends PreviewCompanyBackend {
   @override
   CompanyBackend forOffice(Employee employee) => this;
   @override
-  Future<Employee?> restoreSession() async => _alice;
+  Future<Employee?> restoreSession() async => office == null
+      ? _alice
+      : _alice.copyWith(authUserId: 'current-user', organizationId: office!.id);
+  @override
+  Future<List<Office>> offices() async => [?office];
   @override
   Future<List<Employee>> employees() async {
     reads++;
@@ -95,6 +105,7 @@ void main() {
     WidgetTester tester,
     Widget child, {
     AuthProvider? auth,
+    OfficeProvider? offices,
     bool dark = false,
     double width = 390,
     double scale = 1,
@@ -105,6 +116,7 @@ void main() {
     tester.view.physicalSize = Size(width, 844);
     addTearDown(tester.view.reset);
     if (auth != null) addTearDown(auth.dispose);
+    if (offices != null) addTearDown(offices.dispose);
     final app = MaterialApp(
       theme: dark ? AppTheme.darkTheme : AppTheme.theme,
       builder: (context, child) => MediaQuery(
@@ -119,14 +131,40 @@ void main() {
     await tester.pumpWidget(
       auth == null
           ? app
-          : ChangeNotifierProvider<AuthProvider>.value(value: auth, child: app),
+          : MultiProvider(
+              providers: [
+                ChangeNotifierProvider<AuthProvider>.value(value: auth),
+                if (offices != null)
+                  ChangeNotifierProvider<OfficeProvider>.value(value: offices),
+              ],
+              child: app,
+            ),
     );
     await tester.pumpAndSettle();
   }
 
   Future<void> openSearch(WidgetTester tester) async {
-    await tester.tap(find.byTooltip('Search employees'));
+    await tester.tap(find.byKey(_searchInput));
     await tester.pumpAndSettle();
+  }
+
+  Future<(AuthProvider, OfficeProvider)> officeSession(
+    _Backend backend, {
+    required bool owner,
+  }) async {
+    backend.office = Office(
+      id: 'office-a',
+      name: 'Studio',
+      role: 'admin',
+      createdBy: owner ? 'current-user' : 'another-user',
+    );
+    backend.roster = [
+      _alice.copyWith(authUserId: 'current-user'),
+      _sam.copyWith(authUserId: 'another-employee'),
+    ];
+    final auth = AuthProvider(backend: backend);
+    await auth.refreshSession();
+    return (auth, OfficeProvider(auth));
   }
 
   testWidgets('live employee search matches all fields without new requests', (
@@ -138,7 +176,7 @@ void main() {
       const EmployeeManagementScreen(),
       auth: AuthProvider(backend: backend),
     );
-    expect(find.byKey(_searchInput), findsNothing);
+    expect(find.byKey(_searchInput), findsOneWidget);
     expect(tester.testTextInput.isVisible, isFalse);
     expect(find.byType(ListTile), findsNWidgets(2));
     await openSearch(tester);
@@ -169,47 +207,109 @@ void main() {
     expect(backend.writes, isEmpty);
   });
 
-  testWidgets('status filters, closing search and employee confirmation work', (
-    tester,
-  ) async {
-    final backend = _Backend();
-    await mount(
+  testWidgets(
+    'status filters, clearing search and employee confirmation work',
+    (tester) async {
+      final backend = _Backend();
+      await mount(
+        tester,
+        const EmployeeManagementScreen(),
+        auth: AuthProvider(backend: backend),
+      );
+      await tester.tap(find.text('Inactive'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ListTile), findsOneWidget);
+      expect(find.text('Sam Lee'), findsOneWidget);
+      await openSearch(tester);
+      await tester.enterText(find.byKey(_searchInput), 'alice');
+      await tester.pump();
+      expect(find.text('No employees found'), findsOneWidget);
+      await tester.tap(find.byTooltip('Clear search'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(_searchInput), findsOneWidget);
+      expect(find.byTooltip('Clear search'), findsNothing);
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pumpAndSettle();
+      expect(tester.testTextInput.isVisible, isFalse);
+      expect(find.text('Sam Lee'), findsOneWidget);
+      await tester.tap(find.byType(Switch));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(backend.writes, isEmpty);
+      await tester.tap(find.byType(Switch));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Confirm'));
+      await tester.pumpAndSettle();
+      expect(backend.writes, [('EMP002', true)]);
+      expect(find.text('No employees found'), findsOneWidget);
+      await tester.tap(find.text('Active'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ListTile), findsNWidgets(2));
+      expect(backend.reads, 2);
+      await tester.tap(find.text('Invite employee'));
+      await tester.pumpAndSettle();
+      expect(find.byType(InviteEmployeeScreen), findsOneWidget);
+    },
+  );
+
+  for (final owner in [true, false]) {
+    testWidgets('Manage Offices shows Roles beside Employees: owner=$owner', (
       tester,
-      const EmployeeManagementScreen(),
-      auth: AuthProvider(backend: backend),
+    ) async {
+      final (auth, offices) = await officeSession(_Backend(), owner: owner);
+      await mount(
+        tester,
+        const ManageOfficesScreen(),
+        auth: auth,
+        offices: offices,
+      );
+
+      expect(find.text('Employees'), findsOneWidget);
+      final roles = find.ancestor(
+        of: find.text('Roles'),
+        matching: find.byWidgetPredicate((widget) => widget is TextButton),
+      );
+      expect(
+        tester.widget<TextButton>(roles).onPressed,
+        owner ? isNotNull : isNull,
+      );
+      if (owner) {
+        await tester.tap(roles);
+        await tester.pumpAndSettle();
+        expect(find.byType(OfficeRolesScreen), findsOneWidget);
+      } else {
+        expect(
+          find.text('Only the office owner can change roles.'),
+          findsOneWidget,
+        );
+      }
+    });
+
+    testWidgets(
+      'Employees shows Roles only to the active office owner: $owner',
+      (tester) async {
+        final backend = _Backend();
+        final (auth, offices) = await officeSession(backend, owner: owner);
+        await mount(
+          tester,
+          const EmployeeManagementScreen(),
+          auth: auth,
+          offices: offices,
+        );
+        final shortcut = find.text('Roles');
+        expect(shortcut, owner ? findsOneWidget : findsNothing);
+        if (!owner) return;
+        await tester.tap(shortcut);
+        await tester.pumpAndSettle();
+        expect(find.byType(OfficeRolesScreen), findsOneWidget);
+        await tester.tap(find.text('Employee'));
+        await tester.pumpAndSettle();
+        expect(find.byType(OfficeRoleSheet), findsOneWidget);
+        expect(backend.writes, isEmpty);
+      },
     );
-    await tester.tap(find.text('Inactive'));
-    await tester.pumpAndSettle();
-    expect(find.byType(ListTile), findsOneWidget);
-    expect(find.text('Sam Lee'), findsOneWidget);
-    await openSearch(tester);
-    await tester.enterText(find.byKey(_searchInput), 'alice');
-    await tester.pump();
-    expect(find.text('No employees found'), findsOneWidget);
-    await tester.tap(find.byTooltip('Clear and close search'));
-    await tester.pumpAndSettle();
-    expect(find.byKey(_searchInput), findsNothing);
-    expect(tester.testTextInput.isVisible, isFalse);
-    expect(find.text('Sam Lee'), findsOneWidget);
-    await tester.tap(find.byType(Switch));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Cancel'));
-    await tester.pumpAndSettle();
-    expect(backend.writes, isEmpty);
-    await tester.tap(find.byType(Switch));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Confirm'));
-    await tester.pumpAndSettle();
-    expect(backend.writes, [('EMP002', true)]);
-    expect(find.text('No employees found'), findsOneWidget);
-    await tester.tap(find.text('Active'));
-    await tester.pumpAndSettle();
-    expect(find.byType(ListTile), findsNWidgets(2));
-    expect(backend.reads, 2);
-    await tester.tap(find.text('Invite employee'));
-    await tester.pumpAndSettle();
-    expect(find.byType(InviteEmployeeScreen), findsOneWidget);
-  });
+  }
 
   testWidgets('employee loading failure still retries the existing fetch', (
     tester,
@@ -342,10 +442,12 @@ void main() {
     testWidgets('integrated screen preview ${dark ? "dark" : "light"}', (
       tester,
     ) async {
+      final (auth, offices) = await officeSession(_Backend(), owner: true);
       await mount(
         tester,
         const EmployeeManagementScreen(),
-        auth: AuthProvider(backend: _Backend()),
+        auth: auth,
+        offices: offices,
         dark: dark,
       );
       await expectLater(
@@ -437,9 +539,12 @@ void main() {
         expect(tester.takeException(), isNull);
         await tester.pumpAndSettle();
         expect(_tag('Mentor', selected: true), findsOneWidget);
-        await tester.tap(find.byTooltip('Search employees'));
+        final search = find.byKey(_searchInput);
+        final bounds = tester.getRect(search);
+        await tester.tap(search);
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 80));
+        expect(tester.getRect(search), bounds);
         expect(tester.takeException(), isNull);
         await tester.pumpAndSettle();
       },
@@ -466,11 +571,10 @@ void main() {
               .hasFocus,
           isTrue,
         );
-        for (final animated in tester.widgetList<AnimatedPositionedDirectional>(
-          find.byType(AnimatedPositionedDirectional),
-        )) {
-          expect(animated.duration, Duration.zero);
-        }
+        expect(
+          find.widgetWithText(ChoiceChip, 'Inactive').hitTestable(),
+          findsOneWidget,
+        );
         expect(tester.takeException(), isNull);
         await mount(
           tester,

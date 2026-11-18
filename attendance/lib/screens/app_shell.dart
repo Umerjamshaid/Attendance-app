@@ -148,11 +148,7 @@ class AppShellState extends State<AppShell> {
     final isAdmin = user.role == 'admin';
 
     final pages = [
-      _tab(
-        'home-page',
-        0,
-        AttendanceScreen(employee: user, isActive: _currentIndex == 0),
-      ),
+      _tab('home-page', 0, AttendanceScreen(employee: user)),
       _tab('history-page', 1, const HistoryScreen()),
       if (isAdmin) _tab('admin-page', 2, const AdminDashboardScreen()),
       _tab('profile-page', isAdmin ? 3 : 2, const ProfileScreen()),

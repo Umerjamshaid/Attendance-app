@@ -63,10 +63,7 @@ class _OfficeRoleSheetState extends State<OfficeRoleSheet> {
                 Expanded(
                   child: Semantics(
                     header: true,
-                    child: Text(
-                      'Office role',
-                      style: theme.textTheme.titleMedium,
-                    ),
+                    child: Text('Office role', style: AppTypography.title),
                   ),
                 ),
                 IconButton(
@@ -76,16 +73,44 @@ class _OfficeRoleSheetState extends State<OfficeRoleSheet> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Text(widget.employee.name, style: theme.textTheme.titleSmall),
-            const SizedBox(height: 4),
-            Text(
-              widget.employee.id,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                const _RoleEmblem(icon: AppIcons.idBadge2),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.employee.name,
+                        style: theme.textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.employee.id,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Padding(
+              padding: const EdgeInsets.only(left: 12, bottom: 8),
+              child: Semantics(
+                header: true,
+                child: Text(
+                  'Role',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 20),
             RadioGroup<String>(
               groupValue: _role,
               onChanged: (role) {
@@ -98,27 +123,9 @@ class _OfficeRoleSheetState extends State<OfficeRoleSheet> {
               },
               child: Column(
                 children: [
-                  for (final role in ['employee', 'admin'])
-                    RadioListTile<String>(
-                      value: role,
-                      enabled: !_saving,
-                      selected: _role == role,
-                      selectedTileColor: theme.colorScheme.primaryContainer,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      controlAffinity: ListTileControlAffinity.trailing,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                      ),
-                      secondary: Icon(
-                        role == 'admin' ? AppIcons.shield : AppIcons.user,
-                        size: AppLayout.compactIconSize,
-                      ),
-                      title: Text(
-                        role == 'admin' ? 'Administrator' : 'Employee',
-                      ),
-                    ),
+                  _roleOption(context, 'employee'),
+                  const SizedBox(height: 2),
+                  _roleOption(context, 'admin'),
                 ],
               ),
             ),
@@ -136,6 +143,7 @@ class _OfficeRoleSheetState extends State<OfficeRoleSheet> {
             ],
             const SizedBox(height: 24),
             FilledButton(
+              style: _roleActionStyle,
               onPressed: _saving || _role == widget.employee.role
                   ? null
                   : _save,
@@ -144,7 +152,7 @@ class _OfficeRoleSheetState extends State<OfficeRoleSheet> {
                       dimension: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: theme.colorScheme.onPrimary,
+                        color: theme.colorScheme.onSurfaceVariant,
                         semanticsLabel: 'Saving role',
                       ),
                     )
@@ -152,6 +160,127 @@ class _OfficeRoleSheetState extends State<OfficeRoleSheet> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _roleOption(BuildContext context, String role) {
+    final colors = Theme.of(context).colorScheme;
+    final isAdmin = role == 'admin';
+    final selected = _role == role;
+    final foreground = selected ? colors.onPrimaryContainer : colors.onSurface;
+    const outer = Radius.circular(AppLayout.groupRadius);
+    const inner = Radius.circular(4);
+    return Material(
+      color: selected ? colors.primaryContainer : colors.surfaceContainer,
+      borderRadius: isAdmin
+          ? const BorderRadius.vertical(top: inner, bottom: outer)
+          : const BorderRadius.vertical(top: outer, bottom: inner),
+      clipBehavior: Clip.antiAlias,
+      animationDuration: AppMotion.duration(context, AppMotion.fast),
+      child: RadioListTile<String>(
+        value: role,
+        enabled: !_saving,
+        controlAffinity: ListTileControlAffinity.trailing,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        secondary: Icon(
+          isAdmin ? AppIcons.shield : AppIcons.user,
+          color: foreground,
+          size: AppLayout.compactIconSize,
+        ),
+        title: Text(
+          isAdmin ? 'Administrator' : 'Employee',
+          style: TextStyle(color: foreground),
+        ),
+        subtitle: widget.employee.role == role
+            ? const Text('Current role')
+            : null,
+      ),
+    );
+  }
+}
+
+final _roleActionStyle = FilledButton.styleFrom(
+  minimumSize: const Size(0, AppLayout.controlHeight),
+  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+  shape: const StadiumBorder(),
+);
+
+class OfficeRoleConfirmation extends StatelessWidget {
+  const OfficeRoleConfirmation({
+    super.key,
+    required this.employeeName,
+    required this.isAdmin,
+  });
+
+  final String employeeName;
+  final bool isAdmin;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Material(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(AppLayout.sheetRadius),
+        clipBehavior: Clip.antiAlias,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: _RoleEmblem(
+                  icon: isAdmin ? AppIcons.shield : AppIcons.user,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Semantics(
+                header: true,
+                child: Text(
+                  'Make $employeeName ${isAdmin ? 'an administrator' : 'an employee'}?',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.title,
+                ),
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                style: _roleActionStyle,
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Confirm'),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton(
+                style: _roleActionStyle,
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RoleEmblem extends StatelessWidget {
+  const _RoleEmblem({required this.icon});
+
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return CircleAvatar(
+      radius: 24,
+      backgroundColor: colors.secondaryContainer,
+      foregroundColor: colors.onSecondaryContainer,
+      child: Icon(
+        icon,
+        size: AppLayout.iconSize,
+        color: colors.onSecondaryContainer,
       ),
     );
   }

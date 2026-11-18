@@ -410,3 +410,30 @@ session routing are unchanged in this checkpoint.
 - Use the public entrypoint and the project's publishable Auth configuration
   when building an APK with company sign-in. A build without the two Supabase
   defines intentionally offers demo only.
+
+## App Mark and Startup Alerts
+
+- The punched timecard symbol is under `assets/logos/attendance-symbol.png`.
+  The emerald launcher tile is set in Android's `ic_launcher_background.xml`
+  and shared by the export script.
+  On Windows, `./tool/export_app_icon.ps1` regenerates the Android and iOS
+  launcher icons and the two native splash inputs. Then run
+  `dart run flutter_native_splash:create` to regenerate native splash resources.
+- Startup failures still render a restart screen and release the splash before
+  reporting. A build can opt in with
+  `--dart-define=ATTENDANCE_STARTUP_REPORT_URL=https://your-receiver.example/startup`.
+  The receiver gets one best-effort JSON POST per failed launch: event,
+  category, platform, and installed version/build when available.
+- Use an HTTPS receiver you control. Validate the expected fields and rate-limit
+  it. Any Telegram or Slack credential must stay on the receiver, not in the
+  Flutter build. No stack traces, account identifiers, credentials, or
+  attendance data are sent. Without the define, reporting stays local.
+
+## Color Palettes
+
+- Settings > Theme lets users choose Olive & Gold, Tide, Iris, or Graphite
+  separately from System, Light, or Dark. Older installs keep their saved
+  brightness and default to Olive & Gold. The preview sheet uses the selected
+  palette and does not save its light/dark preview toggle.
+- Native splash still uses the original system-light/system-dark backgrounds.
+  Flutter applies any alternate palette when the first screen opens.

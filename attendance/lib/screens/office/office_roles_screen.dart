@@ -23,22 +23,18 @@ class _OfficeRolesScreenState extends State<OfficeRolesScreen> {
     if (_busy || employee.authUserId == null || employee.role == role) {
       return false;
     }
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showModalBottomSheet<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Make ${employee.name} ${role == 'admin' ? 'an administrator' : 'an employee'}?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Confirm'),
-          ),
-        ],
+      backgroundColor: Colors.transparent,
+      constraints: const BoxConstraints(maxWidth: 480),
+      isScrollControlled: true,
+      useSafeArea: true,
+      sheetAnimationStyle: MediaQuery.disableAnimationsOf(context)
+          ? AnimationStyle.noAnimation
+          : null,
+      builder: (_) => OfficeRoleConfirmation(
+        employeeName: employee.name,
+        isAdmin: role == 'admin',
       ),
     );
     if (confirmed != true || !mounted) return false;
@@ -68,9 +64,14 @@ class _OfficeRolesScreenState extends State<OfficeRolesScreen> {
     if (_busy || employee.authUserId == null) return;
     showModalBottomSheet<void>(
       context: context,
+      constraints: const BoxConstraints(maxWidth: 520),
+      backgroundColor: Theme.of(context).colorScheme.surface,
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
+      sheetAnimationStyle: MediaQuery.disableAnimationsOf(context)
+          ? AnimationStyle.noAnimation
+          : null,
       builder: (_) => OfficeRoleSheet(
         employee: employee,
         onSave: (role) => _change(employee, role),

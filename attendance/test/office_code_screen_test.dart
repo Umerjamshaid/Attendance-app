@@ -1,3 +1,4 @@
+import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/models/employees_model.dart';
 import 'package:attendance/providers/auth_provider.dart';
 import 'package:attendance/screens/admin/employee_management_screen.dart';
@@ -7,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+
+import 'support/test_fonts.dart';
 
 class _InviteBackend extends PreviewCompanyBackend {
   static const code = 'ABCD EFGH JKLM NPQR';
@@ -30,6 +33,60 @@ class _InviteBackend extends PreviewCompanyBackend {
 }
 
 void main() {
+  setUpAll(loadTestFonts);
+
+  for (final dark in [false, true]) {
+    testWidgets(
+      'invite form ${dark ? 'dark' : 'light'} and small keyboard layout',
+      (tester) async {
+        final backend = _InviteBackend();
+        final auth = AuthProvider(backend: backend);
+        addTearDown(auth.dispose);
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = const Size(390, 844);
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(
+          ChangeNotifierProvider.value(
+            value: auth,
+            child: MaterialApp(
+              debugShowCheckedModeBanner: false,
+              theme: dark ? AppTheme.darkTheme : AppTheme.theme,
+              home: const InviteEmployeeScreen(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await expectLater(
+          find.byType(Scaffold),
+          matchesGoldenFile(
+            'goldens/invite_employee_${dark ? 'dark' : 'light'}.png',
+          ),
+        );
+
+        tester.view.physicalSize = const Size(320, 650);
+        tester.view.viewInsets = const FakeViewPadding(bottom: 240);
+        tester.platformDispatcher.textScaleFactorTestValue = 2;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        final methods = find.byType(RadioListTile<bool>);
+        await tester.pumpAndSettle();
+        expect(methods, findsNWidgets(2));
+        await tester.ensureVisible(find.text('Office code'));
+        await tester.tap(find.text('Office code'));
+        await tester.pumpAndSettle();
+        final create = find.widgetWithText(FilledButton, 'Create office code');
+        await tester.ensureVisible(create);
+        await tester.pumpAndSettle();
+        await tester.tap(create);
+        await tester.pumpAndSettle();
+        final firstField = find.byType(TextFormField).first;
+        expect(firstField.hitTestable(), findsOneWidget);
+        expect(find.text('Required'), findsNWidgets(4));
+        expect(backend.recipients, isEmpty);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   testWidgets('admin can reveal and copy a code without sending email', (
     tester,
   ) async {
@@ -74,6 +131,8 @@ void main() {
     await tester.tap(create);
     await tester.pumpAndSettle();
     expect(backend.recipients, [('member@example.invalid', 'EMP9')]);
+    expect(find.text('Office code ready'), findsOneWidget);
+    expect(find.text('member@example.invalid'), findsOneWidget);
     expect(find.text(_InviteBackend.code), findsNothing);
     final action = find.byKey(const ValueKey('reveal_copy_action_button'));
     await tester.tap(action);

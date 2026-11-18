@@ -165,7 +165,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final user = auth.currentUser;
-    final mode = context.select((ThemeProvider provider) => provider.mode);
+    final (mode, palette) = context.select(
+      (ThemeProvider provider) => (provider.mode, provider.palette),
+    );
     final avatar = context.select(
       (ProfileProvider provider) => provider.pfpPath,
     );
@@ -242,7 +244,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           rows: [
             SettingsRow(
               'Theme',
-              detail: themeModeLabel(mode),
+              detail: '${themeModeLabel(mode)} · ${palette.label}',
               onTap: () => Navigator.of(context).push<void>(
                 MaterialPageRoute(builder: (_) => const AppearanceScreen()),
               ),

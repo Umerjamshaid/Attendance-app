@@ -60,6 +60,7 @@ dependencies:
   flutter_lucide_animated: ^0.0.4
   flutter_native_splash: 2.4.8
   portal_labs: ^0.38.0
+  motor: ^1.1.0
   image_picker: ^1.1.2
   path_provider: 2.1.6
   mime: ^2.1.0

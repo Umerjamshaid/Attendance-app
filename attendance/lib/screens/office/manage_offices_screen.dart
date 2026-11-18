@@ -67,7 +67,6 @@ class ManageOfficesScreen extends StatelessWidget {
   Widget _content(BuildContext context) {
     final provider = context.watch<OfficeProvider>();
     final colors = Theme.of(context).colorScheme;
-    final userId = context.watch<AuthProvider>().currentUser?.authUserId;
     return Scaffold(
       appBar: AppBar(title: const Text('Offices')),
       body: RefreshIndicator(
@@ -173,7 +172,38 @@ class ManageOfficesScreen extends StatelessWidget {
                                   : 'Switch to manage',
                             ),
                           ),
+                          if (office.id == provider.activeOfficeId)
+                            TextButton.icon(
+                              onPressed:
+                                  !provider.canManageActiveRoles ||
+                                      provider.isSwitching
+                                  ? null
+                                  : () => Navigator.of(context).push<void>(
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            const OfficeRolesScreen(),
+                                      ),
+                                    ),
+                              icon: const Icon(AppIcons.shield, size: 20),
+                              label: const Text('Roles'),
+                            ),
                         ],
+                      ),
+                    if (office.id == provider.activeOfficeId &&
+                        office.isAdmin &&
+                        !provider.isPreview &&
+                        !provider.isLoading &&
+                        !provider.canManageActiveRoles)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Text(
+                          office.createdBy == null
+                              ? 'No office owner is assigned.'
+                              : 'Only the office owner can change roles.',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: colors.onSurfaceVariant),
+                        ),
                       ),
                     const Divider(),
                   ],
@@ -199,22 +229,6 @@ class ManageOfficesScreen extends StatelessWidget {
                 ),
               const SizedBox(height: 20),
             ],
-            if (provider.activeOffice?.isAdmin == true &&
-                provider.activeOffice?.createdBy == userId &&
-                userId != null)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute<void>(
-                      builder: (_) => const OfficeRolesScreen(),
-                    ),
-                  ),
-                  icon: const Icon(AppIcons.shield, size: 20),
-                  label: const Text('Manage active office roles'),
-                ),
-              ),
             Text('Invitations', style: AppTypography.title),
             const SizedBox(height: 12),
             if (context

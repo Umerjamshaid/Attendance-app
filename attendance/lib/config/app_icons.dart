@@ -46,6 +46,7 @@ abstract final class AppIcons {
   static const rosetteDiscountCheck = TablerIcons.rosetteDiscountCheck;
   static const search = TablerIcons.search;
   static const palette = TablerIcons.palette;
+  static const play = TablerIcons.playerPlay;
   static const settings = TablerIcons.settings;
   static const shield = TablerIcons.shield;
   static const shieldCheck = TablerIcons.shieldCheck;

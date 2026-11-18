@@ -2,10 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../config/app_info.dart';
+import '../../widgets/app_identity_footer.dart';
 import 'settings_layout.dart';
 
 const _releaseNotes = {
   '1.1.0': [
+    (
+      'New app icon',
+      'An emerald icon with a punched timecard, on the launcher and startup screen.',
+    ),
+    (
+      'Color palettes',
+      'Choose Olive & Gold, Tide, Iris, or Graphite in Settings, with light and dark versions of each.',
+    ),
+    (
+      'Startup recovery',
+      'If startup fails or stalls, Attendance leaves the splash and shows a restart message.',
+    ),
     (
       'Appearance',
       'Olive and gold accents, a softer dark theme, and a light and dark preview in Appearance.',
@@ -21,10 +34,6 @@ const _releaseNotes = {
     (
       'Sign-in and recovery',
       'Invitation and recovery codes can be entered in the app when an email link won\'t open.',
-    ),
-    (
-      'Startup',
-      'Attendance opens with a single splash and shows a clear message if it can\'t start.',
     ),
   ],
 };
@@ -57,9 +66,17 @@ class _WhatsNewScreenState extends State<WhatsNewScreen> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                AppInfo.versionLabel(info),
-                style: theme.textTheme.titleMedium,
+              Row(
+                children: [
+                  const AttendanceMark(size: 40),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      AppInfo.versionLabel(info),
+                      style: theme.textTheme.titleMedium,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
               if (notes == null)

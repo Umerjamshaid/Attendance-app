@@ -15,19 +15,38 @@ import 'app.dart';
 import 'config/app_theme.dart';
 import 'screens/splash/launch_failure_screen.dart';
 import 'services/company_backend.dart';
+import 'services/launch_failure_reporter.dart';
 import 'services/profile_image_cache.dart';
 import 'widgets/office/office_scope.dart';
 
 bool _animationLicenseRegistered = false;
 
 abstract final class AttendanceBootstrap {
-  static Future<void> run(Future<CompanyBackend> Function() initialize) async {
+  static Future<void> run(
+    Future<CompanyBackend> Function() initialize, {
+    LaunchFailureSink reportFailure = LaunchFailureReporter.report,
+  }) async {
     final binding = WidgetsFlutterBinding.ensureInitialized();
     FlutterNativeSplash.preserve(widgetsBinding: binding);
+    var reported = false;
+    void reportOnce(LaunchFailureReason reason) {
+      if (reported) return;
+      reported = true;
+      unawaited(
+        Future<void>.sync(
+          () => reportFailure(reason),
+        ).catchError((Object _) {}),
+      );
+    }
+
     try {
       final backend = await initialize().timeout(const Duration(seconds: 8));
-      runAttendanceApp(backend: backend, onReady: FlutterNativeSplash.remove);
-    } catch (_, stack) {
+      runAttendanceApp(
+        backend: backend,
+        onReady: FlutterNativeSplash.remove,
+        onLaunchFailure: reportOnce,
+      );
+    } catch (error, stack) {
       runApp(
         MaterialApp(
           debugShowCheckedModeBanner: false,
@@ -37,6 +56,11 @@ abstract final class AttendanceBootstrap {
         ),
       );
       FlutterNativeSplash.remove();
+      reportOnce(
+        error is TimeoutException
+            ? LaunchFailureReason.initializationTimeout
+            : LaunchFailureReason.initializationError,
+      );
       // Initialization exceptions can contain backend configuration.
       FlutterError.reportError(
         FlutterErrorDetails(
@@ -49,7 +73,11 @@ abstract final class AttendanceBootstrap {
   }
 }
 
-void runAttendanceApp({CompanyBackend? backend, VoidCallback? onReady}) {
+void runAttendanceApp({
+  CompanyBackend? backend,
+  VoidCallback? onReady,
+  ValueChanged<LaunchFailureReason>? onLaunchFailure,
+}) {
   unawaited(ProfileImageCache.retryFailedCleanups());
   if (!_animationLicenseRegistered) {
     _animationLicenseRegistered = true;
@@ -86,7 +114,10 @@ void runAttendanceApp({CompanyBackend? backend, VoidCallback? onReady}) {
             ),
             child: Provider(
               create: (_) => OfficeNavigatorController(),
-              child: AttendanceApp(onReady: onReady),
+              child: AttendanceApp(
+                onReady: onReady,
+                onLaunchFailure: onLaunchFailure,
+              ),
             ),
           );
         },

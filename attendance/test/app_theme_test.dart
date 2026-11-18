@@ -4,6 +4,54 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  for (final brightness in Brightness.values) {
+    test('${brightness.name} palettes are distinct and readable', () {
+      final accents = <Color>{};
+      for (final palette in AppPalette.values) {
+        final theme = AppTheme.forPalette(palette, brightness);
+        final colors = theme.colorScheme;
+        accents.add(colors.primary);
+        expect(colors.brightness, brightness);
+        expect(theme.scaffoldBackgroundColor, colors.surface);
+        final pairs = [
+          (colors.onPrimary, colors.primary),
+          (colors.onPrimaryContainer, colors.primaryContainer),
+          (colors.onTertiaryContainer, colors.tertiaryContainer),
+          (colors.onSurfaceVariant, colors.surfaceContainerHigh),
+          for (final surface in [
+            colors.surface,
+            colors.surfaceContainerLow,
+            colors.surfaceContainerHighest,
+          ]) ...[
+            (colors.onSurface, surface),
+            (colors.onSurfaceVariant, surface),
+            (colors.error, surface),
+            (
+              brightness == Brightness.dark
+                  ? const Color(0xFF3DD68C)
+                  : const Color(0xFF1C7A50),
+              surface,
+            ),
+            (
+              brightness == Brightness.dark
+                  ? const Color(0xFFF2D779)
+                  : const Color(0xFF805B0E),
+              surface,
+            ),
+          ],
+        ];
+        for (final (foreground, background) in pairs) {
+          expect(
+            _contrast(foreground, background),
+            greaterThanOrEqualTo(4.5),
+            reason: '${palette.label}: $foreground on $background',
+          );
+        }
+      }
+      expect(accents.length, AppPalette.values.length);
+    });
+  }
+
   for (final dark in [false, true]) {
     final theme = dark ? AppTheme.darkTheme : AppTheme.theme;
     final colors = theme.colorScheme;

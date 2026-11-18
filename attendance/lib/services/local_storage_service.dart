@@ -4,13 +4,22 @@ import 'dart:convert';
 class LocalStorageService {
   static const String _attendanceWindowKey = 'attendance_window';
   static const _themeModeKey = 'theme_mode';
+  static const _themePaletteKey = 'theme_palette';
 
   Future<String?> getThemeMode() async =>
       (await SharedPreferences.getInstance()).getString(_themeModeKey);
 
-  Future<void> saveThemeMode(String mode) async {
+  Future<void> saveThemeMode(String mode) => _saveTheme(_themeModeKey, mode);
+
+  Future<String?> getThemePalette() async =>
+      (await SharedPreferences.getInstance()).getString(_themePaletteKey);
+
+  Future<void> saveThemePalette(String palette) =>
+      _saveTheme(_themePaletteKey, palette);
+
+  Future<void> _saveTheme(String key, String value) async {
     final prefs = await SharedPreferences.getInstance();
-    if (!await prefs.setString(_themeModeKey, mode)) {
+    if (!await prefs.setString(key, value)) {
       throw StateError('Could not save theme preference');
     }
   }

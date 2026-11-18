@@ -83,7 +83,7 @@ void main() {
     expect(_sheet, findsOneWidget);
     expect(backend.changes, isEmpty);
     await _openConfirmation(tester);
-    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.byType(OfficeRoleConfirmation), findsOneWidget);
     expect(backend.changes, isEmpty);
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
@@ -179,9 +179,24 @@ void main() {
         tester.view.physicalSize = const Size(320, 600);
         tester.platformDispatcher.textScaleFactorTestValue = 2;
         addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        tester.platformDispatcher.accessibilityFeaturesTestValue =
+            const FakeAccessibilityFeatures(disableAnimations: true);
+        addTearDown(
+          tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+        );
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(_option('Administrator'));
+        await tester.tap(_option('Administrator'));
         await tester.pumpAndSettle();
         await tester.ensureVisible(find.text('Save changes'));
+        await tester.tap(find.text('Save changes'));
+        await tester.pump();
+        await tester.pump();
+        expect(find.byType(OfficeRoleConfirmation), findsOneWidget);
+        await tester.ensureVisible(find.text('Cancel'));
+        await tester.tap(find.text('Cancel'));
         await tester.pumpAndSettle();
+        expect(_sheet, findsOneWidget);
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox.shrink());
       },

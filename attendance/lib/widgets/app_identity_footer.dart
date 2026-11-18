@@ -10,11 +10,14 @@ class AttendanceMark extends StatelessWidget {
   final double size;
 
   @override
-  Widget build(BuildContext context) => Image.asset(
-    'android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png',
-    width: size,
-    height: size,
-    excludeFromSemantics: true,
+  Widget build(BuildContext context) => ClipRRect(
+    borderRadius: BorderRadius.circular(size * .22),
+    child: Image.asset(
+      'android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png',
+      width: size,
+      height: size,
+      excludeFromSemantics: true,
+    ),
   );
 }
 

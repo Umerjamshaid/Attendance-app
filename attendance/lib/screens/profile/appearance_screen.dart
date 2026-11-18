@@ -16,9 +16,9 @@ String themeModeLabel(ThemeMode mode) => switch (mode) {
 class AppearanceScreen extends StatelessWidget {
   const AppearanceScreen({super.key});
 
-  Future<void> _select(BuildContext context, ThemeMode mode) async {
+  Future<void> _save(BuildContext context, Future<void> Function() save) async {
     try {
-      await context.read<ThemeProvider>().select(mode);
+      await save();
     } catch (_) {
       if (!context.mounted) return;
       AppToast.of(context).showSnackBar(
@@ -31,6 +31,7 @@ class AppearanceScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ThemeProvider>();
+    final brightness = Theme.of(context).brightness;
     return SettingsLayout(
       title: 'Appearance',
       children: [
@@ -38,10 +39,13 @@ class AppearanceScreen extends StatelessWidget {
           title: 'Theme',
           rows: [
             for (final mode in ThemeMode.values)
-              _ThemeOption(
-                mode: mode,
+              _AppearanceOption(
+                label: themeModeLabel(mode),
+                preview: _ThemePreview(mode: mode, palette: provider.palette),
                 selected: provider.mode == mode,
-                onTap: provider.busy ? null : () => _select(context, mode),
+                onTap: provider.busy
+                    ? null
+                    : () => _save(context, () => provider.select(mode)),
               ),
           ],
         ),
@@ -54,12 +58,31 @@ class AppearanceScreen extends StatelessWidget {
               showDragHandle: true,
               isScrollControlled: true,
               builder: (_) => _PalettePreview(
-                startsDark: Theme.of(context).brightness == Brightness.dark,
+                startsDark: brightness == Brightness.dark,
+                palette: provider.palette,
               ),
             ),
             icon: const Icon(AppIcons.eye, size: 20),
             label: const Text('Preview theme'),
           ),
+        ),
+        const SizedBox(height: 24),
+        SettingsSection(
+          title: 'Color palette',
+          rows: [
+            for (final palette in AppPalette.values)
+              _AppearanceOption(
+                label: palette.label,
+                preview: _PaletteSwatch(
+                  AppTheme.forPalette(palette, brightness).colorScheme,
+                ),
+                selected: provider.palette == palette,
+                onTap: provider.busy
+                    ? null
+                    : () =>
+                          _save(context, () => provider.selectPalette(palette)),
+              ),
+          ],
         ),
         if (provider.busy) const Center(child: LinearProgressIndicator()),
       ],
@@ -68,9 +91,10 @@ class AppearanceScreen extends StatelessWidget {
 }
 
 class _PalettePreview extends StatefulWidget {
-  const _PalettePreview({required this.startsDark});
+  const _PalettePreview({required this.startsDark, required this.palette});
 
   final bool startsDark;
+  final AppPalette palette;
 
   @override
   State<_PalettePreview> createState() => _PalettePreviewState();
@@ -81,7 +105,10 @@ class _PalettePreviewState extends State<_PalettePreview> {
 
   @override
   Widget build(BuildContext context) {
-    final preview = _dark ? AppTheme.darkTheme : AppTheme.theme;
+    final preview = AppTheme.forPalette(
+      widget.palette,
+      _dark ? Brightness.dark : Brightness.light,
+    );
     final colors = preview.colorScheme;
     return SafeArea(
       top: false,
@@ -92,7 +119,7 @@ class _PalettePreviewState extends State<_PalettePreview> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Theme preview',
+              '${widget.palette.label} preview',
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 16),
@@ -202,14 +229,16 @@ class _PreviewLabel extends StatelessWidget {
   );
 }
 
-class _ThemeOption extends StatelessWidget {
-  const _ThemeOption({
-    required this.mode,
+class _AppearanceOption extends StatelessWidget {
+  const _AppearanceOption({
+    required this.label,
+    required this.preview,
     required this.selected,
     required this.onTap,
   });
 
-  final ThemeMode mode;
+  final String label;
+  final Widget preview;
   final bool selected;
   final VoidCallback? onTap;
 
@@ -231,14 +260,9 @@ class _ThemeOption extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
             children: [
-              SizedBox(width: 76, height: 54, child: _ThemePreview(mode: mode)),
+              SizedBox(width: 76, child: preview),
               const SizedBox(width: 14),
-              Expanded(
-                child: Text(
-                  themeModeLabel(mode),
-                  style: theme.textTheme.bodyLarge,
-                ),
-              ),
+              Expanded(child: Text(label, style: theme.textTheme.bodyLarge)),
               AnimatedSwitcher(
                 duration: duration,
                 child: Icon(
@@ -256,25 +280,58 @@ class _ThemeOption extends StatelessWidget {
 }
 
 class _ThemePreview extends StatelessWidget {
-  const _ThemePreview({required this.mode});
+  const _ThemePreview({required this.mode, required this.palette});
 
   final ThemeMode mode;
+  final AppPalette palette;
 
   @override
   Widget build(BuildContext context) {
-    final light = AppTheme.theme.colorScheme;
-    final dark = AppTheme.darkTheme.colorScheme;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (mode != ThemeMode.dark) Expanded(child: _PreviewSurface(light)),
-          if (mode != ThemeMode.light) Expanded(child: _PreviewSurface(dark)),
-        ],
+    final light = AppTheme.forPalette(palette, Brightness.light).colorScheme;
+    final dark = AppTheme.forPalette(palette, Brightness.dark).colorScheme;
+    return SizedBox(
+      height: 54,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (mode != ThemeMode.dark) Expanded(child: _PreviewSurface(light)),
+            if (mode != ThemeMode.light) Expanded(child: _PreviewSurface(dark)),
+          ],
+        ),
       ),
     );
   }
+}
+
+class _PaletteSwatch extends StatelessWidget {
+  const _PaletteSwatch(this.colors);
+
+  final ColorScheme colors;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: 32,
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: colors.outline),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      position: DecorationPosition.foreground,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(flex: 2, child: ColoredBox(color: colors.primary)),
+            Expanded(child: ColoredBox(color: colors.primaryContainer)),
+            Expanded(child: ColoredBox(color: colors.surface)),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _PreviewSurface extends StatelessWidget {
