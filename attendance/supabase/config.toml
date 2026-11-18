@@ -11,6 +11,14 @@ enabled = true
 enable_confirmations = true
 double_confirm_changes = true
 
+[auth.email.template.invite]
+subject = "Your Attendance invitation"
+content_path = "./supabase/templates/invite.html"
+
+[auth.email.template.recovery]
+subject = "Reset your Attendance password"
+content_path = "./supabase/templates/recovery.html"
+
 [functions.submit-attendance]
 verify_jwt = false
 

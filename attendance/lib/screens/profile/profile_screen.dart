@@ -1,6 +1,7 @@
 import 'package:attendance/config/ui_tokens.dart';
 import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/config/app_theme.dart';
+import 'package:attendance/config/app_info.dart';
 import 'package:attendance/models/employees_model.dart';
 import 'package:attendance/providers/attendance_history_provider.dart';
 import 'package:attendance/providers/auth_provider.dart';
@@ -36,8 +37,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   bool _notificationsEnabled = true;
 
   // App version and build number, loaded from the platform.
-  String _version = '';
-  String _buildNumber = '';
+  PackageInfo? _packageInfo;
 
   // Scroll-driven app bar state. Only the title and divider rebuild.
   final ScrollController _scroll = ScrollController();
@@ -64,8 +64,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     if (!mounted) return;
 
     setState(() {
-      _version = packageInfo.version;
-      _buildNumber = packageInfo.buildNumber;
+      _packageInfo = packageInfo;
     });
   }
 
@@ -208,9 +207,8 @@ class _ProfileScreenState extends State<ProfileScreen>
             onTap: () => _showMessageDialog(
               context,
               title: 'Help',
-              message: auth.isPublicBuild
-                  ? 'Contact your company administrator for account or attendance assistance.'
-                  : 'Contact support at support@pipfa.org.pk',
+              message:
+                  'Contact your company administrator for attendance or account help.',
             ),
           ),
           ProfileMenuItem(
@@ -219,9 +217,8 @@ class _ProfileScreenState extends State<ProfileScreen>
             onTap: () => _showMessageDialog(
               context,
               title: 'About app',
-              message: auth.isPublicBuild
-                  ? 'WorkCheck company attendance.'
-                  : 'Secure attendance tracking for PIPFA employees.',
+              message:
+                  '${AppInfo.name} is for company check-ins and attendance history.',
             ),
           ),
           ProfileMenuItem(
@@ -337,9 +334,6 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Widget _buildFooter(BuildContext context) {
-    final versionLabel = _buildNumber.isEmpty
-        ? 'v$_version'
-        : 'v$_version ($_buildNumber)';
     final muted = context.colors.onSurfaceVariant;
 
     return SafeArea(
@@ -354,7 +348,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         child: Column(
           children: [
             Text(
-              'PIPFA Attendance',
+              AppInfo.name,
               style: ProfileUi.caption(
                 context,
                 color: muted,
@@ -362,10 +356,11 @@ class _ProfileScreenState extends State<ProfileScreen>
               ),
             ),
             // Hidden until the platform reports a version.
-            if (_version.isNotEmpty) ...[
+            if (_packageInfo case final info?) ...[
               const SizedBox(height: 2),
               Text(
-                versionLabel,
+                AppInfo.versionLabel(info),
+                textAlign: TextAlign.center,
                 style: ProfileUi.caption(context, color: muted),
               ),
             ],

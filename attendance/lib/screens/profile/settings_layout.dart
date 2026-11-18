@@ -12,11 +12,13 @@ class SettingsLayout extends StatelessWidget {
     required this.title,
     required this.children,
     this.close = false,
+    this.showBackButton = true,
   });
 
   final String title;
   final List<Widget> children;
   final bool close;
+  final bool showBackButton;
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +30,7 @@ class SettingsLayout extends StatelessWidget {
       child: Scaffold(
         extendBodyBehindAppBar: true,
         appBar: AppBar(
+          automaticallyImplyLeading: showBackButton,
           centerTitle: true,
           title: Text(title, style: theme.textTheme.titleMedium),
           leading: close
@@ -36,7 +39,9 @@ class SettingsLayout extends StatelessWidget {
                   onPressed: () => Navigator.maybePop(context),
                   icon: const Icon(AppIcons.x),
                 )
-              : const BackButton(),
+              : showBackButton
+              ? const BackButton()
+              : null,
           backgroundColor: Colors.transparent,
           surfaceTintColor: Colors.transparent,
           scrolledUnderElevation: 0,

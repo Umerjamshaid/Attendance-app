@@ -127,7 +127,7 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        for (final label in ['PIPFA Attendance', 'v1.1.0 (6)']) {
+        for (final label in ['Attendance', 'Version 1.1.0 (Build 6)']) {
           final finder = find.text(label);
           await tester.ensureVisible(finder);
           await tester.pumpAndSettle();

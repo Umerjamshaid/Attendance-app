@@ -1,5 +1,6 @@
 import 'package:attendance/bootstrap.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'config/backend_config.dart';
 import 'services/preview_company_backend.dart';
 import 'services/supabase_company_backend.dart';
@@ -14,11 +15,20 @@ Future<void> main() async {
     return;
   }
   try {
+    final preferences = await SharedPreferences.getInstance();
     await Supabase.initialize(
       url: BackendConfig.url,
       publishableKey: BackendConfig.publishableKey,
+      authOptions: const FlutterAuthClientOptions(
+        detectSessionInUriPredicate: BackendConfig.isAuthCallback,
+      ),
     );
-    runAttendanceApp(backend: SupabaseCompanyBackend(Supabase.instance.client));
+    runAttendanceApp(
+      backend: SupabaseCompanyBackend(
+        Supabase.instance.client,
+        preferences: preferences,
+      ),
+    );
   } catch (_) {
     runAttendanceApp(backend: PreviewCompanyBackend(available: false));
   }

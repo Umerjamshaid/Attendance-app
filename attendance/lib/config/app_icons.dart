@@ -53,4 +53,5 @@ abstract final class AppIcons {
   static const users = TablerIcons.users;
   static const userOff = TablerIcons.userOff;
   static const x = TablerIcons.x;
+  static const search = TablerIcons.search;
 }
