@@ -48,6 +48,7 @@ class _Server {
   bool rejectCode = false;
   String sessionId = _sessionId;
   bool rejectLogo = false;
+  bool activityAvailable = true;
   String? bannerPath;
   Map<String, dynamic> employee(String org) => {
     'id': 'SAME_CODE',
@@ -75,6 +76,23 @@ class _Server {
   Future<http.Response> handle(http.Request request) async {
     calls.add(request);
     final path = request.url.path;
+    if (path.endsWith('/office_check_in_activity')) {
+      if (!activityAvailable) {
+        return json({'code': 'PGRST202', 'message': 'Function missing'}, 404);
+      }
+      final params = jsonDecode(request.body) as Map;
+      if (params['p_organization'] != active || active != _a) {
+        return json({'code': '42501', 'message': 'office_admin_required'}, 403);
+      }
+      return json([
+        {
+          'id': 'activity-record',
+          'employee_name': 'Sample employee',
+          'received_at': '2026-11-19T04:10:00Z',
+          'office_timezone': 'Asia/Karachi',
+        },
+      ]);
+    }
     if (path.endsWith('/my_offices')) {
       return json([
         for (final id in [_a, _b])
@@ -367,6 +385,56 @@ void main() {
       await assertion;
     },
   );
+  test(
+    'activity uses one scoped RPC and formats time in the office zone',
+    () async {
+      final server = _Server();
+      final client = SupabaseClient(
+        'https://office-backend.example.invalid',
+        'test-publishable-key',
+        httpClient: MockClient(server.handle),
+        authOptions: const AuthClientOptions(autoRefreshToken: false),
+      );
+      addTearDown(client.dispose);
+      final root = SupabaseCompanyBackend(client);
+      final old = root.forOffice(
+        await root.signIn('test@example.invalid', 'test-password'),
+      );
+      final before = server.calls.length;
+      final row = (await old.checkInActivity()).single;
+      expect(server.calls.length, before + 1);
+      expect(jsonDecode(server.calls.last.body), {'p_organization': _a});
+      expect(row.id, 'activity-record');
+      expect(row.employeeName, 'Sample employee');
+      expect(row.receivedAt.hour, 9);
+      expect(row.receivedAt.minute, 10);
+
+      server.activityAvailable = false;
+      await expectLater(
+        old.checkInActivity(),
+        throwsA(
+          isA<CompanyException>().having(
+            (error) => error.message,
+            'message',
+            contains('not set up'),
+          ),
+        ),
+      );
+      server.activityAvailable = true;
+      final next = root.forOffice(await root.switchOffice(_b));
+      await expectLater(
+        next.checkInActivity(),
+        throwsA(isA<CompanyAccessException>()),
+      );
+      final afterSwitch = server.calls.length;
+      await expectLater(
+        old.checkInActivity(),
+        throwsA(isA<CompanyException>()),
+      );
+      expect(server.calls.length, afterSwitch);
+    },
+  );
+
   test('office actions send only the field being changed', () async {
     final server = _Server();
     final client = SupabaseClient(

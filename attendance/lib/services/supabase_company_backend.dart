@@ -10,6 +10,7 @@ import 'package:uuid/uuid.dart';
 import '../config/backend_config.dart';
 import '../models/attendance_record_model.dart';
 import '../models/employees_model.dart';
+import '../models/office_check_in_activity.dart';
 import '../models/office_model.dart';
 import 'company_backend.dart';
 import 'profile_media.dart';
@@ -530,6 +531,42 @@ class SupabaseCompanyBackend extends CompanyBackend {
       records.addAll(rows.map(_record));
       if (rows.length < 1000) return records;
     }
+  });
+
+  @override
+  Future<List<OfficeCheckInActivity>> checkInActivity() => _guard(() async {
+    final List rows;
+    try {
+      rows =
+          await _rpc(
+                'office_check_in_activity',
+                params: {'p_organization': _office},
+              )
+              as List;
+    } on PostgrestException catch (error) {
+      if (error.code == '42501') {
+        throw const CompanyAccessException(
+          'Check-in activity is only available to active office admins.',
+        );
+      }
+      if (error.code == 'PGRST202') {
+        throw const CompanyException(
+          'Check-in activity is not set up on this server yet.',
+        );
+      }
+      rethrow;
+    }
+    return [
+      for (final row in rows.cast<Map<String, dynamic>>())
+        OfficeCheckInActivity(
+          id: row['id'] as String,
+          employeeName: row['employee_name'] as String,
+          receivedAt: tz.TZDateTime.from(
+            DateTime.parse(row['received_at'] as String),
+            tz.getLocation(row['office_timezone'] as String),
+          ),
+        ),
+    ];
   });
 
   Future<Map<String, dynamic>> _invoke(

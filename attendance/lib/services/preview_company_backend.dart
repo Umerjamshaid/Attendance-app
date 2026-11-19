@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import '../models/attendance_record_model.dart';
 import '../models/employees_model.dart';
+import '../models/office_check_in_activity.dart';
 import '../models/office_model.dart';
 import 'company_backend.dart';
 
@@ -99,6 +100,25 @@ class PreviewCompanyBackend extends CompanyBackend {
           timestamp: DateTime(now.year, now.month, now.day - i, 9, 5),
           device: 'Sample Android device',
         ),
+    ];
+  }
+
+  @override
+  Future<List<OfficeCheckInActivity>> checkInActivity() async {
+    validateContext();
+    if (!available) throw unavailable;
+    final now = companyNow;
+    return [
+      OfficeCheckInActivity(
+        id: 'sample-alex',
+        employeeName: 'Alex Morgan',
+        receivedAt: now.subtract(const Duration(minutes: 9)),
+      ),
+      OfficeCheckInActivity(
+        id: 'sample-sam',
+        employeeName: 'Sam Rivera',
+        receivedAt: now.subtract(const Duration(minutes: 21)),
+      ),
     ];
   }
 

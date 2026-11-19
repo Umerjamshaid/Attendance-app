@@ -87,6 +87,29 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
+  testWidgets(
+    'public Admin bell opens the feed and keeps employee management',
+    (tester) async {
+      await _mount(tester, admin: true);
+      await tester.tap(find.byTooltip('Admin'));
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Manage employees'), findsOneWidget);
+      await tester.tap(find.byTooltip('Check-in activity'));
+      await tester.pumpAndSettle();
+      expect(find.text('Check-in activity'), findsOneWidget);
+      expect(
+        find.text('Alex Morgan checked in', findRichText: true),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byTooltip('Back'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Manage employees'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
   testWidgets('vertical history scrolling and page state survive tab changes', (
     tester,
   ) async {

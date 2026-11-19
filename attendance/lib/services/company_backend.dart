@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import '../models/attendance_record_model.dart';
 import '../models/employees_model.dart';
+import '../models/office_check_in_activity.dart';
 import '../models/office_model.dart';
 
 class CompanyException implements Exception {
@@ -108,6 +109,10 @@ abstract class CompanyBackend {
     String? employeeId,
     bool todayOnly = false,
   });
+  Future<List<OfficeCheckInActivity>> checkInActivity() async =>
+      throw const CompanyException(
+        'Check-in activity is not available in this build.',
+      );
   Future<AttendanceRecord> submit({
     required String requestId,
     required String base64Image,

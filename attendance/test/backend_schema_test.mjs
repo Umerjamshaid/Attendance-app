@@ -73,6 +73,7 @@ async function role(name, user) {
 /** Reads the scalar assertion value from a test query. */
 async function value(sql) { return (await db.query(sql)).rows[0].value; }
 async function denied(sql) { await assert.rejects(db.exec(sql)); }
+const activity = (office) => `select * from public.office_check_in_activity('${office}')`;
 await role('authenticated', employee);
 const media = (name, metadata) => `insert into storage.objects(bucket_id,name,metadata) values ('profile-media','${employee}/${name}','${JSON.stringify(metadata)}'::jsonb)`;
 // Authorization probes roll back; their request length can include multipart overhead.
@@ -96,6 +97,7 @@ await db.exec(`delete from storage.objects where bucket_id='profile-media' and n
 await role('anon');
 await denied('select * from public.check_ins');
 await denied('select public.current_employee()');
+await denied(activity(company));
 
 await role('service_role');
 assert.equal(await value(`select public.claim_submission('${employee}','${request}') as value`), true);
@@ -120,11 +122,35 @@ await denied(`select public.claim_submission('${employee}','${request}')`);
 await db.exec("update public.profiles set name='Updated' where user_id=auth.uid()");
 assert.equal((await value('select public.current_employee() as value')).name, 'Updated');
 await denied(`update public.profiles set avatar_path='${admin}/avatar-stolen.jpg' where user_id=auth.uid()`);
+await assert.rejects(db.exec(activity(company)), /office_admin_required/);
 
 await role('authenticated', other);
 assert.equal(await value('select count(*)::int as value from public.check_ins'), 0);
 assert.equal(await value('select count(*)::int as value from public.attendance_evidence'), 0);
 assert.equal(await value('select count(*)::int as value from public.organizations'), 1);
+
+await role('authenticated', admin);
+const initialActivity = (await db.query(activity(company))).rows;
+assert.equal(initialActivity.length, 1, 'a retried submission appears once');
+assert.equal(initialActivity[0].id, record.id);
+assert.equal(initialActivity[0].employee_name, 'Updated');
+assert.deepEqual(Object.keys(initialActivity[0]).sort(), [
+  'employee_name', 'id', 'office_timezone', 'received_at',
+], 'activity does not return device details or evidence');
+await assert.rejects(db.exec(activity(otherCompany)), /office_admin_required/);
+
+await role('postgres');
+await db.exec(`begin;
+  insert into public.check_ins(organization_id,user_id,employee_code,request_id,received_at,captured_at,company_day,device_model)
+  select '${company}','${employee}','EMP001',gen_random_uuid(),now() + n * interval '1 minute',now(),current_date,'Sample'
+  from generate_series(1,35) n;`);
+const recentIds = (await db.query(`
+  select id from public.check_ins where organization_id='${company}'
+  order by received_at desc,id desc limit 30`)).rows.map((row) => row.id);
+await role('authenticated', admin);
+assert.deepEqual((await db.query(activity(company))).rows.map((row) => row.id),
+  recentIds, 'activity is bounded and newest first');
+await db.exec('rollback');
 
 await role('authenticated', admin);
 assert.equal(await value('select count(*)::int as value from public.check_ins'), 1);
@@ -257,6 +283,9 @@ await role('postgres');
 await db.exec(`insert into storage.objects(bucket_id,name) values('office-logos','${created}/logo.png')`);
 await role('authenticated', admin);
 await value(`select public.switch_office('${created}') as value`);
+assert.deepEqual((await db.query(activity(created))).rows, []);
+await assert.rejects(db.exec(activity(company)), /office_admin_required/,
+  'being an admin of both offices does not bypass active-office scope');
 await db.exec(`select public.update_office('${created}','Renamed office','${created}/logo.png')`);
 await db.exec(`select public.update_office_fields('${created}',p_name=>'Concurrent rename')`);
 assert.equal(await value(`select logo_path as value from public.organizations where id='${created}'`), `${created}/logo.png`);
@@ -347,12 +376,14 @@ await role('authenticated', invitedByCode);
 await assert.rejects(db.exec(redeemOfficeCode(revokedCode)), /invalid_office_code/);
 await role('authenticated', admin);
 assert.equal(await visible(avatar), 0, 'demotion removes coworker avatar access');
+await assert.rejects(db.exec(activity(company)), /office_admin_required/);
 await role('postgres');
 await db.exec(`update public.memberships set role='admin',active=false where user_id='${admin}' and organization_id='${company}'`);
 await role('authenticated', admin);
 assert.equal(await visible(avatar), 0, 'revoked admin access cannot read avatars');
+await assert.rejects(db.exec(activity(company)), /office_admin_required/);
 await role('anon');
 await denied(redeemOfficeCode(revokedCode));
 await denied('select * from storage.objects');
 await db.close();
-console.log('PASS: legacy data preservation, multi-office roles, atomic creation, selection authorization, RLS/evidence isolation, invitation acceptance, revocation, scoped leases, logos, retention, and last-admin protection');
+console.log('PASS: legacy data preservation, multi-office roles, atomic creation, selection authorization, RLS/evidence isolation, invitation acceptance, revocation, scoped leases, bounded check-in activity, logos, retention, and last-admin protection');
