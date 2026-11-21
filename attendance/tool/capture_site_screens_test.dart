@@ -16,21 +16,49 @@ import 'package:attendance/services/employees_service.dart';
 import 'package:attendance/services/preview_company_backend.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../test/support/test_fonts.dart';
 
+const _readmeGallery = bool.fromEnvironment('ATTENDANCE_README_SCREENSHOTS');
+const _captureSurface = ValueKey('readme-capture-surface');
+
 void main() {
   setUpAll(loadTestFonts);
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  for (final (tab, file, palette, brightness) in [
-    ('Home', 'check-in', AppPalette.olive, Brightness.light),
-    ('History', 'history', AppPalette.tide, Brightness.dark),
-    ('Admin', 'offices', AppPalette.iris, Brightness.light),
-  ]) {
-    testWidgets('capture $tab using fictional data', (tester) async {
+  final screens = _readmeGallery
+      ? [
+          ('Home', 'attendance', AppPalette.olive, Brightness.light),
+          ('History', 'history', AppPalette.tide, Brightness.dark),
+          ('Admin', 'admin', AppPalette.iris, Brightness.light),
+          ('Admin', 'employees', AppPalette.graphite, Brightness.dark),
+          ('Profile', 'profile', AppPalette.tide, Brightness.light),
+          ('Profile', 'settings', AppPalette.graphite, Brightness.dark),
+        ]
+      : [
+          ('Home', 'check-in', AppPalette.olive, Brightness.light),
+          ('History', 'history', AppPalette.tide, Brightness.dark),
+          ('Admin', 'offices', AppPalette.iris, Brightness.light),
+        ];
+
+  for (final (tab, file, palette, brightness) in screens) {
+    testWidgets('capture $file using fictional data', (tester) async {
+      if (_readmeGallery) {
+        SharedPreferences.setMockInitialValues({
+          'theme_palette': palette.name,
+          'theme_mode': brightness.name,
+        });
+        PackageInfo.setMockInitialValues(
+          appName: 'Attendance',
+          packageName: 'com.example.attendance',
+          version: '1.1.0',
+          buildNumber: '4027',
+          buildSignature: '',
+        );
+      }
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = const Size(390, 844);
       tester.view.padding = const FakeViewPadding(top: 22, bottom: 12);
@@ -76,9 +104,12 @@ void main() {
           child: MaterialApp(
             debugShowCheckedModeBanner: false,
             theme: AppTheme.forPalette(palette, brightness),
-            builder: (context, child) => MediaQuery(
-              data: MediaQuery.of(context).copyWith(disableAnimations: true),
-              child: child!,
+            builder: (context, child) => RepaintBoundary(
+              key: _captureSurface,
+              child: MediaQuery(
+                data: MediaQuery.of(context).copyWith(disableAnimations: true),
+                child: child!,
+              ),
             ),
             home: const AppShell(),
           ),
@@ -89,10 +120,23 @@ void main() {
         await tester.tap(find.byTooltip(tab));
         await tester.pumpAndSettle();
       }
+      if (file == 'employees') {
+        await tester.tap(find.byTooltip('Manage employees'));
+        await tester.pumpAndSettle();
+        expect(find.text('Removed'), findsOneWidget);
+      } else if (file == 'settings') {
+        await tester.tap(find.byTooltip('Settings'));
+        await tester.pumpAndSettle();
+        expect(find.text('Sign-in & recovery'), findsOneWidget);
+      }
       expect(tester.takeException(), isNull);
       await expectLater(
-        find.byType(AppShell),
-        matchesGoldenFile('../../site/public/screens/$file.png'),
+        _readmeGallery ? find.byKey(_captureSurface) : find.byType(AppShell),
+        matchesGoldenFile(
+          _readmeGallery
+              ? '../screenshots/current/$file.png'
+              : '../../site/public/screens/$file.png',
+        ),
       );
       await tester.pumpWidget(const SizedBox.shrink());
     });
@@ -143,13 +187,21 @@ class _ShowcaseBackend extends PreviewCompanyBackend {
   @override
   CompanyBackend forOffice(Employee employee) => this;
   @override
-  Future<Employee?> restoreSession() async => roster.first;
+  Future<Employee?> restoreSession() async => _readmeGallery
+      ? roster.first.copyWith(
+          headline: 'Product operations',
+          chips: ['Mentor', 'Onboarding'],
+        )
+      : roster.first;
   @override
   Future<List<Office>> offices() async => [studio];
   @override
-  Future<List<Employee>> employees() async => roster;
+  Future<List<Employee>> employees() async => _readmeGallery
+      ? [...roster.take(3), roster.last.copyWith(isActive: false)]
+      : roster;
   @override
-  DateTime get companyNow => DateTime(2026, 11, 18, 9);
+  DateTime get companyNow =>
+      _readmeGallery ? DateTime.now() : DateTime(2026, 11, 18, 9);
 
   @override
   Future<List<AttendanceRecord>> history({
@@ -164,12 +216,14 @@ class _ShowcaseBackend extends PreviewCompanyBackend {
         _record(employeeId ?? roster.first.id, day, minute: day * 7),
   ];
 
-  AttendanceRecord _record(String user, int day, {required int minute}) =>
-      AttendanceRecord(
-        id: '$user-$day',
-        userId: user,
-        isPresent: true,
-        timestamp: DateTime(2026, 11, 18 - day, 9, minute),
-        device: 'Android device',
-      );
+  AttendanceRecord _record(String user, int day, {required int minute}) {
+    final today = companyNow;
+    return AttendanceRecord(
+      id: '$user-$day',
+      userId: user,
+      isPresent: true,
+      timestamp: DateTime(today.year, today.month, today.day - day, 9, minute),
+      device: 'Android device',
+    );
+  }
 }
