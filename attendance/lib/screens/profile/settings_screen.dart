@@ -17,6 +17,7 @@ import 'appearance_screen.dart';
 import 'privacy_screen.dart';
 import 'profile_details_screen.dart';
 import 'settings_layout.dart';
+import 'settings_sheets.dart';
 import 'whats_new_screen.dart';
 import 'account_edit_screen.dart';
 import 'account_security_screen.dart';
@@ -105,23 +106,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _signOut() async {
     final auth = context.read<AuthProvider>();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Sign out?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Sign out'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
+    if (!await confirmSignOut(context) || !mounted) return;
     setState(() => _signingOut = true);
     try {
       await auth.logout();
@@ -297,6 +282,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         SettingsSection(
           title: 'About',
           rows: [
+            SettingsRow('Help Centre', onTap: () => showHelpCentre(context)),
+            SettingsRow('About app', onTap: () => showAboutApp(context)),
             SettingsRow(
               "What's new",
               onTap: () => Navigator.of(context).push<void>(
@@ -311,9 +298,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ],
         ),
-        const Padding(
-          padding: EdgeInsets.only(top: 28, bottom: 8),
-          child: AppIdentityFooter(),
+        Padding(
+          padding: const EdgeInsets.only(top: 28, bottom: 8),
+          child: AppIdentityFooter(onCreditTap: () => showMakerCredit(context)),
         ),
       ],
     );

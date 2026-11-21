@@ -4,6 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('Graphite dark dividers stand out against grouped settings rows', () {
+    final theme = utilitySurfaceThemeData(
+      AppTheme.forPalette(AppPalette.graphite, Brightness.dark),
+    );
+    final colors = theme.colorScheme;
+    expect(theme.dividerTheme.color, colors.outlineVariant);
+    expect(
+      _contrast(colors.outlineVariant, colors.surfaceContainerHighest),
+      greaterThan(1.65),
+    );
+  });
+
   for (final brightness in Brightness.values) {
     test('${brightness.name} palettes are distinct and readable', () {
       final accents = <Color>{};

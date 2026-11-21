@@ -110,12 +110,46 @@ void main() {
   });
 
   test('the preview supplies fictional rows without live access', () async {
-    final rows = await PreviewCompanyBackend().checkInActivity();
+    final preview = PreviewCompanyBackend();
+    final rows = await preview.checkInActivity();
     expect(rows.map((row) => row.employeeName), ['Alex Morgan', 'Sam Rivera']);
     expect(rows.first.receivedAt.isAfter(rows.last.receivedAt), isTrue);
     await expectLater(
       PreviewCompanyBackend(available: false).checkInActivity(),
       throwsA(isA<CompanyException>()),
+    );
+  });
+
+  testWidgets('only admin test builds can open activity in preview', (
+    tester,
+  ) async {
+    const adminPreview = bool.fromEnvironment('ATTENDANCE_PREVIEW_ADMIN');
+    final auth = AuthProvider(backend: PreviewCompanyBackend(available: false));
+    addTearDown(auth.dispose);
+    await auth.enterPreview();
+    final endpoint = auth.backend!;
+    expect(auth.currentUser!.isAdmin, adminPreview);
+    expect((await endpoint.offices()).map((office) => office.role).toSet(), {
+      adminPreview ? 'admin' : 'employee',
+    });
+    await expectLater(
+      endpoint.savePolicy(const AttendancePolicy()),
+      throwsA(isA<CompanyException>()),
+    );
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: auth,
+        child: MaterialApp(
+          theme: AppTheme.theme,
+          home: const AdminNotificationScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(_entry('Alex Morgan'), adminPreview ? findsOneWidget : findsNothing);
+    expect(
+      find.text('Check-in activity unavailable'),
+      adminPreview ? findsNothing : findsOneWidget,
     );
   });
 }

@@ -1,4 +1,5 @@
 import 'package:attendance/config/app_icons.dart';
+import 'package:attendance/config/app_info.dart';
 import 'package:attendance/app.dart';
 import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/models/employees_model.dart';
@@ -15,6 +16,7 @@ import 'package:attendance/widgets/app_identity_footer.dart';
 import 'package:attendance/widgets/user-profile/profile_header.dart';
 import 'package:attendance/widgets/user-profile/profile_menu_item.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
@@ -179,6 +181,10 @@ void main() {
     await tester.tap(whatsNew.hitTestable());
     await tester.pumpAndSettle();
     expect(find.text('Version 1.1.0 (Build 6)'), findsOneWidget);
+    expect(find.text('Faster Office Switch'), findsOneWidget);
+    expect(find.text('Clearer Graphite dividers'), findsOneWidget);
+    expect(find.text('New Settings sheets'), findsOneWidget);
+    expect(find.text('Interactive maker credits'), findsOneWidget);
     expect(find.text('Office invitations'), findsOneWidget);
     expect(find.text('New app icon'), findsOneWidget);
     expect(find.text('Color palettes'), findsOneWidget);
@@ -241,6 +247,8 @@ void main() {
     await _scrollTo(tester, signOut);
     await tester.tap(signOut.hitTestable());
     await tester.pumpAndSettle();
+    expect(find.byType(BottomSheet), findsOneWidget);
+    expect(find.byType(AlertDialog), findsNothing);
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
     expect(auth.signOutCalls, 0);
@@ -248,11 +256,90 @@ void main() {
     await tester.tap(signOut.hitTestable());
     await tester.pumpAndSettle();
     await tester.tap(
-      find.descendant(of: find.byType(AlertDialog), matching: signOut),
+      find.descendant(of: find.byType(BottomSheet), matching: signOut),
     );
     await tester.pumpAndSettle();
     expect(auth.signOutCalls, 1);
     expect(find.text('Open settings'), findsOneWidget);
+  });
+
+  testWidgets('Help, About and credits open sheets with large Graphite text', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(320, 540);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    String? copied;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copied = (call.arguments as Map)['text'] as String?;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<AuthProvider>(create: (_) => _TestAuth()),
+          ChangeNotifierProvider(create: (_) => ProfileProvider()),
+          ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.forPalette(AppPalette.graphite, Brightness.dark),
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: const TextScaler.linear(2),
+              disableAnimations: true,
+            ),
+            child: child!,
+          ),
+          home: const SettingsScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final sheet = find.byType(BottomSheet);
+    Finder inSheet(String text) =>
+        find.descendant(of: sheet, matching: find.text(text));
+
+    await _scrollTo(tester, find.text('Help Centre'));
+    await tester.tap(find.text('Help Centre').hitTestable());
+    await tester.pumpAndSettle();
+    expect(inSheet(AppInfo.supportEmail), findsOneWidget);
+    expect(inSheet('Email Umer'), findsOneWidget);
+    expect(inSheet('GitHub profile'), findsOneWidget);
+    final copy = inSheet('Copy email address');
+    await tester.ensureVisible(copy);
+    await tester.tap(copy);
+    await tester.pumpAndSettle();
+    expect(copied, AppInfo.supportEmail);
+    Navigator.of(tester.element(sheet)).pop();
+    await tester.pumpAndSettle();
+
+    await _scrollTo(tester, find.text('About app'));
+    await tester.tap(find.text('About app').hitTestable());
+    await tester.pumpAndSettle();
+    expect(inSheet('Version 1.1.0 (Build 6)'), findsOneWidget);
+    expect(inSheet('Source on GitHub'), findsOneWidget);
+    Navigator.of(tester.element(sheet)).pop();
+    await tester.pumpAndSettle();
+
+    final credit = find.text('Crafted by');
+    await _scrollTo(tester, credit);
+    await tester.tap(credit.hitTestable());
+    await tester.pumpAndSettle();
+    expect(inSheet(AppInfo.maker), findsOneWidget);
+    expect(inSheet('GitHub profile'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('profile metadata stays ahead of distinct personal tags', (

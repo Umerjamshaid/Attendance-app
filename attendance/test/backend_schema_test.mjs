@@ -385,5 +385,62 @@ await assert.rejects(db.exec(activity(company)), /office_admin_required/);
 await role('anon');
 await denied(redeemOfficeCode(revokedCode));
 await denied('select * from storage.objects');
+
+// Removing a roster entry revokes access without deleting its membership or check-ins.
+const remove = (office, code) => `select public.remove_office_employee('${office}','${code}')`;
+const reinvite = (office, code) => `select public.reinvite_removed_employee('${office}','${code}') as value`;
+await denied(remove(company, 'EMP001'));
+await denied(reinvite(company, 'EMP001'));
+await role('postgres');
+const originalMembership = await value(`select id as value from public.memberships where organization_id='${company}' and user_id='${employee}'`);
+await db.exec(`
+  update public.memberships set active = true where organization_id = '${company}' and user_id = '${admin}';
+  insert into public.memberships(user_id,organization_id,employee_code,department)
+    values('${employee}','${otherCompany}','B-EMP001','Other team');
+  update public.attendance_evidence set expires_at = now() + interval '1 day' where check_in_id = '${before.id}';
+  insert into public.office_invite_codes(organization_id,user_id,invited_by,code_hash,name,employee_code,department,expires_at)
+    values('${company}','${employee}','${admin}',sha256(convert_to('ABCDABCDABCDABCD','UTF8')),'Employee','EMP001','',now()+interval '1 hour');
+`);
+await role('authenticated', employee);
+await denied(remove(company, 'EMP001'));
+await denied(reinvite(company, 'EMP001'));
+await role('authenticated', admin);
+await value(`select public.switch_office('${created}') as value`);
+await denied(remove(company, 'EMP001'));
+await denied(reinvite(company, 'EMP001'));
+await value(`select public.switch_office('${company}') as value`);
+await denied(remove(otherCompany, 'OUTSIDE'));
+await denied(remove(company, 'ADMIN'));
+await assert.rejects(db.exec(reinvite(company, 'EMP001')), /employee_not_removed/);
+await db.exec(remove(company, 'EMP001'));
+await db.exec(remove(company, 'EMP001'));
+const removedEmployee = (await db.query(`select * from public.company_employees('${company}')`)).rows
+  .map((row) => row.company_employees).find((row) => row.id === 'EMP001');
+assert.equal(removedEmployee.isRemoved, true);
+assert.equal(removedEmployee.isActive, false);
+assert.equal(await value(`select id as value from public.check_ins where id='${before.id}'`), before.id);
+assert.equal(await value(`select check_in_id as value from public.attendance_evidence where check_in_id='${before.id}'`), before.id);
+await denied(`select public.set_office_role('${company}','${employee}','admin')`);
+await role('service_role');
+await assert.rejects(db.exec(`select public.set_employee_active('${admin}','${company}','EMP001',true)`), /removed_employee_has_no_access/);
+await role('authenticated', employee);
+assert.equal(await value(`select public.current_employee('${company}') as value`), null);
+await denied(`select public.switch_office('${company}')`);
+assert.equal((await value(`select public.switch_office('${otherCompany}') as value`)).id, 'B-EMP001');
+await assert.rejects(db.exec(redeemOfficeCode('ABCD ABCD ABCD ABCD')), /invalid_office_code/);
+await role('authenticated', admin);
+const firstReinvite = await value(reinvite(company, 'EMP001'));
+const newReinvite = await value(reinvite(company, 'EMP001'));
+assert.notEqual(firstReinvite, newReinvite);
+await role('authenticated', other);
+await assert.rejects(db.exec(redeemOfficeCode(newReinvite)), /invalid_office_code/);
+await role('authenticated', employee);
+await assert.rejects(db.exec(redeemOfficeCode(firstReinvite)), /invalid_office_code/);
+assert.equal(await value(redeemOfficeCode(newReinvite)), company);
+await assert.rejects(db.exec(redeemOfficeCode(newReinvite)), /invalid_office_code/);
+await value(`select public.switch_office('${company}') as value`);
+assert.equal((await value(`select public.current_employee('${company}') as value`)).id, 'EMP001');
+assert.equal(await value(`select id as value from public.memberships where organization_id='${company}' and user_id='${employee}'`), originalMembership);
+assert.equal(await value(`select id as value from public.check_ins where id='${before.id}'`), before.id);
 await db.close();
-console.log('PASS: legacy data preservation, multi-office roles, atomic creation, selection authorization, RLS/evidence isolation, invitation acceptance, revocation, scoped leases, bounded check-in activity, logos, retention, and last-admin protection');
+console.log('PASS: office authorization, evidence isolation, invitation acceptance, employee removal and re-invite, preserved check-ins, scoped leases, check-in activity, logos, retention, and last-admin protection');

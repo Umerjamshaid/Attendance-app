@@ -14,6 +14,9 @@ class _PreviewOffices {
 class PreviewCompanyBackend extends CompanyBackend {
   PreviewCompanyBackend({this.available = true}) : _offices = _PreviewOffices();
   PreviewCompanyBackend._scoped(this.available, this._offices, this._officeId);
+  static const _role = bool.fromEnvironment('ATTENDANCE_PREVIEW_ADMIN')
+      ? 'admin'
+      : 'employee';
   final bool available;
   final _PreviewOffices _offices;
   String? _officeId;
@@ -28,8 +31,8 @@ class PreviewCompanyBackend extends CompanyBackend {
   @override
   Future<List<Office>> offices() async => available
       ? const [
-          Office(id: 'preview-studio', name: 'Design Studio', role: 'employee'),
-          Office(id: 'preview-hub', name: 'City Hub', role: 'employee'),
+          Office(id: 'preview-studio', name: 'Design Studio', role: _role),
+          Office(id: 'preview-hub', name: 'City Hub', role: _role),
         ]
       : [];
   @override
@@ -69,7 +72,7 @@ class PreviewCompanyBackend extends CompanyBackend {
     id: 'DEMO001',
     name: 'Alex Morgan',
     email: 'alex@example.com',
-    role: 'employee',
+    role: _role,
     department: 'Product',
     time: '',
     headline: 'Building a better workday',

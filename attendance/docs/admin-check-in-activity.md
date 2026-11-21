@@ -19,6 +19,10 @@ pulling down refreshes the list.
 - The screen drops old rows when the account, office, or role changes. It
   does not cache the feed on disk. The preview backend only contains sample
   rows; employee preview accounts do not gain an Admin tab.
+- Overlapping reads share one request per office-scoped backend, adapting
+  Buzz's activity refresh coordination. Like BunPod's feed, a stalled read
+  stops waiting after 15 seconds. The app shows Retry; a late reply cannot
+  replace a newer read or escape its original account and office scope.
 
 ## Test Before Deployment
 
@@ -32,6 +36,12 @@ pulling down refreshes the list.
    employee, pull to refresh, and verify that the row appears once.
 4. Switch offices and refresh. Verify the new office's own activity. An
    employee, a demoted admin, and a deactivated admin cannot fetch this feed.
+
+For a local APK smoke test without a staging database, add
+`--dart-define=ATTENDANCE_PREVIEW_ADMIN=true` and choose **Explore demo**.
+Open **Admin > Check-in activity** to view sample rows. This flag changes
+only the fictional preview role; it does not enable writes or change live
+permissions. Leave the flag out of public release builds.
 
 This follows Buzz's separation of in-app activity from push delivery. BunPod's
 episode alert switch is commented out in the checked-out source. Attendance

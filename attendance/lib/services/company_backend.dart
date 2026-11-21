@@ -139,5 +139,9 @@ abstract class CompanyBackend {
     required String department,
   });
   Future<void> setEmployeeActive(String employeeId, bool active);
+  Future<void> removeOfficeEmployee(String employeeId) async =>
+      throw const CompanyException('Employee removal is unavailable.');
+  Future<String> reinviteRemovedEmployee(String employeeId) async =>
+      throw const CompanyException('Re-invites are unavailable.');
   Future<Map<String, dynamic>> evidence(String recordId);
 }

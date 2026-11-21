@@ -104,7 +104,7 @@ class _OfficeRolesScreenState extends State<OfficeRolesScreen> {
         }
         return ListView(
           children: [
-            for (final employee in snapshot.data!)
+            for (final employee in snapshot.data!.where((e) => !e.isRemoved))
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppLayout.gutter,

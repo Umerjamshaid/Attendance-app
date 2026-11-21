@@ -23,7 +23,9 @@ class AttendanceMark extends StatelessWidget {
 
 /// The installed build and maker credit shared by Profile and Settings.
 class AppIdentityFooter extends StatefulWidget {
-  const AppIdentityFooter({super.key});
+  const AppIdentityFooter({super.key, required this.onCreditTap});
+
+  final VoidCallback onCreditTap;
 
   @override
   State<AppIdentityFooter> createState() => _AppIdentityFooterState();
@@ -65,33 +67,53 @@ class _AppIdentityFooterState extends State<AppIdentityFooter> {
         ),
         const SizedBox(height: 16),
         Semantics(
-          label: 'Crafted by Umer Jamshaid',
+          label: 'Crafted by ${AppInfo.maker}',
+          button: true,
+          onTap: widget.onCreditTap,
           excludeSemantics: true,
-          child: Wrap(
-            alignment: WrapAlignment.center,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 6,
-            runSpacing: 4,
-            children: [
-              Text('Crafted by', style: creditStyle),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ClipOval(
-                    child: Image.asset(
-                      'assets/logos/credits.jpeg',
-                      key: const ValueKey('developer-credit-photo'),
-                      width: 20,
-                      height: 20,
-                      cacheWidth: 80,
-                      fit: BoxFit.cover,
-                    ),
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              onTap: widget.onCreditTap,
+              borderRadius: BorderRadius.circular(8),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 48),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
                   ),
-                  const SizedBox(width: 6),
-                  Flexible(child: Text('Umer Jamshaid', style: creditStyle)),
-                ],
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: [
+                      Text('Crafted by', style: creditStyle),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ClipOval(
+                            child: Image.asset(
+                              AppInfo.makerPhoto,
+                              key: const ValueKey('developer-credit-photo'),
+                              width: 20,
+                              height: 20,
+                              cacheWidth: 80,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(AppInfo.maker, style: creditStyle),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ],
+            ),
           ),
         ),
       ],

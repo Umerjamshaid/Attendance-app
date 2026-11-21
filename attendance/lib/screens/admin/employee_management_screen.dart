@@ -1,17 +1,32 @@
+import 'dart:async';
+
 import 'package:attendance/widgets/app_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:portal_labs/portal_labs.dart';
 import 'package:provider/provider.dart';
 import '../../config/app_icons.dart';
 import '../../config/ui_tokens.dart';
+import '../../config/utility_surface_theme.dart';
 import '../../models/employees_model.dart';
+import '../../providers/admin_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/office_provider.dart';
 import '../../services/company_backend.dart';
 import '../office/office_roles_screen.dart';
 import '../profile/settings_layout.dart';
+import '../profile/settings_sheets.dart';
 import '../../widgets/error_shake.dart';
-import '../../widgets/admin/employee_discovery_bar.dart';
+import '../../widgets/user-profile/profile_section_card.dart';
+
+enum _RosterAction {
+  pause('Pause access'),
+  restore('Restore access'),
+  remove('Remove from office'),
+  reinvite('Reinvite');
+
+  const _RosterAction(this.label);
+  final String label;
+}
 
 class EmployeeManagementScreen extends StatefulWidget {
   const EmployeeManagementScreen({super.key});
@@ -23,244 +38,434 @@ class EmployeeManagementScreen extends StatefulWidget {
 class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
   late final CompanyBackend _backend = context.read<AuthProvider>().backend!;
   late Future<List<Employee>> _employees = _backend.employees();
-  String? _busy;
-  String _query = '';
-  EmployeeAccessFilter _filter = EmployeeAccessFilter.all;
-  void _reload() => setState(() {
-    _employees = _backend.employees();
-  });
-  Future<void> _toggle(Employee employee) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          '${employee.isActive ? 'Deactivate' : 'Reactivate'} ${employee.name}?',
-        ),
+  final _search = TextEditingController();
+  bool _busy = false;
+  bool _searching = false;
+  bool _removed = false;
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  Future<void> _reload() async {
+    final request = _backend.employees();
+    setState(() {
+      _employees = request;
+    });
+    // The FutureBuilder presents read errors and the retry action.
+    try {
+      await request;
+    } catch (_) {}
+  }
+
+  void _closeSearch() {
+    setState(() {
+      _search.clear();
+      _searching = false;
+    });
+  }
+
+  Future<void> _openInvite() async {
+    final invited = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const InviteEmployeeScreen()),
+    );
+    if (invited == true && mounted) await _reload();
+  }
+
+  Future<void> _openEmployee(Employee employee) async {
+    if (_busy) return;
+    FocusScope.of(context).unfocus();
+    final canChange = !_backend.isPreview && employee.isEmployee;
+    final action = await showSettingsSheet<_RosterAction>(
+      context,
+      (context) => SettingsSheetBody(
+        title: _employeeName(employee),
+        detail: [
+          employee.email,
+          _employeeSubtitle(employee),
+        ].where((part) => part.isNotEmpty).join('\n'),
+        leading: _RosterAvatar(employee),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Confirm'),
-          ),
+          if (!canChange)
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          if (canChange && employee.isRemoved)
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(context, _RosterAction.reinvite),
+              icon: const Icon(AppIcons.mail, size: 20),
+              label: const Text('Reinvite'),
+            ),
+          if (canChange && !employee.isRemoved) ...[
+            OutlinedButton(
+              onPressed: () => Navigator.pop(
+                context,
+                employee.isActive ? _RosterAction.pause : _RosterAction.restore,
+              ),
+              child: Text(
+                employee.isActive ? 'Pause access' : 'Restore access',
+              ),
+            ),
+            TextButton.icon(
+              onPressed: () => Navigator.pop(context, _RosterAction.remove),
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error,
+              ),
+              icon: const Icon(AppIcons.userOff, size: 20),
+              label: const Text('Remove from office'),
+            ),
+          ],
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
-    setState(() => _busy = employee.id);
+    if (action == null || !mounted) return;
+    if (action != _RosterAction.reinvite &&
+        !await _confirmChange(employee, action)) {
+      return;
+    }
+    if (!mounted || _busy) return;
+    setState(() => _busy = true);
     try {
-      await _backend.setEmployeeActive(employee.id, !employee.isActive);
-      if (mounted) _reload();
+      switch (action) {
+        case _RosterAction.remove:
+          await _backend.removeOfficeEmployee(employee.id);
+        case _RosterAction.pause:
+        case _RosterAction.restore:
+          await _backend.setEmployeeActive(
+            employee.id,
+            action == _RosterAction.restore,
+          );
+        case _RosterAction.reinvite:
+          final code = await _backend.reinviteRemovedEmployee(employee.id);
+          if (!mounted) return;
+          setState(() => _busy = false);
+          await showSettingsSheet<void>(
+            context,
+            (context) => SettingsSheetBody(
+              title: 'Office code ready',
+              detail: [
+                employee.email,
+                'Single use. Expires after 24 hours.',
+              ].where((part) => part.isNotEmpty).join('\n'),
+              leading: _RosterAvatar(employee),
+              actions: [
+                _OfficeInviteCode(code: code),
+                FilledButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Done'),
+                ),
+              ],
+            ),
+          );
+      }
+      if (mounted && action != _RosterAction.reinvite) {
+        unawaited(context.read<AdminProvider?>()?.loadDashboard());
+        await _reload();
+      }
     } catch (e) {
       if (mounted) {
-        AppToast.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.toString())));
+        AppToast.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+          kind: ToastKind.error,
+        );
       }
     } finally {
-      if (mounted) setState(() => _busy = null);
+      if (mounted && _busy) setState(() => _busy = false);
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final canManageRoles =
-        context.watch<OfficeProvider?>()?.canManageActiveRoles ?? false;
-    final colors = Theme.of(context).colorScheme;
-    final actionStyle = FilledButton.styleFrom(
-      minimumSize: const Size(0, 48),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      shape: const StadiumBorder(),
-    );
-    return SettingsLayout(
-      title: 'Employees',
-      children: [
-        EmployeeDiscoveryBar(
-          query: _query,
-          filter: _filter,
-          onQueryChanged: (value) => setState(() => _query = value),
-          onFilterChanged: (value) => setState(() => _filter = value),
-        ),
-        const SizedBox(height: 20),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            FilledButton.icon(
-              icon: const Icon(AppIcons.plus, size: AppLayout.compactIconSize),
-              label: const Text('Invite employee'),
-              style: actionStyle,
-              onPressed: () async {
-                final invited = await Navigator.of(context).push<bool>(
-                  MaterialPageRoute(
-                    builder: (_) => const InviteEmployeeScreen(),
-                  ),
-                );
-                if (invited == true && mounted) _reload();
-              },
+  Future<bool> _confirmChange(Employee employee, _RosterAction action) async =>
+      await showSettingsSheet<bool>(context, (context) {
+        final colors = Theme.of(context).colorScheme;
+        final removing = action == _RosterAction.remove;
+        return SettingsSheetBody(
+          title: '${action.label}?',
+          detail: switch (action) {
+            _RosterAction.remove =>
+              '${_employeeName(employee)} will lose access to this office. Past check-ins stay on record. You can reinvite them from Removed.',
+            _RosterAction.pause =>
+              '${_employeeName(employee)} will lose access until you restore it.',
+            _ =>
+              '${_employeeName(employee)} will regain access to this office.',
+          },
+          leading: _RosterAvatar(employee),
+          actions: [
+            FilledButton(
+              style: removing
+                  ? FilledButton.styleFrom(
+                      backgroundColor: colors.error,
+                      foregroundColor: colors.onError,
+                    )
+                  : null,
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(action.label),
             ),
-            if (canManageRoles)
-              FilledButton.tonalIcon(
-                icon: const Icon(
-                  AppIcons.shield,
-                  size: AppLayout.compactIconSize,
-                ),
-                label: const Text('Roles'),
-                style: actionStyle.copyWith(
-                  backgroundColor: WidgetStatePropertyAll(
-                    colors.primaryContainer,
+            OutlinedButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      }) ??
+      false;
+
+  @override
+  Widget build(BuildContext context) => Theme(
+    data: utilitySurfaceThemeData(ProfileUi.themeOf(context)),
+    child: Builder(builder: _content),
+  );
+
+  Widget _content(BuildContext context) {
+    final canManageRoles = context.select(
+      (OfficeProvider? offices) => offices?.canManageActiveRoles ?? false,
+    );
+    return PopScope(
+      canPop: !_searching && !_busy,
+      onPopInvokedWithResult: (popped, _) {
+        if (!popped && _searching && !_busy) _closeSearch();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: _searching
+              ? IconButton(
+                  tooltip: 'Close search',
+                  icon: const Icon(AppIcons.chevronLeft),
+                  onPressed: _closeSearch,
+                )
+              : null,
+          title: _searching
+              ? TextField(
+                  key: const ValueKey('employee-search-input'),
+                  controller: _search,
+                  autofocus: true,
+                  autocorrect: false,
+                  textInputAction: TextInputAction.search,
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(
+                    hintText: 'Search employees',
+                    filled: false,
+                    contentPadding: EdgeInsets.zero,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
                   ),
-                  foregroundColor: WidgetStatePropertyAll(
-                    colors.onPrimaryContainer,
-                  ),
-                ),
-                onPressed: () => Navigator.of(context).push<void>(
-                  MaterialPageRoute(builder: (_) => const OfficeRolesScreen()),
-                ),
+                )
+              : const Text('Employees'),
+          actions: [
+            if (_searching)
+              IconButton(
+                tooltip: 'Clear search',
+                icon: const Icon(AppIcons.x),
+                onPressed: _search.text.isEmpty
+                    ? null
+                    : () => setState(_search.clear),
+              )
+            else ...[
+              IconButton(
+                tooltip: 'Search employees',
+                icon: const Icon(AppIcons.search),
+                onPressed: _busy
+                    ? null
+                    : () => setState(() => _searching = true),
               ),
+              if (!_backend.isPreview)
+                IconButton(
+                  tooltip: 'Invite employee',
+                  icon: const Icon(AppIcons.plus),
+                  onPressed: _busy ? null : _openInvite,
+                ),
+            ],
+            const SizedBox(width: 4),
           ],
         ),
-        const SizedBox(height: 24),
-        FutureBuilder(
-          future: _employees,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              return Column(
+        body: SafeArea(
+          top: false,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 560),
+              child: Column(
                 children: [
-                  Text(snapshot.error.toString()),
-                  TextButton(onPressed: _reload, child: const Text('Retry')),
-                ],
-              );
-            }
-            final employees = snapshot.data ?? [];
-            final terms = _query
-                .trim()
-                .toLowerCase()
-                .split(RegExp(r'\s+'))
-                .where((term) => term.isNotEmpty);
-            final visible = employees.where((employee) {
-              final accessMatches = switch (_filter) {
-                EmployeeAccessFilter.all => true,
-                EmployeeAccessFilter.active => employee.isActive,
-                EmployeeAccessFilter.inactive => !employee.isActive,
-              };
-              final text =
-                  '${employee.name} ${employee.id} ${employee.department} ${employee.email}'
-                      .toLowerCase();
-              return accessMatches && terms.every(text.contains);
-            }).toList();
-            if (visible.isEmpty) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                child: Column(
-                  children: [
-                    Text(
-                      employees.isEmpty
-                          ? 'No employees yet'
-                          : 'No employees found',
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: SegmentedButton<bool>(
+                            showSelectedIcon: false,
+                            segments: const [
+                              ButtonSegment(
+                                value: false,
+                                label: Text('Current'),
+                              ),
+                              ButtonSegment(
+                                value: true,
+                                label: Text('Removed'),
+                              ),
+                            ],
+                            selected: {_removed},
+                            onSelectionChanged: _busy
+                                ? null
+                                : (value) =>
+                                      setState(() => _removed = value.single),
+                          ),
+                        ),
+                        if (canManageRoles && !_searching) ...[
+                          const SizedBox(width: 8),
+                          IconButton(
+                            tooltip: 'Roles',
+                            icon: const Icon(AppIcons.shield),
+                            onPressed: _busy
+                                ? null
+                                : () async {
+                                    await Navigator.of(context).push<void>(
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            const OfficeRolesScreen(),
+                                      ),
+                                    );
+                                    if (mounted) await _reload();
+                                  },
+                          ),
+                        ],
+                      ],
                     ),
-                    if (_query.isNotEmpty ||
-                        _filter != EmployeeAccessFilter.all)
-                      TextButton.icon(
-                        onPressed: () => setState(() {
-                          _query = '';
-                          _filter = EmployeeAccessFilter.all;
-                        }),
-                        icon: const Icon(AppIcons.x, size: 18),
-                        label: const Text('Clear filters'),
-                      ),
-                  ],
-                ),
-              );
-            }
-            return SettingsSection(
-              title: 'Roster (${visible.length})',
-              rows: [
-                for (final employee in visible)
-                  _EmployeeRosterRow(
-                    key: ValueKey(employee.id),
-                    employee: employee,
-                    onToggle: _busy != null ? null : (_) => _toggle(employee),
                   ),
-              ],
-            );
-          },
+                  if (_busy) const LinearProgressIndicator(minHeight: 2),
+                  Expanded(
+                    child: FutureBuilder<List<Employee>>(
+                      future: _employees,
+                      builder: (context, snapshot) =>
+                          _roster(context, snapshot),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
-      ],
+      ),
+    );
+  }
+
+  Widget _roster(BuildContext context, AsyncSnapshot<List<Employee>> snapshot) {
+    if (snapshot.hasError) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(snapshot.error.toString(), textAlign: TextAlign.center),
+              TextButton(onPressed: _reload, child: const Text('Retry')),
+            ],
+          ),
+        ),
+      );
+    }
+    if (!snapshot.hasData) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    final terms = _search.text.toLowerCase().trim().split(RegExp(r'\s+'));
+    final visible = snapshot.data!.where((employee) {
+      if (employee.isRemoved != _removed) return false;
+      final text =
+          '${employee.name} ${employee.id} ${employee.department} ${employee.email}'
+              .toLowerCase();
+      return terms.every(text.contains);
+    }).toList();
+    final theme = Theme.of(context);
+    return RefreshIndicator(
+      onRefresh: _reload,
+      child: ListView.separated(
+        key: PageStorageKey((_removed, _searching)),
+        physics: const AlwaysScrollableScrollPhysics(),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+        itemCount: visible.isEmpty ? 1 : visible.length + 1,
+        separatorBuilder: (_, _) => const Divider(height: 1, indent: 56),
+        itemBuilder: (context, index) {
+          if (visible.isEmpty) {
+            return Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                _search.text.trim().isNotEmpty
+                    ? 'No employees found'
+                    : _removed
+                    ? 'No removed employees'
+                    : 'No employees yet',
+                textAlign: TextAlign.center,
+              ),
+            );
+          }
+          if (index == 0) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(8, 10, 8, 10),
+              child: Text(
+                '${visible.length} ${visible.length == 1 ? 'employee' : 'employees'}',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            );
+          }
+          final employee = visible[index - 1];
+          return ListTile(
+            key: ValueKey(employee.id),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 4,
+            ),
+            leading: _RosterAvatar(employee),
+            title: Text(
+              _employeeName(employee),
+              style: theme.textTheme.titleSmall,
+            ),
+            subtitle: Text(_employeeSubtitle(employee)),
+            trailing: const Icon(AppIcons.chevronRight, size: 20),
+            onTap: _busy ? null : () => _openEmployee(employee),
+          );
+        },
+      ),
     );
   }
 }
 
-class _EmployeeRosterRow extends StatelessWidget {
-  const _EmployeeRosterRow({
-    super.key,
-    required this.employee,
-    required this.onToggle,
-  });
+String _employeeName(Employee employee) =>
+    employee.name.trim().isEmpty ? employee.id : employee.name;
 
+String _employeeSubtitle(Employee employee) => [
+  employee.id,
+  if (employee.department.trim().isNotEmpty) employee.department,
+  if (employee.isAdmin) 'Admin',
+  if (!employee.isActive && !employee.isRemoved) 'Paused',
+].join(' · ');
+
+class _RosterAvatar extends StatelessWidget {
+  const _RosterAvatar(this.employee);
   final Employee employee;
-  final ValueChanged<bool>? onToggle;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-    final name = employee.name.trim();
-    final initials = name
+    final colors = Theme.of(context).colorScheme;
+    final initials = _employeeName(employee)
+        .trim()
         .split(RegExp(r'\s+'))
         .where((part) => part.isNotEmpty)
         .take(2)
-        .map((part) => String.fromCharCode(part.runes.first))
+        .map((part) => part.characters.first)
         .join()
         .toUpperCase();
-    final details = [
-      [
-        employee.id,
-        employee.department,
-      ].where((value) => value.trim().isNotEmpty).join(' · '),
-      employee.email,
-    ].where((value) => value.trim().isNotEmpty).join('\n');
-    return ListTile(
-      minTileHeight: 88,
-      minLeadingWidth: 36,
-      horizontalTitleGap: 12,
-      titleAlignment: ListTileTitleAlignment.center,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14),
-      leading: ExcludeSemantics(
-        child: CircleAvatar(
-          radius: 18,
-          backgroundColor: colors.primaryContainer,
-          foregroundColor: colors.onPrimaryContainer,
-          child: Padding(
-            padding: const EdgeInsets.all(6),
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                initials.isEmpty ? '?' : initials,
-                style: AppTypography.label.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
+    return ExcludeSemantics(
+      child: CircleAvatar(
+        radius: 20,
+        backgroundColor: colors.primaryContainer,
+        foregroundColor: colors.onPrimaryContainer,
+        child: Padding(
+          padding: const EdgeInsets.all(5),
+          child: FittedBox(child: Text(initials.isEmpty ? '?' : initials)),
         ),
-      ),
-      title: Text(
-        name.isEmpty ? 'Unnamed employee' : name,
-        style: theme.textTheme.titleSmall?.copyWith(
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      subtitle: details.isEmpty ? null : Text(details),
-      isThreeLine: details.contains('\n'),
-      trailing: Semantics(
-        label: 'Active access for ${employee.name}',
-        child: Switch(value: employee.isActive, onChanged: onToggle),
       ),
     );
   }
@@ -407,24 +612,11 @@ class _InviteEmployeeScreenState extends State<InviteEmployeeScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          RevealCopyInteraction(
-            value: code,
-            backgroundColor: colors.surfaceContainerLow,
-            borderColor: colors.outlineVariant,
-            successColor: colors.primary,
-            revealDuration: const Duration(seconds: 12),
-            textStyle: theme.textTheme.bodyLarge?.copyWith(
-              color: colors.onSurface,
-              fontFamily: 'monospace',
-            ),
-            onCopied: () => AppToast.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text('Office code copied'))),
-          ),
+          _OfficeInviteCode(code: code),
           const SizedBox(height: 24),
           FilledButton(
             style: actionStyle,
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(context, true),
             child: const Text('Done'),
           ),
         ] else ...[
@@ -596,6 +788,32 @@ class _InviteSectionLabel extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _OfficeInviteCode extends StatelessWidget {
+  const _OfficeInviteCode({required this.code});
+
+  final String code;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    return RevealCopyInteraction(
+      value: code,
+      backgroundColor: colors.surfaceContainerLow,
+      borderColor: colors.outlineVariant,
+      successColor: colors.primary,
+      revealDuration: const Duration(seconds: 12),
+      textStyle: theme.textTheme.bodyLarge?.copyWith(
+        color: colors.onSurface,
+        fontFamily: 'monospace',
+      ),
+      onCopied: () => AppToast.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Office code copied'))),
     );
   }
 }

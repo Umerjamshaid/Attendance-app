@@ -4,9 +4,36 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../../config/app_info.dart';
 import '../../widgets/app_identity_footer.dart';
 import 'settings_layout.dart';
+import 'settings_sheets.dart';
+
+typedef _Note = (String title, String detail);
+
+const _officeAndSettingsHighlights = [
+  (
+    'Cleaner employee roster',
+    'Search from the toolbar. Remove an employee without losing check-ins, or reinvite them with a new office code.',
+  ),
+  (
+    'Faster Office Switch',
+    'The switcher opens with the office list already loaded and refreshes it in the background.',
+  ),
+  (
+    'Clearer Graphite dividers',
+    'Separators are easier to see in Settings and Appearance in Graphite dark mode.',
+  ),
+  (
+    'New Settings sheets',
+    'Sign out, Help Centre, and About slide up from the bottom. Email, GitHub, and the installed version are easier to find.',
+  ),
+  (
+    'Interactive maker credits',
+    'Tap the handwritten credit in Profile or Settings to open the maker contact sheet.',
+  ),
+];
 
 const _releaseNotes = {
   '1.1.0': [
+    ..._officeAndSettingsHighlights,
     (
       'New app icon',
       'An emerald icon with a punched timecard, on the launcher and startup screen.',
@@ -37,6 +64,31 @@ const _releaseNotes = {
     ),
   ],
 };
+
+const _releaseHighlights = {'1.1.0': _officeAndSettingsHighlights};
+
+bool hasReleaseHighlights(String version) =>
+    _releaseHighlights.containsKey(version);
+
+Future<void> showWhatsNewSheet(BuildContext context, PackageInfo info) {
+  final highlights = _releaseHighlights[info.version];
+  if (highlights == null) return Future.value();
+  return showSettingsSheet<void>(
+    context,
+    (context) => SettingsSheetBody(
+      title: "What's new",
+      detail: AppInfo.versionLabel(info),
+      leading: const AttendanceMark(size: 48),
+      actions: [
+        _ReleaseNoteList(highlights),
+        FilledButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Got it'),
+        ),
+      ],
+    ),
+  );
+}
 
 class WhatsNewScreen extends StatefulWidget {
   const WhatsNewScreen({super.key});
@@ -80,24 +132,49 @@ class _WhatsNewScreenState extends State<WhatsNewScreen> {
               ),
               const SizedBox(height: 16),
               if (notes == null)
-                const Text('No release notes for this version.'),
-              if (notes != null)
-                for (final (title, detail) in notes)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(title, style: theme.textTheme.titleSmall),
-                        const SizedBox(height: 4),
-                        Text(detail, style: theme.textTheme.bodyMedium),
-                      ],
-                    ),
-                  ),
+                const Text('No release notes for this version.')
+              else
+                _ReleaseNoteList(notes),
             ],
           );
         },
       ),
     ],
   );
+}
+
+class _ReleaseNoteList extends StatelessWidget {
+  const _ReleaseNoteList(this.notes);
+
+  final List<_Note> notes;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final (title, detail) in notes)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Semantics(
+                  header: true,
+                  child: Text(title, style: theme.textTheme.titleSmall),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  detail,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
 }

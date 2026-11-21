@@ -4,6 +4,7 @@ import 'package:attendance/providers/auth_provider.dart';
 import 'package:attendance/providers/office_provider.dart';
 import 'package:attendance/providers/attendance_history_provider.dart';
 import 'package:attendance/providers/profile_provider.dart';
+import 'package:attendance/screens/login/login_screen.dart';
 import 'package:attendance/widgets/bottom_nav.dart';
 import 'package:attendance/widgets/office/office_selector_header.dart';
 import 'package:attendance/widgets/office/office_switcher_sheet.dart';
@@ -22,6 +23,86 @@ void main() {
     await loadTestFonts();
     await loadOverviewFonts();
   });
+
+  testWidgets("What's new shows once per update, not on install or downgrade", (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final installed = DateTime(2026, 11, 1);
+    Future<void> launch(String build) async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      _mockPackage(build, installTime: installed, updateTime: installed);
+      runAttendanceApp(backend: ControlledOfficeBackend());
+      await _pumpLaunch(tester);
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    Finder sheetText(String text) => find.descendant(
+      of: find.byType(BottomSheet),
+      matching: find.text(text),
+    );
+
+    await launch('4026');
+    expect(find.byType(BottomSheet), findsNothing);
+    expect(prefs.getString('last_seen_release'), '1.1.0+4026');
+
+    await launch('4027');
+    expect(sheetText("What's new"), findsOneWidget);
+    expect(sheetText('Version 1.1.0 (Build 4027)'), findsOneWidget);
+    expect(sheetText('Faster Office Switch'), findsOneWidget);
+    expect(sheetText('Interactive maker credits'), findsOneWidget);
+    expect(prefs.getString('last_seen_release'), '1.1.0+4026');
+    final done = sheetText('Got it');
+    await tester.ensureVisible(done);
+    await tester.pump();
+    await tester.tap(done);
+    await _pumpLaunch(tester);
+    expect(find.byType(BottomSheet), findsNothing);
+    expect(prefs.getString('last_seen_release'), '1.1.0+4027');
+
+    await launch('4026');
+    expect(find.byType(BottomSheet), findsNothing);
+    expect(prefs.getString('last_seen_release'), '1.1.0+4027');
+    await launch('4027');
+    expect(find.byType(BottomSheet), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets(
+    'an update from a legacy build waits for Home and honors scrim dismissal',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      _mockPackage(
+        '4027',
+        installTime: DateTime(2026, 11, 1),
+        updateTime: DateTime(2026, 11, 2),
+      );
+      final backend = ControlledOfficeBackend()..state.signedIn = false;
+      await tester.pumpWidget(const SizedBox.shrink());
+      var released = false;
+      runAttendanceApp(backend: backend, onReady: () => released = true);
+      await _pumpLaunch(tester);
+      final login = find.byType(LoginScreen);
+      expect(login, findsOneWidget);
+      expect(released, isTrue);
+      expect(find.byType(BottomSheet), findsNothing);
+
+      backend.state.signedIn = true;
+      await tester.element(login).read<AuthProvider>().refreshSession();
+      await _pumpLaunch(tester);
+      expect(find.text("What's new"), findsOneWidget);
+      expect(find.byType(BottomNav), findsOneWidget);
+      await tester.tapAt(const Offset(8, 8));
+      await _pumpLaunch(tester);
+      expect(find.byType(BottomSheet), findsNothing);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('last_seen_release'), '1.1.0+4027');
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
   testWidgets(
     'real bootstrap hides old content, replaces office providers and preserves profile state',
     (tester) async {
@@ -142,4 +223,24 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
+}
+
+void _mockPackage(
+  String build, {
+  required DateTime installTime,
+  required DateTime updateTime,
+}) => PackageInfo.setMockInitialValues(
+  appName: 'Attendance',
+  packageName: 'test.attendance',
+  version: '1.1.0',
+  buildNumber: build,
+  buildSignature: '',
+  installTime: installTime,
+  updateTime: updateTime,
+);
+
+Future<void> _pumpLaunch(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 500));
+  await tester.pump(const Duration(milliseconds: 500));
 }

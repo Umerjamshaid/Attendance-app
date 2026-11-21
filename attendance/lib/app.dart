@@ -5,10 +5,14 @@ import 'package:attendance/providers/theme_provider.dart';
 import 'package:attendance/screens/app_shell.dart';
 import 'package:attendance/screens/login/login_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
+import 'package:pub_semver/pub_semver.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'config/app_theme.dart';
 import 'config/app_info.dart';
 import 'screens/login/password_setup_screen.dart';
+import 'screens/profile/whats_new_screen.dart';
 import 'screens/splash/launch_failure_screen.dart';
 import 'services/launch_failure_reporter.dart';
 import 'widgets/office/office_scope.dart';
@@ -54,9 +58,12 @@ class _LaunchGate extends StatefulWidget {
 }
 
 class _LaunchGateState extends State<_LaunchGate> {
+  static const _seenReleaseKey = 'last_seen_release';
+
   Timer? _deadline;
   bool _timedOut = false;
   bool _released = false;
+  bool _checkedRelease = false;
 
   @override
   void initState() {
@@ -88,6 +95,52 @@ class _LaunchGateState extends State<_LaunchGate> {
     }
   }
 
+  void _checkReleaseAfterLayout() {
+    if (_checkedRelease) return;
+    _checkedRelease = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_checkRelease());
+    });
+  }
+
+  Future<void> _checkRelease() async {
+    try {
+      final (info, preferences) = await (
+        PackageInfo.fromPlatform(),
+        SharedPreferences.getInstance(),
+      ).wait;
+      final build = info.buildNumber;
+      final current = Version.parse(
+        build.isEmpty ? info.version : '${info.version}+$build',
+      );
+      final saved = preferences.getString(_seenReleaseKey);
+      final previous = saved == null ? null : Version.parse(saved);
+      if (previous != null && current <= previous) return;
+
+      // Older Attendance builds have no marker yet. Use OS install metadata
+      // to distinguish an in-place update from a new install in that case.
+      final installedAt = info.installTime;
+      final updatedAt = info.updateTime;
+      final isUpdate =
+          previous != null ||
+          (installedAt != null &&
+              updatedAt != null &&
+              updatedAt.isAfter(installedAt));
+      if (isUpdate && hasReleaseHighlights(info.version)) {
+        if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
+        final auth = context.read<AuthProvider>();
+        if (auth.status != AuthStatus.authenticated ||
+            auth.needsPasswordSetup) {
+          return;
+        }
+        await showWhatsNewSheet(context, info);
+      }
+      await preferences.setString(_seenReleaseKey, current.toString());
+    } catch (_) {
+      // Optional release notes must never block Home or the native splash.
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
@@ -102,6 +155,9 @@ class _LaunchGateState extends State<_LaunchGate> {
     }
     _releaseAfterLayout();
     if (auth.needsPasswordSetup) return const PasswordSetupScreen();
+    if (!themeRestoring && auth.status == AuthStatus.authenticated) {
+      _checkReleaseAfterLayout();
+    }
     return switch (auth.status) {
       AuthStatus.initial when _timedOut => const LaunchFailureScreen(),
       AuthStatus.initial => const Scaffold(
