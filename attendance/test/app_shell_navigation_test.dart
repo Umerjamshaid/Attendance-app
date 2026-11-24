@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/models/employees_model.dart';
 import 'package:attendance/providers/admin_provider.dart';
+import 'package:attendance/providers/admin_activity_provider.dart';
 import 'package:attendance/providers/attendance_history_provider.dart';
 import 'package:attendance/providers/attendance_provider.dart';
 import 'package:attendance/providers/auth_provider.dart';
@@ -95,6 +96,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byTooltip('Manage employees'), findsOneWidget);
+      final badge = find.byKey(const ValueKey('activity-unread-dot'));
+      expect(tester.widget<Badge>(badge).isLabelVisible, isTrue);
       await tester.tap(find.byTooltip('Check-in activity'));
       await tester.pumpAndSettle();
       expect(find.text('Check-in activity'), findsOneWidget);
@@ -103,9 +106,34 @@ void main() {
         findsOneWidget,
       );
 
+      await tester.tap(find.byTooltip('Mark all as read'));
+      await tester.pumpAndSettle();
+
       await tester.tap(find.byTooltip('Back'));
       await tester.pumpAndSettle();
       expect(find.byTooltip('Manage employees'), findsOneWidget);
+      expect(tester.widget<Badge>(badge).isLabelVisible, isFalse);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets(
+    'a live check-in shows a banner on Home and opens Admin activity',
+    (tester) async {
+      final fixture = await _mount(tester, admin: true);
+      expect(find.byType(AttendanceScreen), findsOneWidget);
+      fixture.backend.activitySignals.add('sample-alex');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
+      expect(find.text('Alex Morgan checked in'), findsOneWidget);
+      await tester.tap(find.text('View activity'));
+      await tester.pumpAndSettle();
+      expect(find.text('Check-in activity'), findsOneWidget);
+      expect(
+        find.text('Alex Morgan checked in', findRichText: true),
+        findsOneWidget,
+      );
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
@@ -315,6 +343,12 @@ class _Fixture {
       ChangeNotifierProvider<AttendanceProvider>.value(value: attendance),
       ChangeNotifierProvider.value(value: profile),
       ChangeNotifierProvider<AdminProvider>.value(value: admin),
+      if (auth.currentUser?.isAdmin == true)
+        ChangeNotifierProvider(
+          lazy: false,
+          create: (_) =>
+              AdminActivityProvider(backend, viewer: 'admin', office: 'sample'),
+        ),
       ChangeNotifierProvider.value(value: theme),
     ],
     child: MaterialApp(
@@ -324,9 +358,8 @@ class _Fixture {
       builder: (context, child) => Directionality(
         textDirection: rtl ? TextDirection.rtl : TextDirection.ltr,
         child: MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(disableAnimations: reducedMotion),
+          data: MediaQuery.of(context)
+              .copyWith(disableAnimations: reducedMotion),
           child: child!,
         ),
       ),
@@ -335,6 +368,7 @@ class _Fixture {
   );
 
   void dispose() {
+    unawaited(backend.activitySignals.close());
     auth.dispose();
     history.dispose();
     attendance.dispose();
@@ -349,6 +383,9 @@ class _Backend extends PreviewCompanyBackend {
   bool admin;
   int restoreCalls = 0;
   Completer<void>? restoreGate;
+  final activitySignals = StreamController<String?>.broadcast();
+  @override
+  Stream<String?> get checkInActivitySignals => activitySignals.stream;
   @override
   bool get isPreview => false;
   @override

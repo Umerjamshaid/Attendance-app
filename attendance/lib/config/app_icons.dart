@@ -37,6 +37,7 @@ abstract final class AppIcons {
   static const infoCircle = TablerIcons.infoCircle;
   static const language = TablerIcons.language;
   static const lock = TablerIcons.lock;
+  static const download = TablerIcons.download;
   static const logout = TablerIcons.logout;
   static const mail = TablerIcons.mail;
   static const mapPin = TablerIcons.mapPin;

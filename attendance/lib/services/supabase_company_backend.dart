@@ -13,14 +13,16 @@ import '../models/employees_model.dart';
 import '../models/office_check_in_activity.dart';
 import '../models/office_model.dart';
 import 'company_backend.dart';
+import 'network_status.dart';
 import 'profile_media.dart';
 
 class _OfficeSession {
-  _OfficeSession(this.preferences)
+  _OfficeSession(this.preferences, this.connection)
     : passwordRecoverySession = preferences?.getString(_recoveryKey);
 
   static const _recoveryKey = 'attendance.pending_password_recovery';
   final SharedPreferences? preferences;
+  final NetworkStatus? connection;
   String? officeId;
   int generation = 0;
   bool switching = false;
@@ -61,12 +63,15 @@ class _OfficeSession {
 }
 
 class SupabaseCompanyBackend extends CompanyBackend {
-  SupabaseCompanyBackend(this.client, {SharedPreferences? preferences})
-    : _session = _OfficeSession(preferences),
-      _userId = null,
-      _officeId = null,
-      _generation = null,
-      _accountEmployee = null;
+  SupabaseCompanyBackend(
+    this.client, {
+    SharedPreferences? preferences,
+    NetworkStatus? connection,
+  }) : _session = _OfficeSession(preferences, connection),
+       _userId = null,
+       _officeId = null,
+       _generation = null,
+       _accountEmployee = null;
   SupabaseCompanyBackend._scoped(
     this.client,
     this._session,
@@ -89,6 +94,8 @@ class SupabaseCompanyBackend extends CompanyBackend {
   final _queuedImagePaths = <String>{};
   Timer? _imageRefreshTimer;
 
+  @override
+  NetworkStatus? get connectionStatus => _session.connection;
   @override
   bool get supportsOffices => true;
   @override
@@ -175,8 +182,18 @@ class SupabaseCompanyBackend extends CompanyBackend {
     Duration timeout = const Duration(seconds: 20),
   }) => client.rpc(name, params: params).timeout(timeout);
 
-  Future<T> _guard<T>(Future<T> Function() action) async {
+  void _requireConnection() {
+    if (connectionStatus?.offline == true) {
+      throw const CompanyException(NetworkStatus.offlineMessage);
+    }
+  }
+
+  Future<T> _guard<T>(
+    Future<T> Function() action, {
+    bool requiresNetwork = true,
+  }) async {
     try {
+      if (requiresNetwork) _requireConnection();
       validateContext();
       final result = await action();
       validateContext();
@@ -184,6 +201,9 @@ class SupabaseCompanyBackend extends CompanyBackend {
     } on CompanyException {
       rethrow;
     } on AuthException catch (error) {
+      if (error is AuthRetryableFetchException) {
+        unawaited(connectionStatus?.refresh());
+      }
       if ([
         'session_not_found',
         'session_expired',
@@ -218,8 +238,7 @@ class SupabaseCompanyBackend extends CompanyBackend {
             'That employee number is already in use in this office.',
           'employee_not_removed' =>
             'Only removed employees can be reinvited. Refresh the roster.',
-          'office_code_account_required' =>
-            'Use email for this employee. They need a verified Attendance account to use an office code.',
+          'office_code_account_required' => 'Use email for this employee. They need a verified Attendance account to use an office code.',
           'invalid_office_code' =>
             'This office code is invalid, expired, or not for your account.',
           'last_admin' => 'The last active administrator must keep their role.',
@@ -235,14 +254,16 @@ class SupabaseCompanyBackend extends CompanyBackend {
       final details = error.details;
       // Only server-owned public error messages are shown, never raw responses.
       final code = details is Map ? details['code'] : null;
+      if (error.status == 429 && code == 'invitation_rate_limited') {
+        throw const InvitationRateLimitException();
+      }
       throw CompanyException(switch (code) {
         'window_closed' => 'The attendance window is closed.',
         'inactive' => 'Your company access is inactive. Contact an admin.',
         'forbidden' => 'You do not have permission for this action.',
         'duplicate_employee' =>
           'That employee number or invitation already exists.',
-        'invitation_delivery_failed' =>
-          'The invitation email could not be sent. Ask the project owner to check email delivery.',
+        'invitation_delivery_failed' => 'The invitation email could not be sent. Ask the project owner to check email delivery.',
         'last_admin' => 'The last active administrator cannot be deactivated.',
         'processing' => 'This upload is still processing. Try again shortly.',
         'evidence_expired' =>
@@ -250,6 +271,9 @@ class SupabaseCompanyBackend extends CompanyBackend {
         'invalid_image' => 'Choose a JPEG or PNG image smaller than 2 MB.',
         _ => 'The request could not be completed. Please try again.',
       });
+    } on SocketException {
+      unawaited(connectionStatus?.refresh());
+      throw const CompanyException(NetworkStatus.offlineMessage);
     } catch (_, stack) {
       Error.throwWithStackTrace(
         const CompanyException(
@@ -331,9 +355,17 @@ class SupabaseCompanyBackend extends CompanyBackend {
   Future<void> signOut() => _guard(() async {
     _session.generation++;
     _session.officeId = null;
-    await client.auth.signOut();
+    try {
+      await client.auth.signOut();
+    } on Exception {
+      // GoTrue removes the local session before attempting remote revocation.
+      if (connectionStatus?.offline != true ||
+          client.auth.currentSession != null) {
+        rethrow;
+      }
+    }
     await _session.setRecovery(null);
-  });
+  }, requiresNetwork: false);
   @override
   Future<Employee> updateProfile({
     String? name,
@@ -445,9 +477,10 @@ class SupabaseCompanyBackend extends CompanyBackend {
   });
   @override
   Future<List<Employee>> employees() => _guard(() async {
-    final rows =
-        await _rpc('company_employees', params: {'p_organization': _office})
-            as List;
+    final rows = await _rpc(
+      'company_employees',
+      params: {'p_organization': _office},
+    ) as List;
     return rows
         .map((row) => Employee.fromMap(Map<String, dynamic>.from(row as Map)))
         .toList();
@@ -546,16 +579,56 @@ class SupabaseCompanyBackend extends CompanyBackend {
     ),
   );
 
+  @override
+  Stream<String?> get checkInActivitySignals => Stream.multi((events) {
+    final office = _officeId;
+    final viewer = _userId;
+    if (office == null || viewer == null) {
+      events.close();
+      return;
+    }
+    void emit(String? id) {
+      try {
+        validateContext();
+        events.add(id);
+      } on CompanyException {
+        // An old office's socket can finish leaving after the UI has switched.
+      }
+    }
+
+    final channel = client
+        .channel(
+          'office-check-ins:$office:$viewer',
+          opts: const RealtimeChannelConfig(private: true),
+        )
+        .onBroadcast(
+          event: 'check_in_saved',
+          callback: (message) {
+            final payload = message['payload'];
+            final id = payload is Map ? payload['check_in_id'] : null;
+            emit(id is String ? id : null);
+          },
+        )
+        .subscribe((status, _) {
+          if (status == RealtimeSubscribeStatus.subscribed) emit(null);
+        });
+    events.onCancel = () async {
+      try {
+        await client.removeChannel(channel);
+      } on Exception {
+        // The socket may already be closed during sign-out.
+      }
+    };
+  });
+
   Future<List<OfficeCheckInActivity>> _readCheckInActivity() async {
     final List rows;
     try {
-      rows =
-          await _rpc(
-                'office_check_in_activity',
-                params: {'p_organization': _office},
-                timeout: const Duration(seconds: 15),
-              )
-              as List;
+      rows = await _rpc(
+        'office_check_in_activity',
+        params: {'p_organization': _office},
+        timeout: const Duration(seconds: 15),
+      ) as List;
     } on TimeoutException {
       throw const CompanyException(
         'The check-in feed took too long to load. Try again.',
@@ -853,19 +926,20 @@ class SupabaseCompanyBackend extends CompanyBackend {
     }
   });
   @override
-  Future<void> invite({
+  Future<bool> invite({
     required String email,
     required String name,
     required String employeeCode,
     required String department,
   }) => _guard(() async {
-    await _invoke('manage-employees', {
+    final result = await _invoke('manage-employees', {
       'action': 'invite',
       'email': email,
       'name': name,
       'employee_code': employeeCode,
       'department': department,
     });
+    return result['email_sent'] == true;
   });
   @override
   Future<String> createOfficeInviteCode({
@@ -874,18 +948,16 @@ class SupabaseCompanyBackend extends CompanyBackend {
     required String employeeCode,
     required String department,
   }) => _guard(
-    () async =>
-        await _rpc(
-              'create_office_invite_code',
-              params: {
-                'p_organization': _office,
-                'p_email': email,
-                'p_name': name,
-                'p_employee_code': employeeCode,
-                'p_department': department,
-              },
-            )
-            as String,
+    () async => await _rpc(
+      'create_office_invite_code',
+      params: {
+        'p_organization': _office,
+        'p_email': email,
+        'p_name': name,
+        'p_employee_code': employeeCode,
+        'p_department': department,
+      },
+    ) as String,
   );
   @override
   Future<String> redeemOfficeInviteCode(String code) => _guard(
@@ -912,15 +984,10 @@ class SupabaseCompanyBackend extends CompanyBackend {
 
   @override
   Future<String> reinviteRemovedEmployee(String employeeId) => _guard(
-    () async =>
-        await _rpc(
-              'reinvite_removed_employee',
-              params: {
-                'p_organization': _office,
-                'p_employee_code': employeeId,
-              },
-            )
-            as String,
+    () async => await _rpc(
+      'reinvite_removed_employee',
+      params: {'p_organization': _office, 'p_employee_code': employeeId},
+    ) as String,
   );
   @override
   Future<Map<String, dynamic>> evidence(String recordId) =>
@@ -977,6 +1044,7 @@ class SupabaseCompanyBackend extends CompanyBackend {
   });
   @override
   Future<Employee> switchOffice(String officeId) async {
+    _requireConnection();
     final userId = _user;
     _session.switching = true;
     _session.generation++;
@@ -1061,11 +1129,9 @@ class SupabaseCompanyBackend extends CompanyBackend {
   });
   @override
   Future<String> acceptOfficeInvitation(String invitationId) => _guard(
-    () async =>
-        await _rpc(
-              'accept_office_invitation',
-              params: {'p_invitation': invitationId},
-            )
-            as String,
+    () async => await _rpc(
+      'accept_office_invitation',
+      params: {'p_invitation': invitationId},
+    ) as String,
   );
 }

@@ -7,6 +7,7 @@ import 'package:attendance/models/employees_model.dart';
 import 'package:attendance/providers/profile_provider.dart';
 import 'package:attendance/services/company_backend.dart';
 import 'package:attendance/services/profile_image_cache.dart';
+import 'package:attendance/widgets/profile_image.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:attendance/widgets/user-profile/profile_header.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
@@ -28,6 +29,27 @@ void main() {
   setUp(() {
     GoogleFonts.config.allowRuntimeFetching = false;
     SharedPreferences.setMockInitialValues({});
+  });
+
+  testWidgets('thumbnail decoding uses the displayed width and density', (
+    tester,
+  ) async {
+    late ImageProvider<Object> thumbnail;
+    await tester.pumpWidget(
+      MediaQuery(
+        data: const MediaQueryData(devicePixelRatio: 2.625),
+        child: Builder(
+          builder: (context) {
+            thumbnail = profileImageProvider(
+              'https://example.invalid/profile.png',
+              width: profileDecodeWidth(context, 42),
+            );
+            return const SizedBox.shrink();
+          },
+        ),
+      ),
+    );
+    expect((thumbnail as ResizeImage).width, 111);
   });
 
   testWidgets(
@@ -100,9 +122,10 @@ void main() {
       });
       for (final url in [first, replacement, avatar]) {
         await tester.runAsync(() async {
-          final image =
-              ProfileImageCache.image(url, viewer: viewer)
-                  as CachedNetworkImageProvider;
+          final image = ProfileImageCache.image(
+            url,
+            viewer: viewer,
+          ) as CachedNetworkImageProvider;
           await image.cacheManager!.putFile(
             url,
             base64Decode(
@@ -153,7 +176,13 @@ void main() {
         (widget) =>
             widget is Image &&
             widget.image is ResizeImage &&
-            (widget.image as ResizeImage).width == 336,
+            (widget.image as ResizeImage).imageProvider
+                is CachedNetworkImageProvider &&
+            ((widget.image as ResizeImage).imageProvider
+                        as CachedNetworkImageProvider)
+                    .cacheKey
+                    ?.contains('avatar-v1') ==
+                true,
       );
       final firstElement = tester.element(bannerFinder);
       final avatarElement = tester.element(avatarFinder);
@@ -259,9 +288,10 @@ void main() {
       final name = tester.widget<Text>(find.text('Sample Employee'));
       expect(name.style?.fontFamily, ProfileUi.fontFamily);
       expect(
-        Theme.of(
-          tester.element(find.text('Sample Employee')),
-        ).textTheme.bodyLarge?.fontFamily,
+        Theme.of(tester.element(find.text('Sample Employee')))
+            .textTheme
+            .bodyLarge
+            ?.fontFamily,
         ProfileUi.fontFamily,
       );
       final remove = find.bySemanticsLabel('Remove cover photo');

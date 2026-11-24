@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../config/app_icons.dart';
 import '../../config/app_theme.dart';
 import '../../config/ui_tokens.dart';
@@ -283,8 +284,11 @@ class _EvidenceLocationState extends State<_EvidenceLocation>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(top: 2),
-          child: Icon(AppIcons.mapPin, size: AppLayout.compactIconSize),
+          padding: const EdgeInsets.only(top: 1),
+          child: SizedBox(
+            width: AppLayout.compactIconSize,
+            child: Icon(AppIcons.mapPin, size: 18),
+          ),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -307,8 +311,7 @@ class _EvidenceLocationState extends State<_EvidenceLocation>
                       'No address found. Coordinates are shown below.',
                     EvidenceAddressStatus.invalid =>
                       'Invalid coordinates. Saved values are shown below.',
-                    EvidenceAddressStatus.unsupported =>
-                      'Address lookup is unavailable on this platform. Coordinates are shown below.',
+                    EvidenceAddressStatus.unsupported => 'Address lookup is unavailable on this platform. Coordinates are shown below.',
                     _ => 'Address unavailable. Coordinates are shown below.',
                   };
                   return Semantics(

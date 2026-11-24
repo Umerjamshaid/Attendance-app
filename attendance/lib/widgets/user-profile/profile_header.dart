@@ -1,5 +1,6 @@
 import 'package:attendance/widgets/app_toast.dart';
 import 'package:attendance/config/app_icons.dart';
+
 import '../profile_image.dart';
 
 import 'package:attendance/config/app_theme.dart';
@@ -11,8 +12,10 @@ import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
 import '../../screens/profile/account_edit_screen.dart';
 import '../../services/company_backend.dart';
+import '../../services/network_status.dart';
 import 'banner_actions.dart';
 import 'banner_color_sheet.dart';
 
@@ -156,6 +159,9 @@ class ProfileHeader extends StatelessWidget {
 
   Widget _buildContent(BuildContext context) {
     final profile = context.watch<ProfileProvider>();
+    final offline = context.select(
+      (NetworkStatus? status) => status?.offline ?? false,
+    );
     final name = employee.name.trim();
     final handle = employee.id.trim().toLowerCase();
     final headline = employee.headline?.trim() ?? '';
@@ -187,6 +193,7 @@ class ProfileHeader extends StatelessWidget {
                   top: 0,
                   height: _bannerHeight,
                   child: _Banner(
+                    readOnly: offline,
                     path: profile.bannerPath,
                     viewer: profile.imageViewer,
                     refresh: profile.backend?.refreshProfileImage,
@@ -211,8 +218,12 @@ class ProfileHeader extends StatelessWidget {
                       refresh: profile.backend?.refreshProfileImage,
                       size: _avatarSize,
                       ring: _ring,
-                      onTap: () =>
-                          _changeImage(context, (p) => p.pickPfp(employee.id)),
+                      onTap: offline
+                          ? null
+                          : () => _changeImage(
+                              context,
+                              (p) => p.pickPfp(employee.id),
+                            ),
                     ),
                   ),
                 ),
@@ -297,7 +308,7 @@ class ProfileHeader extends StatelessWidget {
               ],
               const SizedBox(height: 16),
               FilledButton.icon(
-                onPressed: () => _openEditSheet(context),
+                onPressed: offline ? null : () => _openEditSheet(context),
                 icon: const Icon(AppIcons.edit, size: 20),
                 label: const Text('Edit profile'),
                 style: FilledButton.styleFrom(
@@ -348,6 +359,7 @@ class _ProfileChipGroup extends StatelessWidget {
 
 class _Banner extends StatefulWidget {
   const _Banner({
+    required this.readOnly,
     required this.path,
     required this.viewer,
     this.refresh,
@@ -358,6 +370,7 @@ class _Banner extends StatefulWidget {
   });
 
   final String? path;
+  final bool readOnly;
   final String? viewer;
   final Future<String?> Function(String)? refresh;
   final Future<void> Function() onRetry;
@@ -378,7 +391,7 @@ class _BannerState extends State<_Banner> {
   bool _removing = false;
 
   Future<void> _openOptions() async {
-    if (_optionsOpen || _removing) return;
+    if (_optionsOpen || _removing || widget.readOnly) return;
     final path = widget.path;
     final viewer = widget.viewer;
     _optionsOpen = true;
@@ -389,7 +402,12 @@ class _BannerState extends State<_Banner> {
     } finally {
       _optionsOpen = false;
     }
-    if (!mounted || path != widget.path || viewer != widget.viewer) return;
+    if (!mounted ||
+        path != widget.path ||
+        viewer != widget.viewer ||
+        widget.readOnly) {
+      return;
+    }
     if (action == BannerAction.change) {
       widget.onTap();
     } else if (action == BannerAction.color) {
@@ -466,8 +484,10 @@ class _BannerState extends State<_Banner> {
     final revision = _revision;
     return Semantics(
       container: true,
-      button: true,
-      label: hasBanner ? 'Change cover photo' : 'Select cover photo',
+      button: !widget.readOnly,
+      label: widget.readOnly
+          ? 'Cover photo'
+          : (hasBanner ? 'Change cover photo' : 'Select cover photo'),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(ProfileUi.cardRadius),
         child: Stack(
@@ -506,7 +526,7 @@ class _BannerState extends State<_Banner> {
               child: Material(
                 type: MaterialType.transparency,
                 child: InkWell(
-                  onTap: _removing
+                  onTap: _removing || widget.readOnly
                       ? null
                       : hasBanner
                       ? onTap
@@ -514,7 +534,7 @@ class _BannerState extends State<_Banner> {
                 ),
               ),
             ),
-            if (_failed)
+            if (_failed && !widget.readOnly)
               Positioned(
                 top: 4,
                 left: 8,
@@ -528,7 +548,7 @@ class _BannerState extends State<_Banner> {
                   ),
                 ),
               ),
-            if (!hasBanner)
+            if (!hasBanner && !widget.readOnly)
               const Align(
                 alignment: Alignment.topCenter,
                 child: Padding(
@@ -536,7 +556,7 @@ class _BannerState extends State<_Banner> {
                   child: IgnorePointer(child: _BannerPrompt()),
                 ),
               )
-            else
+            else if (!widget.readOnly)
               Positioned(
                 top: 4,
                 right: 10,
@@ -695,13 +715,12 @@ class _Avatar extends StatelessWidget {
   final Future<String?> Function(String)? refresh;
   final double size;
   final double ring;
-  final VoidCallback onTap;
-
-  static const int _decodeWidth = 336;
+  final VoidCallback? onTap;
 
   Widget _buildImage(BuildContext context) {
     final url = networkUrl;
     final path = localPath;
+    final decodeWidth = profileDecodeWidth(context, size);
 
     Widget network() {
       if (url == null || url.isEmpty) return const SizedBox.shrink();
@@ -709,7 +728,7 @@ class _Avatar extends StatelessWidget {
         image: profileImageProvider(
           url,
           viewer: viewer,
-          width: _decodeWidth,
+          width: decodeWidth,
           refresh: refresh,
         ),
         fit: BoxFit.cover,
@@ -740,7 +759,7 @@ class _Avatar extends StatelessWidget {
             image: profileImageProvider(
               path,
               viewer: viewer,
-              width: _decodeWidth,
+              width: decodeWidth,
               refresh: refresh,
             ),
             fit: BoxFit.cover,
@@ -759,8 +778,8 @@ class _Avatar extends StatelessWidget {
     return _PressableScale(
       onTap: onTap,
       child: Semantics(
-        button: true,
-        label: 'Change profile photo',
+        button: onTap != null,
+        label: onTap == null ? 'Profile photo' : 'Change profile photo',
         child: SizedBox(
           width: outer,
           height: outer,
@@ -800,24 +819,28 @@ class _Avatar extends StatelessWidget {
                   ),
                 ),
               ),
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: context.colors.primary,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: context.colors.surface, width: 3),
-                  ),
-                  child: Icon(
-                    AppIcons.cameraPlus,
-                    size: 16,
-                    color: context.colors.onPrimary,
+              if (onTap != null)
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: context.colors.primary,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: context.colors.surface,
+                        width: 3,
+                      ),
+                    ),
+                    child: Icon(
+                      AppIcons.cameraPlus,
+                      size: 16,
+                      color: context.colors.onPrimary,
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         ),
@@ -831,7 +854,7 @@ class _PressableScale extends StatefulWidget {
   const _PressableScale({required this.child, required this.onTap});
 
   final Widget child;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   State<_PressableScale> createState() => _PressableScaleState();
@@ -846,6 +869,7 @@ class _PressableScaleState extends State<_PressableScale> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.onTap == null) return widget.child;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,

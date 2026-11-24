@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/models/employees_model.dart';
 import 'package:attendance/models/office_check_in_activity.dart';
+import 'package:attendance/providers/admin_activity_provider.dart';
 import 'package:attendance/providers/auth_provider.dart';
 import 'package:attendance/screens/admin/admin_notification_screen.dart';
 import 'package:attendance/services/company_backend.dart';
@@ -11,11 +12,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'support/test_fonts.dart';
 
 void main() {
   setUpAll(loadTestFonts);
+  setUp(() => SharedPreferences.setMockInitialValues({}));
 
   testWidgets('loads, refreshes to empty, and retries a failed read', (
     tester,
@@ -76,6 +79,58 @@ void main() {
   });
 
   testWidgets(
+    'read markers are persisted per office, including tied timestamps',
+    (tester) async {
+      final backend = _ActivityBackend();
+      final auth = await _mount(tester, backend);
+      final marked = _checkIn('b', 'Known check-in');
+      backend.requests.single.complete([
+        marked,
+        OfficeCheckInActivity(
+          id: 'a',
+          employeeName: 'Earlier check-in',
+          receivedAt: marked.receivedAt.subtract(const Duration(days: 1)),
+        ),
+      ]);
+      await tester.pumpAndSettle();
+      expect(find.text('Today'), findsOneWidget);
+      expect(find.text('Earlier'), findsOneWidget);
+      final action = find.byTooltip('Mark all as read');
+      expect(action, findsOneWidget);
+      await tester.tap(action);
+      await tester.pumpAndSettle();
+      expect(action, findsNothing);
+      await tester.tap(find.text('Unread'));
+      await tester.pumpAndSettle();
+      expect(find.text('You’re caught up'), findsOneWidget);
+      expect(_entry('Known check-in'), findsNothing);
+      await tester.tap(find.text('All'));
+      await tester.pumpAndSettle();
+      expect(_entry('Known check-in'), findsOneWidget);
+
+      backend.user = backend.user!.copyWith(organizationId: 'office-b');
+      await auth.refreshSession();
+      await tester.pump();
+      backend.requests[1].complete([marked]);
+      await tester.pumpAndSettle();
+      expect(action, findsOneWidget);
+
+      backend.user = backend.user!.copyWith(organizationId: 'office-a');
+      await auth.refreshSession();
+      await tester.pump();
+      backend.requests[2].complete([marked]);
+      await tester.pumpAndSettle();
+      expect(action, findsNothing);
+
+      await _pullToRefresh(tester);
+      backend.requests[3].complete([_checkIn('c', 'New arrival'), marked]);
+      await tester.pumpAndSettle();
+      expect(action, findsOneWidget);
+      expect(_entry('New arrival'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     'a refused read clears the list; deactivated access stops reads',
     (tester) async {
       final backend = _ActivityBackend();
@@ -108,6 +163,75 @@ void main() {
     expect(find.text('Check-in activity unavailable'), findsOneWidget);
     expect(backend.requests, isEmpty);
   });
+
+  testWidgets('returning from the background refreshes the open inbox', (
+    tester,
+  ) async {
+    final backend = _ActivityBackend();
+    await _mount(tester, backend);
+    backend.requests.single.complete([]);
+    await tester.pumpAndSettle();
+    for (final state in [
+      AppLifecycleState.inactive,
+      AppLifecycleState.hidden,
+      AppLifecycleState.paused,
+      AppLifecycleState.hidden,
+      AppLifecycleState.inactive,
+      AppLifecycleState.resumed,
+    ]) {
+      tester.binding.handleAppLifecycleStateChanged(state);
+    }
+    expect(backend.requests, hasLength(2));
+    backend.requests.last.complete([_checkIn('new', 'New after resume')]);
+    await tester.pumpAndSettle();
+    expect(_entry('New after resume'), findsOneWidget);
+  });
+
+  testWidgets(
+    'Realtime refreshes after a pending read and announces only authorized new IDs',
+    (tester) async {
+      final backend = _ActivityBackend();
+      final feed = AdminActivityProvider(
+        backend,
+        viewer: 'admin',
+        office: 'office-a',
+      );
+      final received = <String>[];
+      final listener = feed.arrivals.listen((event) => received.add(event.id));
+      addTearDown(() async {
+        await listener.cancel();
+        await backend.signals.close();
+      });
+
+      backend.signals.add('first');
+      backend.signals.add('first');
+      backend.signals.add('outside');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(backend.requests, hasLength(1));
+      backend.requests.single.complete([]);
+      await tester.pump();
+      expect(backend.requests, hasLength(2));
+      final checkIn = _checkIn('first', 'Alex Morgan');
+      backend.requests.last.complete([checkIn]);
+      await tester.pump();
+      expect(feed.hasUnread, isTrue);
+      expect(received, ['first']);
+
+      backend.signals.add('first');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      backend.requests.last.complete([checkIn]);
+      await tester.pump();
+      expect(received, ['first']);
+
+      backend.signals.add('late');
+      feed.dispose();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(backend.requests, hasLength(3));
+      expect(received, ['first']);
+    },
+  );
 
   test('the preview supplies fictional rows without live access', () async {
     final preview = PreviewCompanyBackend();
@@ -190,6 +314,9 @@ Future<AuthProvider> _mount(
 }
 
 class _ActivityBackend extends PreviewCompanyBackend {
+  final signals = StreamController<String?>.broadcast();
+  @override
+  Stream<String?> get checkInActivitySignals => signals.stream;
   final requests = <Completer<List<OfficeCheckInActivity>>>[];
   Employee? user = Employee(
     id: 'ADMIN001',
@@ -204,6 +331,9 @@ class _ActivityBackend extends PreviewCompanyBackend {
 
   @override
   bool get isPreview => false;
+
+  @override
+  DateTime get companyNow => DateTime(2026, 11, 19, 10);
 
   @override
   Future<Employee?> restoreSession() async => user;

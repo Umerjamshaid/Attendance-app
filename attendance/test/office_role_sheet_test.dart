@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/models/employees_model.dart';
+import 'package:attendance/models/office_model.dart';
 import 'package:attendance/providers/auth_provider.dart';
+import 'package:attendance/providers/office_provider.dart';
 import 'package:attendance/screens/office/office_roles_screen.dart';
 import 'package:attendance/services/company_backend.dart';
 import 'package:attendance/services/preview_company_backend.dart';
@@ -47,13 +49,18 @@ void main() {
     WidgetTester tester,
     _Backend backend, {
     bool dark = false,
+    bool openEditor = true,
   }) async {
     final auth = AuthProvider(backend: backend);
     addTearDown(auth.dispose);
     await auth.refreshSession();
     await tester.pumpWidget(
-      ChangeNotifierProvider.value(
-        value: auth,
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: auth),
+          if (backend.includeOwner)
+            ChangeNotifierProvider(create: (_) => OfficeProvider(auth)),
+        ],
         child: MaterialApp(
           debugShowCheckedModeBanner: false,
           theme: dark ? AppTheme.darkTheme : AppTheme.theme,
@@ -66,11 +73,28 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    if (!openEditor) return;
     await tester.tap(
       find.text(backend.employee.isAdmin ? 'Administrator' : 'Employee'),
     );
     await tester.pumpAndSettle();
   }
+
+  testWidgets('office owner is shown separately and cannot open the editor', (
+    tester,
+  ) async {
+    final backend = _Backend()..includeOwner = true;
+    await mount(tester, backend, openEditor: false);
+    expect(find.text('Office owner'), findsOneWidget);
+    final owner = tester.widget<ListTile>(
+      find.widgetWithText(ListTile, 'Office Owner'),
+    );
+    expect(owner.onTap, isNull);
+    expect(find.text('Employees'), findsOneWidget);
+    await tester.tap(find.text('Jordan Lee'));
+    await tester.pumpAndSettle();
+    expect(_sheet, findsOneWidget);
+  });
 
   testWidgets('role drafts require a change and confirmation before saving', (
     tester,
@@ -206,6 +230,7 @@ void main() {
 
 class _Backend extends PreviewCompanyBackend {
   Employee employee = _employee;
+  bool includeOwner = false;
   Completer<void>? saveGate;
   String? failure;
   final changes = <(String, String)>[];
@@ -214,10 +239,26 @@ class _Backend extends PreviewCompanyBackend {
   @override
   CompanyBackend forOffice(Employee employee) => this;
   @override
-  Future<Employee?> restoreSession() async =>
-      _employee.copyWith(id: 'OWNER', authUserId: 'owner-user', role: 'admin');
+  Future<Employee?> restoreSession() async => _employee.copyWith(
+    id: 'OWNER',
+    name: 'Office Owner',
+    authUserId: 'owner-user',
+    role: 'admin',
+  );
   @override
-  Future<List<Employee>> employees() async => [employee];
+  Future<List<Office>> offices() async => const [
+    Office(
+      id: 'office-a',
+      name: 'Office A',
+      role: 'admin',
+      createdBy: 'owner-user',
+    ),
+  ];
+  @override
+  Future<List<Employee>> employees() async => [
+    employee,
+    if (includeOwner) (await restoreSession())!,
+  ];
   @override
   Future<void> setEmployeeRole(String userId, String role) async {
     changes.add((userId, role));

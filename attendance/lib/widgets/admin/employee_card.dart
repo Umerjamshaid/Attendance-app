@@ -7,6 +7,7 @@ import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
 import '../../providers/auth_provider.dart';
 import '../../screens/admin/employee_check_ins_sheet.dart';
 import '../profile_image.dart';
@@ -187,7 +188,10 @@ class EmployeeCard extends StatelessWidget {
                                         ?.currentUser
                                         ?.authUserId,
                                     office: employee.organizationId,
-                                    width: 120,
+                                    width: profileDecodeWidth(
+                                      context,
+                                      officeEmployeeThumbnailSize,
+                                    ),
                                     refresh: context
                                         .read<AuthProvider?>()
                                         ?.backend

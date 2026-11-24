@@ -15,7 +15,9 @@ import 'config/app_info.dart';
 import 'screens/login/password_setup_screen.dart';
 import 'screens/profile/whats_new_screen.dart';
 import 'screens/splash/launch_failure_screen.dart';
+import 'screens/splash/offline_home_screen.dart';
 import 'services/launch_failure_reporter.dart';
+import 'services/network_status.dart';
 import 'widgets/office/office_scope.dart';
 import 'widgets/app_toast.dart';
 
@@ -41,10 +43,49 @@ class AttendanceApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       builder: (context, child) => AppToastHost(
         scopeKey: context.select((AuthProvider auth) => auth.officeScopeKey),
-        child: child ?? const SizedBox.shrink(),
+        child: _NetworkNotice(child: child ?? const SizedBox.shrink()),
       ),
       home: _LaunchGate(onReady: onReady, onLaunchFailure: onLaunchFailure),
     );
+  }
+}
+
+class _NetworkNotice extends StatefulWidget {
+  const _NetworkNotice({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_NetworkNotice> createState() => _NetworkNoticeState();
+}
+
+class _NetworkNoticeState extends State<_NetworkNotice> {
+  bool _offline = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final offline = context.select(
+      (NetworkStatus? status) => status?.offline ?? false,
+    );
+    if (offline != _offline) {
+      _offline = offline;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || offline != _offline) return;
+        if (offline) {
+          AppToast.of(context).showSnackBar(
+            const SnackBar(content: Text(NetworkStatus.offlineMessage)),
+          );
+        } else {
+          final auth = context.read<AuthProvider>();
+          if (!auth.isPreview &&
+              !auth.isAuthenticated &&
+              auth.status != AuthStatus.authenticating) {
+            unawaited(auth.refreshSession());
+          }
+        }
+      });
+    }
+    return widget.child;
   }
 }
 
@@ -111,12 +152,12 @@ class _LaunchGateState extends State<_LaunchGate> {
         PackageInfo.fromPlatform(),
         SharedPreferences.getInstance(),
       ).wait;
-      final build = info.buildNumber;
-      final current = Version.parse(
-        build.isEmpty ? info.version : '${info.version}+$build',
-      );
+      final current = Version.parse(info.version);
       final saved = preferences.getString(_seenReleaseKey);
-      final previous = saved == null ? null : Version.parse(saved);
+      // Older builds stored the build number along with the release version.
+      final previous = saved == null
+          ? null
+          : Version.parse(saved.split('+').first);
       if (previous != null && current <= previous) {
         _checkedRelease = true;
         return;
@@ -131,7 +172,7 @@ class _LaunchGateState extends State<_LaunchGate> {
           (installedAt != null &&
               updatedAt != null &&
               updatedAt.isAfter(installedAt));
-      if (isUpdate && hasReleaseHighlights(info.version)) {
+      if (isUpdate) {
         if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
         final auth = context.read<AuthProvider>();
         if (auth.status != AuthStatus.authenticated ||
@@ -155,6 +196,15 @@ class _LaunchGateState extends State<_LaunchGate> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final themeRestoring = context.select((ThemeProvider theme) => theme.busy);
+    final offline = context.select(
+      (NetworkStatus? status) => status?.offline ?? false,
+    );
+    if (offline &&
+        !auth.isPreview &&
+        (!auth.isAuthenticated || auth.needsPasswordSetup)) {
+      _releaseAfterLayout();
+      return const OfflineHomeScreen();
+    }
     final sessionRestoring =
         auth.status == AuthStatus.initial && !auth.needsPasswordSetup;
     final holdingNative = !_released && widget.onReady != null;

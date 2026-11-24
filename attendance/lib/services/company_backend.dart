@@ -4,6 +4,7 @@ import '../models/attendance_record_model.dart';
 import '../models/employees_model.dart';
 import '../models/office_check_in_activity.dart';
 import '../models/office_model.dart';
+import 'network_status.dart';
 
 class CompanyException implements Exception {
   const CompanyException(this.message);
@@ -15,6 +16,12 @@ class CompanyException implements Exception {
 /// A confirmed loss of session or active company membership.
 class CompanyAccessException extends CompanyException {
   const CompanyAccessException(super.message);
+}
+
+/// Auth refused to send an invitation email because of a sending limit.
+class InvitationRateLimitException extends CompanyException {
+  const InvitationRateLimitException()
+    : super('Email limit reached. Try again later.');
 }
 
 enum CompanyEmailCode { invitation, recovery }
@@ -34,6 +41,7 @@ class AttendancePolicy {
 
 /// Company integrations are injected; the private entrypoint keeps legacy services.
 abstract class CompanyBackend {
+  NetworkStatus? get connectionStatus => null;
   bool get supportsOffices => false;
   bool get supportsOfficeInviteCodes => false;
 
@@ -113,6 +121,10 @@ abstract class CompanyBackend {
       throw const CompanyException(
         'Check-in activity is not available in this build.',
       );
+
+  /// A confirmed check-in ID, or null when only an inbox refresh is needed.
+  Stream<String?> get checkInActivitySignals => const Stream.empty();
+
   Future<AttendanceRecord> submit({
     required String requestId,
     required String base64Image,
@@ -132,7 +144,9 @@ abstract class CompanyBackend {
   Future<String?> refreshProfileImage(String url) async => url;
   Future<String?> refreshOfficeLogo(String url) async => url;
   Future<void> saveMedia(String kind, Uint8List? bytes);
-  Future<void> invite({
+
+  /// Returns whether the backend confirmed sending an invitation email.
+  Future<bool> invite({
     required String email,
     required String name,
     required String employeeCode,

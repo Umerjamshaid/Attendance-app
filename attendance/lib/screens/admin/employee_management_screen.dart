@@ -4,6 +4,7 @@ import 'package:attendance/widgets/app_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:portal_labs/portal_labs.dart';
 import 'package:provider/provider.dart';
+
 import '../../config/app_icons.dart';
 import '../../config/ui_tokens.dart';
 import '../../config/utility_surface_theme.dart';
@@ -12,6 +13,8 @@ import '../../providers/admin_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/office_provider.dart';
 import '../../services/company_backend.dart';
+import '../../services/invite_email_activity.dart';
+import '../../widgets/admin/invite_email_meter.dart';
 import '../office/office_roles_screen.dart';
 import '../profile/settings_layout.dart';
 import '../profile/settings_sheets.dart';
@@ -479,6 +482,12 @@ class InviteEmployeeScreen extends StatefulWidget {
 
 class _InviteEmployeeScreenState extends State<InviteEmployeeScreen> {
   late final CompanyBackend _backend = context.read<AuthProvider>().backend!;
+  late final _emailActivity = InviteEmailActivity(
+    _backend.isPreview
+        ? null
+        : context.read<AuthProvider>().currentUser?.authUserId,
+  );
+  late final _recentEmails = _emailActivity.recent();
   final _form = GlobalKey<FormState>();
   final _name = TextEditingController(),
       _email = TextEditingController(),
@@ -532,13 +541,36 @@ class _InviteEmployeeScreenState extends State<InviteEmployeeScreen> {
         );
         if (mounted) setState(() => _issuedCode = code);
       } else {
-        await _backend.invite(
+        final emailSent = await _backend.invite(
           email: email,
           name: name,
           employeeCode: employeeCode,
           department: department,
         );
+        if (mounted && emailSent) {
+          final recent = await _emailActivity.recent(recordSend: true);
+          if (mounted && recent.length == InviteEmailActivity.noticeThreshold) {
+            await _showEmailActivity(
+              recent,
+              title: 'Invitation sent',
+              detail: 'This is your recent activity, not the shared email allowance.',
+            );
+          }
+        }
         if (mounted) Navigator.pop(context, true);
+      }
+    } on InvitationRateLimitException {
+      if (!mounted) return;
+      final recent = await _emailActivity.recent();
+      if (mounted) {
+        await _showEmailActivity(
+          recent,
+          title: 'Email limit reached',
+          detail:
+              'The invitation was not sent. Your details are still here. '
+              'Try again later.',
+          rateLimited: true,
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -551,6 +583,41 @@ class _InviteEmployeeScreenState extends State<InviteEmployeeScreen> {
       if (mounted) setState(() => _busy = false);
     }
   }
+
+  Future<void> _showEmailActivity(
+    List<DateTime> recent, {
+    required String title,
+    required String detail,
+    bool rateLimited = false,
+  }) => showSettingsSheet<void>(context, (context) {
+    final colors = Theme.of(context).colorScheme;
+    return SettingsSheetBody(
+      title: title,
+      detail: detail,
+      leading: CircleAvatar(
+        radius: 24,
+        backgroundColor: rateLimited
+            ? colors.errorContainer
+            : colors.primaryContainer,
+        foregroundColor: rateLimited
+            ? colors.onErrorContainer
+            : colors.onPrimaryContainer,
+        child: const Icon(AppIcons.mail),
+      ),
+      actions: [
+        if (recent.isNotEmpty || !rateLimited) InviteEmailMeter(sentAt: recent),
+        if (recent.isNotEmpty && rateLimited)
+          const Text(
+            'This timer tracks device activity, not when email sending resets.',
+            textAlign: TextAlign.center,
+          ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(rateLimited ? 'Back to invitation' : 'Done'),
+        ),
+      ],
+    );
+  });
 
   @override
   void dispose() {
@@ -683,15 +750,13 @@ class _InviteEmployeeScreenState extends State<InviteEmployeeScreen> {
                             return 'Required';
                           }
                           if (controller == _email &&
-                              !RegExp(
-                                r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
-                              ).hasMatch(value.trim())) {
+                              !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+                                  .hasMatch(value.trim())) {
                             return 'Enter a valid email.';
                           }
                           if (controller == _code &&
-                              !RegExp(
-                                r'^[A-Za-z0-9_-]{1,32}$',
-                              ).hasMatch(value.trim())) {
+                              !RegExp(r'^[A-Za-z0-9_-]{1,32}$')
+                                  .hasMatch(value.trim())) {
                             return 'Use letters, numbers, hyphens or underscores.';
                           }
                           return null;
@@ -729,6 +794,27 @@ class _InviteEmployeeScreenState extends State<InviteEmployeeScreen> {
                         : (_busy ? 'Sending invitation...' : 'Send invitation'),
                   ),
                 ),
+                if (!_useCode)
+                  FutureBuilder(
+                    future: _recentEmails,
+                    builder: (context, snapshot) {
+                      final recent = snapshot.data;
+                      if (recent == null || recent.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+                      return TextButton.icon(
+                        onPressed: _busy
+                            ? null
+                            : () => _showEmailActivity(
+                                recent,
+                                title: 'Recent email activity',
+                                detail: 'Email limits are shared across offices and password resets.',
+                              ),
+                        icon: const Icon(AppIcons.clock, size: 16),
+                        label: const Text('Recent email activity'),
+                      );
+                    },
+                  ),
               ],
             ),
           ),
@@ -811,9 +897,8 @@ class _OfficeInviteCode extends StatelessWidget {
         color: colors.onSurface,
         fontFamily: 'monospace',
       ),
-      onCopied: () => AppToast.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Office code copied'))),
+      onCopied: () => AppToast.of(context)
+          .showSnackBar(const SnackBar(content: Text('Office code copied'))),
     );
   }
 }

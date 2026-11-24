@@ -437,3 +437,43 @@ session routing are unchanged in this checkpoint.
   palette and does not save its light/dark preview toggle.
 - Native splash still uses the original system-light/system-dark backgrounds.
   Flutter applies any alternate palette when the first screen opens.
+
+## 1.1.1 Patch Handoff (2026-11-25)
+
+- Preserve the existing Home and History summaries. This patch brings
+  navigation insets, offline startup, Profile and Admin refinements into the
+  public app. The [changelog](../CHANGELOG.md) and bundled What's New notes
+  describe the user-visible changes.
+- Employee Management shows a rate-limit sheet only for Auth's email limit.
+  Keep the form intact. The Portal Labs flip counter tracks confirmed sends
+  from the current account on this device. The flip digits sit inside an
+  animated seconds dial and a separate rolling-hour progress arc. The sheet
+  opens after the second send in the rolling hour and is accessible after one.
+  Its timer
+  removes sends from that window, not from Supabase's shared quota. Do not
+  count office codes, existing-user links, or unconfirmed/old server responses.
+- The Profile gauge keeps Portal Labs' animated arc and digits, but paints its
+  tip at the real percentage using the same spring. Preserve the reduced-motion
+  value and do not show a tip for unavailable totals.
+- Profile avatars and office logos decode at the displayed width times device
+  density. Roster, roles and Logs use a shared 48dp decode size at that density
+  so they can reuse the same decoded avatar. Keep GIF originals in the private
+  cache and preserve full-resolution check-in evidence. This does not shrink
+  network transfers.
+- Startup already handles initialization errors and timeouts, releases the
+  native splash, and shows a recovery screen. The optional redacted reporter
+  stays off unless a controlled HTTPS destination is supplied at build time.
+- Shipping source does not apply hosted Supabase changes. The invitation
+  counter and dedicated rate-limit response need the updated
+  `manage-employees` Edge Function. Live Admin check-in alerts need the
+  `20261124184001_office_check_in_realtime.sql` migration. Validate each
+  against a disposable environment before any separately approved deployment.
+- The local Android 1.1.1 build 4028 predates the live invite counter, gauge tip,
+  and density update. Rebuild from the combined source before handing it to
+  testers; do not upload the older APK as if it contained this patch.
+- To capture the real dark invite sheet with fictional data, run
+  `flutter test --update-goldens --dart-define=ATTENDANCE_INVITE_PREVIEW=<absolute-png-path> test/office_code_screen_test.dart --plain-name "the second confirmed send opens recent email activity"`.
+  Keep this time-dependent preview and generated test failure images out of Git.
+- Verification: 327 Flutter tests, 18 Edge Function tests, and the isolated
+  PGlite migration/RLS suite passed. Flutter analysis reported the existing
+  screenshot-tool mock warnings and one existing constructor style lint.

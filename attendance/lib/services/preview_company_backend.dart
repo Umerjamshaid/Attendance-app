@@ -147,7 +147,7 @@ class PreviewCompanyBackend extends CompanyBackend {
   @override
   Future<void> saveMedia(String kind, Uint8List? bytes) async => throw readOnly;
   @override
-  Future<void> invite({
+  Future<bool> invite({
     required String email,
     required String name,
     required String employeeCode,

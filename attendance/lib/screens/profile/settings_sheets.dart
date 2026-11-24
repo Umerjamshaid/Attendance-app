@@ -1,11 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/app_icons.dart';
 import '../../config/app_info.dart';
 import '../../config/ui_tokens.dart';
+import '../../services/network_status.dart';
 import '../../widgets/app_identity_footer.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/user-profile/profile_section_card.dart';
@@ -56,15 +61,125 @@ Future<void> showAboutApp(BuildContext context) => showSettingsSheet<void>(
     leading: const AttendanceMark(size: 56),
     actions: [
       const _InstalledVersion(),
+      if (const {
+        TargetPlatform.android,
+        TargetPlatform.iOS,
+      }.contains(Theme.of(context).platform))
+        const _DownloadCvButton(),
       OutlinedButton.icon(
-        onPressed: () =>
-            _openLink(context, Uri.parse(AppInfo.sourceRepository)),
+        onPressed:
+            context.select((NetworkStatus? status) => status?.offline ?? false)
+            ? null
+            : () => _openLink(context, Uri.parse(AppInfo.sourceRepository)),
         icon: const Icon(AppIcons.brandGithub, size: 20),
         label: const Text('Source on GitHub'),
       ),
     ],
   ),
 );
+
+class _DownloadCvButton extends StatefulWidget {
+  const _DownloadCvButton();
+
+  @override
+  State<_DownloadCvButton> createState() => _DownloadCvButtonState();
+}
+
+class _DownloadCvButtonState extends State<_DownloadCvButton> {
+  bool _saving = false;
+  bool _saved = false;
+  Timer? _resetIcon;
+
+  Future<void> _save() async {
+    _resetIcon?.cancel();
+    setState(() {
+      _saving = true;
+      _saved = false;
+    });
+    try {
+      const name = 'UmerJamshaid_CV_v2.pdf';
+      final pdf = await DefaultAssetBundle.of(context).load('assets/$name');
+      final saved = await FlutterFileDialog.saveFile(
+        params: SaveFileDialogParams(
+          data: pdf.buffer.asUint8List(pdf.offsetInBytes, pdf.lengthInBytes),
+          fileName: name,
+          mimeTypesFilter: const ['application/pdf'],
+          localOnly: true,
+        ),
+      );
+      if (mounted && saved != null) {
+        setState(() => _saved = true);
+        _resetIcon = Timer(const Duration(seconds: 2), () {
+          setState(() => _saved = false);
+        });
+        _feedback(context, 'CV saved.');
+      }
+    } on Exception {
+      if (mounted) _feedback(context, 'Could not save the CV. Try again.');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _resetIcon?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => OutlinedButton.icon(
+    onPressed: _saving ? null : _save,
+    icon: Semantics(
+      value: _saved ? 'Saved' : null,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(end: _saved ? 1.0 : 0.0),
+        duration: AppMotion.duration(context, AppMotion.standard),
+        curve: AppMotion.enterCurve,
+        builder: (context, progress, _) => CustomPaint(
+          size: const Size.square(20),
+          painter: _DownloadIconPainter(
+            progress,
+            IconTheme.of(context).color ??
+                Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+      ),
+    ),
+    label: const Text('Download CV'),
+  );
+}
+
+class _DownloadIconPainter extends CustomPainter {
+  const _DownloadIconPainter(this.progress, this.color);
+
+  final double progress;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final ink = Paint()
+      ..color = color
+      ..strokeWidth = 1.8
+      ..strokeCap = StrokeCap.round;
+    void stroke(Offset from, Offset to, Offset nextFrom, Offset nextTo) {
+      final start = Offset.lerp(from, nextFrom, progress)!;
+      final end = Offset.lerp(to, nextTo, progress)!;
+      if (start != end) canvas.drawLine(start, end, ink);
+    }
+
+    const arrowTip = Offset(10, 15);
+    const checkJoint = Offset(8, 14);
+    // The shaft collapses into the joint while the two legs open into a check.
+    stroke(const Offset(10, 4), arrowTip, checkJoint, checkJoint);
+    stroke(const Offset(5, 10), arrowTip, const Offset(4, 10), checkJoint);
+    stroke(const Offset(15, 10), arrowTip, const Offset(16, 6), checkJoint);
+  }
+
+  @override
+  bool shouldRepaint(_DownloadIconPainter oldDelegate) =>
+      progress != oldDelegate.progress || color != oldDelegate.color;
+}
 
 class _InstalledVersion extends StatefulWidget {
   const _InstalledVersion();

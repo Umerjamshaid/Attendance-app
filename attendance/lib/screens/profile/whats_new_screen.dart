@@ -1,13 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:provider/provider.dart';
 
 import '../../config/app_info.dart';
+import '../../services/release_notes_service.dart';
+import '../../services/network_status.dart';
 import '../../widgets/app_identity_footer.dart';
 import 'settings_layout.dart';
 import 'settings_sheets.dart';
 
 const _officeAndSettingsHighlights = '''
+### Unread check-in activity
+
+The Admin bell shows new check-ins. See today's activity separately and mark it all as read for this office.
+
+### Clearer office roles
+
+See owners, admins, and employees at a glance, and confirm role changes in the same sheet.
+
 ### Cleaner employee roster
 
 Search from the toolbar. Remove an employee without losing check-ins, or reinvite them with a new office code.
@@ -29,7 +40,35 @@ Sign out, Help Centre, and About slide up from the bottom. Email, GitHub, and th
 Tap the handwritten credit in Profile or Settings to open the maker contact sheet.
 ''';
 
+const _patchHighlights = '''
+### What's New
+
+Read the release notes for your installed version. Bundled notes are available offline.
+
+### Download CV
+
+Save the CV from About, even offline. The download arrow becomes a checkmark when the PDF is saved.
+
+### Invitation activity
+
+See recent invitation emails sent from this device. After two confirmed sends in an hour, a live counter shows when the oldest send drops out of that window.
+
+### Profile gauge
+
+The pointer now follows your attendance percentage around the arc.
+
+### Check-in feedback
+
+Successful check-ins show a banner you can swipe away.
+
+### Location details
+
+Location icons are smaller and better aligned on Home and in check-in evidence.
+
+$_officeAndSettingsHighlights''';
+
 const _releaseNotes = {
+  '1.1.1': _patchHighlights,
   '1.1.0': '''$_officeAndSettingsHighlights
 ### New app icon
 
@@ -61,21 +100,29 @@ Invitation and recovery codes can be entered in the app when an email link won't
 ''',
 };
 
-const _releaseHighlights = {'1.1.0': _officeAndSettingsHighlights};
+const _releaseHighlights = {
+  '1.1.0': _officeAndSettingsHighlights,
+  '1.1.1': _patchHighlights,
+};
 
-bool hasReleaseHighlights(String version) =>
-    _releaseHighlights.containsKey(version);
+Future<String?> _loadNotes(BuildContext context, PackageInfo info) =>
+    (context.read<ReleaseNotesService?>() ?? ReleaseNotesService.shared)
+        .notesFor(
+          info,
+          allowNetwork: context.read<NetworkStatus?>()?.offline != true,
+        );
 
 Future<void> showWhatsNewSheet(BuildContext context, PackageInfo info) {
-  final highlights = _releaseHighlights[info.version];
-  if (highlights == null) return Future.value();
+  final notes = _loadNotes(context, info);
   return showSettingsSheet<void>(
     context,
     (context) => SettingsSheetBody(
       title: "What's new",
       detail: AppInfo.versionLabel(info),
       leading: const AttendanceMark(size: 48),
-      actions: [_ReleaseNotes(highlights)],
+      actions: [
+        _ReleaseNotes(notes, fallback: _releaseHighlights[info.version]),
+      ],
       footer: FilledButton(
         onPressed: () => Navigator.pop(context),
         child: const Text('Got it'),
@@ -93,6 +140,7 @@ class WhatsNewScreen extends StatefulWidget {
 
 class _WhatsNewScreenState extends State<WhatsNewScreen> {
   late final _package = PackageInfo.fromPlatform();
+  Future<String?>? _notes;
 
   @override
   Widget build(BuildContext context) => SettingsLayout(
@@ -107,7 +155,7 @@ class _WhatsNewScreenState extends State<WhatsNewScreen> {
                 ? const Text('Could not read the installed version.')
                 : const Center(child: CircularProgressIndicator());
           }
-          final notes = _releaseNotes[info.version];
+          final notes = _notes ??= _loadNotes(context, info);
           final theme = Theme.of(context);
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -125,10 +173,7 @@ class _WhatsNewScreenState extends State<WhatsNewScreen> {
                 ],
               ),
               const SizedBox(height: 16),
-              if (notes == null)
-                const Text('No release notes for this version.')
-              else
-                _ReleaseNotes(notes),
+              _ReleaseNotes(notes, fallback: _releaseNotes[info.version]),
             ],
           );
         },
@@ -138,28 +183,45 @@ class _WhatsNewScreenState extends State<WhatsNewScreen> {
 }
 
 class _ReleaseNotes extends StatelessWidget {
-  const _ReleaseNotes(this.notes);
+  const _ReleaseNotes(this.notes, {this.fallback});
 
-  final String notes;
+  final Future<String?> notes;
+  final String? fallback;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return GptMarkdownTheme(
-      gptThemeData: GptMarkdownThemeData(
-        brightness: theme.brightness,
-        h3: theme.textTheme.titleSmall?.copyWith(
-          color: theme.colorScheme.onSurface,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-      child: GptMarkdown(
-        notes.trim(),
-        style: theme.textTheme.bodyMedium?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-          height: 1.45,
-        ),
-      ),
+    return FutureBuilder(
+      future: notes,
+      builder: (context, snapshot) {
+        final markdown = snapshot.data ?? fallback;
+        if (markdown == null) {
+          return Text(
+            snapshot.connectionState == ConnectionState.done
+                ? 'Release notes are unavailable for this version.'
+                : 'Loading release notes...',
+          );
+        }
+        return GptMarkdownTheme(
+          gptThemeData: GptMarkdownThemeData(
+            brightness: theme.brightness,
+            h3: theme.textTheme.titleSmall?.copyWith(
+              color: theme.colorScheme.onSurface,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          child: GptMarkdown(
+            markdown.trim(),
+            // Release notes must not load external images or HTML embeds.
+            html: false,
+            imageBuilder: (_, _, _, _) => const SizedBox.shrink(),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              height: 1.45,
+            ),
+          ),
+        );
+      },
     );
   }
 }

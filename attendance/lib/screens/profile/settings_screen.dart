@@ -1,8 +1,12 @@
 import 'package:attendance/widgets/app_toast.dart';
+
 import '../../widgets/app_identity_footer.dart';
 import '../../widgets/profile_image.dart';
 
 import 'package:flutter/material.dart';
+
+import '../../services/network_status.dart';
+
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 
@@ -149,6 +153,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final offline =
+        !auth.isPreview &&
+        context.select((NetworkStatus? status) => status?.offline ?? false);
     final user = auth.currentUser;
     final (mode, palette) = context.select(
       (ThemeProvider provider) => (provider.mode, provider.palette),
@@ -164,19 +171,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _SettingsProfileHeader(
             user: user,
             path: avatar,
-            edit: () => _editProfile(user),
+            edit: offline ? null : () => _editProfile(user),
           ),
           SettingsSection(
             title: auth.isPublicBuild ? 'Profile' : 'Account',
             rows: [
               SettingsRow(
                 auth.isPublicBuild ? 'Display name' : 'Edit profile',
-                onTap: () => _editProfile(user),
+                onTap: offline ? null : () => _editProfile(user),
               ),
               if (auth.isPublicBuild)
                 SettingsRow(
                   'Profile photo',
-                  onTap: auth.isPreview
+                  onTap: auth.isPreview || offline
                       ? null
                       : () async {
                           try {
@@ -190,7 +197,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               SettingsRow(
                 'Profile details',
-                onTap: auth.isPreview
+                onTap: auth.isPreview || offline
                     ? null
                     : () => ProfileDetailsScreen.open(context, user),
               ),
@@ -213,7 +220,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   detail: auth.isPreview
                       ? 'Unavailable in preview'
                       : user.email,
-                  onTap: auth.isPreview
+                  onTap: auth.isPreview || offline
                       ? null
                       : () => Navigator.of(context).push(
                           MaterialPageRoute(
@@ -247,16 +254,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ? 'Always open'
                       : '${attendance.formatHour(attendance.windowStartHour)} to '
                             '${attendance.formatHour(attendance.windowEndHour)}',
-                  onTap: _openWindow,
+                  onTap: offline ? null : _openWindow,
                 ),
                 if (auth.isPublicBuild)
                   SettingsRow(
                     'Manage employees',
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const EmployeeManagementScreen(),
-                      ),
-                    ),
+                    onTap: offline
+                        ? null
+                        : () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const EmployeeManagementScreen(),
+                            ),
+                          ),
                   ),
               ],
             ),
@@ -316,7 +325,7 @@ class _SettingsProfileHeader extends StatelessWidget {
 
   final Employee user;
   final String? path;
-  final VoidCallback edit;
+  final VoidCallback? edit;
 
   @override
   Widget build(BuildContext context) {
@@ -350,7 +359,7 @@ class _SettingsProfileHeader extends StatelessWidget {
                           image: profileImageProvider(
                             path!,
                             viewer: context.read<ProfileProvider>().imageViewer,
-                            width: 228,
+                            width: profileDecodeWidth(context, 76),
                             refresh: context
                                 .read<ProfileProvider>()
                                 .backend

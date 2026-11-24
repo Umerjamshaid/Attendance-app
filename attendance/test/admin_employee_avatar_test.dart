@@ -68,8 +68,7 @@ void main() {
       expect(
         admin.filteredList.first.employee.avatarUrl,
         endsWith('/current.gif'),
-        reason:
-            'a return to Admin must not briefly replace a cached photo with initials',
+        reason: 'a return to Admin must not briefly replace a cached photo with initials',
       );
       backend.avatars.complete({});
       await Future<void>.delayed(Duration.zero);
@@ -138,7 +137,7 @@ void main() {
         (resize.imageProvider as NetworkImage).url,
         'https://avatar.example.invalid/current.gif',
       );
-      expect(resize.width, 120);
+      expect(resize.width, (48 * tester.view.devicePixelRatio).ceil());
       expect(tester.getRect(find.byType(EmployeeCard).first), before);
       expect(
         find.text('JL'),

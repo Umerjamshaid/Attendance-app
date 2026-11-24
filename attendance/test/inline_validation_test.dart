@@ -64,7 +64,7 @@ class _Backend extends PreviewCompanyBackend {
   }
 
   @override
-  Future<void> invite({
+  Future<bool> invite({
     required String email,
     required String name,
     required String employeeCode,
@@ -72,6 +72,7 @@ class _Backend extends PreviewCompanyBackend {
   }) async {
     invitations.add((email, name, employeeCode, department));
     if (failure != null) throw CompanyException(failure!);
+    return false;
   }
 }
 

@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:attendance/widgets/app_toast.dart';
 import 'package:attendance/config/ui_tokens.dart';
 import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/config/app_theme.dart';
 import 'package:attendance/providers/admin_provider.dart';
+import 'package:attendance/providers/admin_activity_provider.dart';
 import 'package:attendance/providers/attendance_provider.dart';
 import 'package:attendance/screens/admin/admin_notification_screen.dart';
 import 'package:attendance/widgets/admin/admin_filter_bar.dart';
@@ -75,6 +78,8 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   void _openNotifications() {
     HapticFeedback.lightImpact();
+    final activity = context.read<AdminActivityProvider?>();
+    if (activity != null) unawaited(activity.refresh());
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const AdminNotificationScreen()),
@@ -249,11 +254,22 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ),
           ),
         if (auth.currentUser?.isAdmin == true && auth.backend != null)
-          IconButton(
-            tooltip: 'Check-in activity',
-            icon: const Icon(AppIcons.bell),
-            color: context.colors.onSurface,
-            onPressed: _openNotifications,
+          Selector<AdminActivityProvider?, bool>(
+            selector: (_, activity) => activity?.hasUnread ?? false,
+            builder: (context, hasUnread, _) => IconButton(
+              tooltip: 'Check-in activity',
+              icon: Semantics(
+                label: hasUnread ? 'Unread check-ins' : null,
+                child: Badge(
+                  key: const ValueKey('activity-unread-dot'),
+                  isLabelVisible: hasUnread,
+                  backgroundColor: context.colors.primary,
+                  child: const Icon(AppIcons.bell),
+                ),
+              ),
+              color: context.colors.onSurface,
+              onPressed: _openNotifications,
+            ),
           ),
         const SizedBox(width: 4),
       ],

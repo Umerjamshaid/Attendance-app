@@ -1,17 +1,26 @@
+import 'dart:async';
+
+import 'package:attendance/models/office_check_in_activity.dart';
+import 'package:attendance/providers/admin_activity_provider.dart';
 import 'package:attendance/providers/auth_provider.dart';
 import 'package:attendance/screens/home/attendance_screen.dart';
 import 'package:attendance/screens/history/history_screen.dart';
 import 'package:attendance/screens/admin/admin_dashboard_screen.dart';
+import 'package:attendance/screens/admin/admin_notification_screen.dart';
 import 'package:attendance/screens/profile/profile_screen.dart';
 import 'package:attendance/widgets/bottom_nav.dart';
+import 'package:attendance/widgets/in_app_notification.dart';
 import 'package:attendance/widgets/loading.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../config/ui_tokens.dart';
 import '../providers/attendance_provider.dart';
 import '../providers/attendance_history_provider.dart';
 import '../providers/profile_provider.dart';
 import '../providers/admin_provider.dart';
+import '../services/network_status.dart';
+import 'splash/offline_home_screen.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -26,6 +35,7 @@ class AppShellState extends State<AppShell> {
   bool? _wasAdmin;
   bool _roleJumpPending = false;
   bool _wasBackgrounded = false;
+  bool _wasOffline = false;
   Future<void>? _refreshFuture;
   late final AppLifecycleListener _lifecycle;
   @override
@@ -37,6 +47,9 @@ class AppShellState extends State<AppShell> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final offline = context.watch<NetworkStatus?>()?.offline ?? false;
+    if (_wasOffline && !offline) unawaited(_refresh());
+    _wasOffline = offline;
     final isAdmin = context.watch<AuthProvider>().currentUser?.isAdmin;
     if (isAdmin == null) return;
     final previous = _wasAdmin;
@@ -70,7 +83,7 @@ class AppShellState extends State<AppShell> {
       return;
     }
     setState(() => _currentIndex = index);
-    if (auth.isPublicBuild && user.isAdmin && index == 2) {
+    if (!_wasOffline && auth.isPublicBuild && user.isAdmin && index == 2) {
       context.read<AdminProvider>().loadDashboard();
     }
   }
@@ -107,7 +120,7 @@ class AppShellState extends State<AppShell> {
   Future<void> _refreshData() async {
     if (!mounted) return;
     final auth = context.read<AuthProvider>();
-    if (!auth.isPublicBuild || auth.isPreview) return;
+    if (!auth.isPublicBuild || auth.isPreview || _wasOffline) return;
     await auth.refreshSession();
     if (!mounted || auth.currentUser == null) return;
     final user = auth.currentUser!;
@@ -124,6 +137,7 @@ class AppShellState extends State<AppShell> {
       /* The server still enforces the last policy. */
     }
     if (mounted && user.isAdmin) {
+      unawaited(context.read<AdminActivityProvider?>()?.refresh());
       await context.read<AdminProvider>().loadDashboard();
     }
   }
@@ -146,11 +160,27 @@ class AppShellState extends State<AppShell> {
     }
 
     final isAdmin = user.role == 'admin';
+    final offline =
+        !authProvider.isPreview &&
+        context.select((NetworkStatus? status) => status?.offline ?? false);
 
     final pages = [
       _tab('home-page', 0, AttendanceScreen(employee: user)),
-      _tab('history-page', 1, const HistoryScreen()),
-      if (isAdmin) _tab('admin-page', 2, const AdminDashboardScreen()),
+      _tab(
+        'history-page',
+        1,
+        offline
+            ? const OfflineOfficePane(title: 'History')
+            : const HistoryScreen(),
+      ),
+      if (isAdmin)
+        _tab(
+          'admin-page',
+          2,
+          offline
+              ? const OfflineOfficePane(title: 'Admin')
+              : const AdminDashboardScreen(),
+        ),
       _tab('profile-page', isAdmin ? 3 : 2, const ProfileScreen()),
     ];
 
@@ -158,26 +188,38 @@ class AppShellState extends State<AppShell> {
       // The dock floats over the page; extendBody lets pages run underneath it
       // and gives them the dock's height as bottom MediaQuery padding.
       extendBody: true,
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: PageView(
-              key: const PageStorageKey('main-pages'),
-              controller: _pageController,
-              physics: MediaQuery.disableAnimationsOf(context)
-                  ? const PageScrollPhysics()
-                  : const _NavigationPagePhysics(),
-              onPageChanged: _selectTab,
-              children: pages,
+      body: SafeArea(
+        top: false,
+        bottom: false,
+        child: InAppNotificationHost(
+          scopeKey: authProvider.officeScopeKey,
+          child: _LiveCheckInBanners(
+            activity: context.select(
+              (AdminActivityProvider? provider) => provider,
+            ),
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: PageView(
+                    key: const PageStorageKey('main-pages'),
+                    controller: _pageController,
+                    physics: MediaQuery.disableAnimationsOf(context)
+                        ? const PageScrollPhysics()
+                        : const _NavigationPagePhysics(),
+                    onPageChanged: _selectTab,
+                    children: pages,
+                  ),
+                ),
+                const Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: NavigationFooterBackdrop(),
+                ),
+              ],
             ),
           ),
-          const Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: NavigationFooterBackdrop(),
-          ),
-        ],
+        ),
       ),
       bottomNavigationBar: BottomNav(
         currentIndex: _currentIndex,
@@ -187,6 +229,58 @@ class AppShellState extends State<AppShell> {
       ),
     );
   }
+}
+
+class _LiveCheckInBanners extends StatefulWidget {
+  const _LiveCheckInBanners({required this.activity, required this.child});
+
+  final AdminActivityProvider? activity;
+  final Widget child;
+
+  @override
+  State<_LiveCheckInBanners> createState() => _LiveCheckInBannersState();
+}
+
+class _LiveCheckInBannersState extends State<_LiveCheckInBanners> {
+  StreamSubscription<OfficeCheckInActivity>? _subscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _listen();
+  }
+
+  @override
+  void didUpdateWidget(_LiveCheckInBanners oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.activity != widget.activity) _listen();
+  }
+
+  void _listen() {
+    unawaited(_subscription?.cancel());
+    _subscription = widget.activity?.arrivals.listen((checkIn) {
+      if (!mounted) return;
+      InAppNotification.show(
+        context,
+        InAppNotification(
+          title: '${checkIn.employeeName} checked in',
+          actionLabel: 'View activity',
+          onTap: () => Navigator.of(context).push<void>(
+            MaterialPageRoute(builder: (_) => const AdminNotificationScreen()),
+          ),
+        ),
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    unawaited(_subscription?.cancel());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 /// Preserves visited screens and their scroll/form state between swipes.

@@ -89,7 +89,7 @@ void main() {
     final resize = image.image as ResizeImage;
     final source = resize.imageProvider as CachedNetworkImageProvider;
     expect(source.url, employee.avatarUrl);
-    expect(resize.width, 120);
+    expect(resize.width, 48);
     expect(backend.avatarRequests, 0);
     expect(find.text('Alice Johnson'), findsNWidgets(2));
     expect(find.text('3 check-ins'), findsOneWidget);
@@ -390,9 +390,8 @@ Future<({_Backend backend, _Observer observer})> _mount(
                           .apply(fontFamily: 'Roboto'),
                 ),
         builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(disableAnimations: reduceMotion),
+          data: MediaQuery.of(context)
+              .copyWith(disableAnimations: reduceMotion),
           child: Directionality(textDirection: direction, child: child!),
         ),
         home: Scaffold(

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+import '../../providers/admin_activity_provider.dart';
 import '../../providers/admin_provider.dart';
 import '../../providers/attendance_history_provider.dart';
 import '../../providers/attendance_provider.dart';
@@ -48,6 +50,15 @@ class OfficeScope extends StatelessWidget {
             employeeService: EmployeeService(backend: backend),
           ),
         ),
+        if (auth.currentUser?.isAdmin == true && backend != null)
+          ChangeNotifierProvider(
+            lazy: false,
+            create: (_) => AdminActivityProvider(
+              backend,
+              viewer: auth.currentUser?.authUserId,
+              office: auth.currentUser?.organizationId,
+            ),
+          ),
       ],
       child: _OfficeNavigator(child: child),
     );

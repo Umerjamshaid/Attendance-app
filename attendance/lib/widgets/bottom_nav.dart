@@ -39,20 +39,25 @@ class BottomNav extends StatelessWidget {
     final selected = currentIndex >= 0 && currentIndex < items.length
         ? currentIndex
         : 0;
-    final bottom = math.max(12.0, MediaQuery.viewPaddingOf(context).bottom);
+    final systemInsets = MediaQuery.viewPaddingOf(context);
+    final bottom = math.max(12.0, systemInsets.bottom + 8);
+    final height = MediaQuery.sizeOf(context).height < 420 ? 56.0 : dockHeight;
     final reducedMotion = MediaQuery.disableAnimationsOf(context);
     final duration = reducedMotion ? Duration.zero : AppMotion.standard;
     final colors = context.colors;
     final glass = Theme.of(context).platform == TargetPlatform.iOS;
 
-    return Padding(
+    final dock = Padding(
       padding: EdgeInsets.only(bottom: bottom),
       child: SizedBox(
-        height: dockHeight,
+        height: height,
         child: SafeArea(
           top: false,
           bottom: false,
-          minimum: const EdgeInsets.symmetric(horizontal: 20),
+          minimum: EdgeInsets.only(
+            left: math.max(16, systemInsets.left + 8),
+            right: math.max(16, systemInsets.right + 8),
+          ),
           child: Align(
             alignment: Alignment.center,
             child: LayoutBuilder(
@@ -68,7 +73,7 @@ class BottomNav extends StatelessWidget {
                   child: Container(
                     key: const ValueKey('floating-navigation'),
                     width: width,
-                    height: dockHeight,
+                    height: height,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(999),
                       boxShadow: [
@@ -155,6 +160,18 @@ class BottomNav extends StatelessWidget {
         ),
       ),
     );
+    if (Theme.of(context).platform != TargetPlatform.android) return dock;
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness:
+            Theme.of(context).brightness == Brightness.dark
+            ? Brightness.light
+            : Brightness.dark,
+        systemNavigationBarContrastEnforced: true,
+      ),
+      child: dock,
+    );
   }
 }
 
@@ -233,9 +250,8 @@ class NavigationFooterBackdrop extends StatelessWidget {
               stops: const [0, .18, .38, .6, .8, 1],
               colors: [
                 for (final alpha in const [0.0, .03, .12, .34, .7, 1.0])
-                  Theme.of(
-                    context,
-                  ).scaffoldBackgroundColor.withValues(alpha: alpha),
+                  Theme.of(context).scaffoldBackgroundColor
+                      .withValues(alpha: alpha),
               ],
             ),
           ),

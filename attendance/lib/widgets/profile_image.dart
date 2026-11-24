@@ -1,5 +1,7 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
+
 import '../services/profile_image_cache.dart';
 import '../services/profile_cache_session.dart';
 
@@ -25,6 +27,13 @@ ImageFrameBuilder profileImageFrame(Widget placeholder) =>
 
 String profileImageIdentity(String path, {String? viewer}) =>
     viewer == null ? path : ProfileImageCache.key(path, viewer: viewer);
+
+/// Converts a thumbnail's logical width to its decode width in physical pixels.
+int profileDecodeWidth(BuildContext context, double logicalWidth) =>
+    (logicalWidth * MediaQuery.devicePixelRatioOf(context)).ceil();
+
+/// Share the largest small office avatar decode across roster, roles and logs.
+const double officeEmployeeThumbnailSize = 48;
 
 ImageProvider<Object> profileImageProvider(
   String path, {

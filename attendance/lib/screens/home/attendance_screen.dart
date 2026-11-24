@@ -1,6 +1,7 @@
 import 'package:attendance/widgets/app_toast.dart';
 import 'package:attendance/config/ui_tokens.dart';
 import 'package:attendance/config/app_icons.dart';
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -12,11 +13,13 @@ import 'package:attendance/providers/attendance_history_provider.dart';
 import 'package:attendance/providers/attendance_provider.dart';
 import 'package:attendance/services/attendance_submission_service_factory.dart';
 import 'package:attendance/services/location_service.dart';
+import 'package:attendance/services/network_status.dart';
 import 'package:attendance/widgets/home/attendance_button.dart';
 import 'package:attendance/widgets/demo_mode_notice.dart';
 import 'package:attendance/widgets/office/office_selector_header.dart';
 import 'package:attendance/widgets/home/attendance_summary_card.dart';
 import 'package:attendance/widgets/home/check_in_status_card.dart';
+import 'package:attendance/widgets/in_app_notification.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -188,10 +191,18 @@ class _AttendanceScreenState extends State<AttendanceScreen>
             _checkInTime = attendanceProvider.checkInTime;
           });
           _successController.forward();
-          AppToast.of(context).showSnackBar(
-            const SnackBar(content: Text('Check-in saved.')),
-            kind: ToastKind.success,
-          );
+          if (!InAppNotification.show(
+            context,
+            const InAppNotification(
+              title: 'Check-in saved.',
+              kind: InAppNotificationKind.success,
+            ),
+          )) {
+            AppToast.of(context).showSnackBar(
+              const SnackBar(content: Text('Check-in saved.')),
+              kind: ToastKind.success,
+            );
+          }
           return;
         }
 
@@ -328,7 +339,11 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     final attendanceProvider = context.watch<AttendanceProvider>();
     final historyProvider = context.watch<AttendanceHistoryProvider>();
     final submissionService = attendanceSubmissionService;
+    final offline =
+        !attendanceProvider.isPreview &&
+        context.select((NetworkStatus? status) => status?.offline ?? false);
     final canUpload =
+        !offline &&
         attendanceProvider.isUploadEnabled &&
         (attendanceProvider.isCompanyMode
             ? !attendanceProvider.isPreview
@@ -352,6 +367,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
         // Start the spinner below the pinned app bar.
         edgeOffset: MediaQuery.paddingOf(context).top + kToolbarHeight,
         onRefresh: () async {
+          if (offline) return;
           HapticFeedback.lightImpact();
           await Future.wait([
             context.read<AttendanceProvider>().initialize(),
@@ -390,6 +406,8 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                           isUploadEnabled: canUpload,
                           uploadLabel: canUpload
                               ? 'Check in'
+                              : offline
+                              ? 'Offline'
                               : attendanceProvider.isPreview
                               ? 'Read-only preview'
                               : (attendanceProvider.isCompanyMode ||
@@ -476,9 +494,9 @@ class _LocationNote extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.only(top: 1),
-            child: Icon(AppIcons.mapPin, size: 24),
+            child: Icon(AppIcons.mapPin, size: 16),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               'Your location is captured only when you submit.',

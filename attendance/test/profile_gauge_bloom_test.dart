@@ -156,7 +156,7 @@ void main() {
   testWidgets(
     'the package gauge animates data changes and clamps invalid data',
     (tester) async {
-      double? value = .25;
+      double? value = .30;
       late StateSetter update;
       await mount(
         tester,
@@ -167,7 +167,11 @@ void main() {
           },
         ),
       );
-      expect(find.byType(portal.ScoreGauge), findsOneWidget);
+      final gauge = find.byType(portal.ScoreGauge);
+      final marker = find.byKey(const ValueKey('attendance_gauge_marker'));
+      expect(gauge, findsOneWidget);
+      expect(tester.getCenter(marker).dx, lessThan(tester.getCenter(gauge).dx));
+      expect(tester.getCenter(marker).dy, lessThan(tester.getCenter(gauge).dy));
       update(() => value = .85);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
@@ -176,6 +180,10 @@ void main() {
       expect(
         tester.widget<portal.ScoreGauge>(find.byType(portal.ScoreGauge)).value,
         85,
+      );
+      expect(
+        tester.getCenter(marker).dx,
+        greaterThan(tester.getCenter(gauge).dx),
       );
       update(() => value = 3);
       await tester.pumpAndSettle();
@@ -186,6 +194,7 @@ void main() {
       update(() => value = double.nan);
       await tester.pumpAndSettle();
       expect(find.text('Unavailable'), findsOneWidget);
+      expect(marker, findsNothing);
       expect(tester.takeException(), isNull);
     },
   );

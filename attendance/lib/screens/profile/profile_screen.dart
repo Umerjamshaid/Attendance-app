@@ -16,8 +16,11 @@ import 'package:attendance/widgets/user-profile/profile_header.dart';
 import 'package:attendance/widgets/user-profile/profile_menu_item.dart';
 import 'package:attendance/widgets/user-profile/profile_section_card.dart';
 import 'package:flutter/material.dart';
+
+import '../../services/network_status.dart';
 import '../../widgets/check_in_summary.dart';
 import '../../widgets/app_identity_footer.dart';
+
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
@@ -170,7 +173,9 @@ class _ProfileScreenState extends State<ProfileScreen>
           ProfileMenuItem(
             icon: AppIcons.idBadge2,
             title: 'Profile details',
-            onTap: auth.isPreview
+            onTap:
+                auth.isPreview ||
+                    context.watch<NetworkStatus?>()?.offline == true
                 ? null
                 : () => ProfileDetailsScreen.open(context, user),
           ),
@@ -204,9 +209,8 @@ class _ProfileScreenState extends State<ProfileScreen>
             title: 'Privacy',
             // badge: 'Verified',
             badgeColor: context.attendancePresent,
-            onTap: () => Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => const PrivacyScreen())),
+            onTap: () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const PrivacyScreen())),
           ),
           ProfileMenuItem(
             icon: AppIcons.settings,

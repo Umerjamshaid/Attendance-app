@@ -16,7 +16,9 @@
 ## Score Gauge
 
 - `AttendanceScoreGauge` wraps the actual Portal `ScoreGauge`, including its
-  spring, rotating ticks, odometer digits, settling arrow and label animation.
+  spring, rotating ticks, odometer digits and label animation. Attendance
+  replaces the fixed center arrow with a marker that follows the same spring
+  and arc geometry to the percentage shown.
 - Uses existing teal theme colors, Inter type and tabular numerals rather than
   introducing a rainbow palette or credit-score labels.
 - Public/Profile activity uses existing `monthlyRate`; legacy/Profile overview

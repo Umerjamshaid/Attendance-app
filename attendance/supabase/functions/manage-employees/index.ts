@@ -28,21 +28,26 @@ async function manageEmployees(req: Request, input: Record<string, unknown>) {
     invitation = data;
   }
   let userId = invitation.user_id as string | null;
+  let emailSent = false;
   if (!userId) {
     const { data: registered, error: lookupError } = await db.rpc('invitation_user', { p_email: email });
     if (lookupError) throw lookupError;
     userId = registered;
     if (!userId) {
       const { data, error } = await db.auth.admin.inviteUserByEmail(email, { redirectTo: 'workcheck://auth/callback', data: { password_set: false } });
+      if (error?.code === 'over_email_send_rate_limit') {
+        throw new ApiError(429, 'invitation_rate_limited');
+      }
       if (error || !data.user) throw new ApiError(400, 'invitation_delivery_failed');
       userId = data.user.id;
+      emailSent = true;
     }
     const { error: saveError } = await db.from('employee_invitations').update({ user_id: userId }).eq('id', invitation.id);
     if (saveError) throw saveError;
   }
   const { error } = await db.rpc('complete_employee_invitation', { p_actor: user.id, p_invitation: invitation.id, p_user: userId });
   if (error) throw error;
-  return { ok: true };
+  return { ok: true, email_sent: emailSent };
 }
 
 Deno.serve(handle(manageEmployees));

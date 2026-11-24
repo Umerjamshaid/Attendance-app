@@ -29,49 +29,57 @@ void main() {
     await loadOverviewFonts();
   });
 
-  testWidgets("What's new shows once per update, not on install or downgrade", (
-    tester,
-  ) async {
-    SharedPreferences.setMockInitialValues({});
-    final installed = DateTime(2026, 11, 1);
-    Future<void> launch(String build) async {
-      await tester.pumpWidget(const SizedBox.shrink());
-      _mockPackage(build, installTime: installed, updateTime: installed);
-      runAttendanceApp(backend: ControlledOfficeBackend());
+  testWidgets(
+    "What's new shows only once per version, not on install or downgrade",
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final installed = DateTime(2026, 11, 1);
+      Future<void> launch(String version, String build) async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        _mockPackage(
+          build,
+          version: version,
+          installTime: installed,
+          updateTime: installed,
+        );
+        runAttendanceApp(backend: ControlledOfficeBackend());
+        await _pumpLaunch(tester);
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      Finder sheetText(String text) => find.descendant(
+        of: find.byType(BottomSheet),
+        matching: find.text(text, findRichText: true),
+      );
+
+      await launch('1.1.0', '4027');
+      expect(find.byType(BottomSheet), findsNothing);
+      expect(prefs.getString('last_seen_release'), '1.1.0');
+      await prefs.setString('last_seen_release', '1.1.0+4027');
+
+      await launch('1.1.1', '4028');
+      expect(sheetText("What's new"), findsOneWidget);
+      expect(sheetText('Version 1.1.1 (Build 4028)'), findsOneWidget);
+      expect(find.byType(GptMarkdown), findsOneWidget);
+      expect(sheetText('Check-in feedback'), findsOneWidget);
+      expect(sheetText('Faster Office Switch'), findsOneWidget);
+      expect(sheetText('Interactive maker credits'), findsOneWidget);
+      expect(prefs.getString('last_seen_release'), '1.1.0+4027');
+      final done = sheetText('Got it');
+      await tester.tap(done.hitTestable());
       await _pumpLaunch(tester);
-    }
+      expect(find.byType(BottomSheet), findsNothing);
+      expect(prefs.getString('last_seen_release'), '1.1.1');
 
-    final prefs = await SharedPreferences.getInstance();
-    Finder sheetText(String text) => find.descendant(
-      of: find.byType(BottomSheet),
-      matching: find.text(text, findRichText: true),
-    );
-
-    await launch('4026');
-    expect(find.byType(BottomSheet), findsNothing);
-    expect(prefs.getString('last_seen_release'), '1.1.0+4026');
-
-    await launch('4027');
-    expect(sheetText("What's new"), findsOneWidget);
-    expect(sheetText('Version 1.1.0 (Build 4027)'), findsOneWidget);
-    expect(find.byType(GptMarkdown), findsOneWidget);
-    expect(sheetText('Faster Office Switch'), findsOneWidget);
-    expect(sheetText('Interactive maker credits'), findsOneWidget);
-    expect(prefs.getString('last_seen_release'), '1.1.0+4026');
-    final done = sheetText('Got it');
-    await tester.tap(done.hitTestable());
-    await _pumpLaunch(tester);
-    expect(find.byType(BottomSheet), findsNothing);
-    expect(prefs.getString('last_seen_release'), '1.1.0+4027');
-
-    await launch('4026');
-    expect(find.byType(BottomSheet), findsNothing);
-    expect(prefs.getString('last_seen_release'), '1.1.0+4027');
-    await launch('4027');
-    expect(find.byType(BottomSheet), findsNothing);
-    expect(tester.takeException(), isNull);
-    await tester.pumpWidget(const SizedBox.shrink());
-  });
+      await launch('1.1.0', '4027');
+      expect(find.byType(BottomSheet), findsNothing);
+      expect(prefs.getString('last_seen_release'), '1.1.1');
+      await launch('1.1.1', '4029');
+      expect(find.byType(BottomSheet), findsNothing);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 
   testWidgets('an update from a legacy build waits until Home is current', (
     tester,
@@ -128,7 +136,7 @@ void main() {
     await _pumpLaunch(tester);
     expect(find.byType(BottomSheet), findsNothing);
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getString('last_seen_release'), '1.1.0+4027');
+    expect(prefs.getString('last_seen_release'), '1.1.0');
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
   });
@@ -257,12 +265,13 @@ void main() {
 
 void _mockPackage(
   String build, {
+  String version = '1.1.0',
   required DateTime installTime,
   required DateTime updateTime,
 }) => PackageInfo.setMockInitialValues(
   appName: 'Attendance',
   packageName: 'test.attendance',
-  version: '1.1.0',
+  version: version,
   buildNumber: build,
   buildSignature: '',
   installTime: installTime,

@@ -145,7 +145,7 @@ void main() {
       );
       expect(
         tester.view.physicalSize.height - tester.getBottomLeft(capsule).dy,
-        34,
+        42,
       );
       await expectLater(
         find.byKey(const ValueKey('navigation-preview')),
@@ -153,6 +153,24 @@ void main() {
       );
     });
   }
+
+  testWidgets(
+    'three-button insets and a short landscape window clear the dock',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(600, 360);
+      tester.view.viewPadding = const FakeViewPadding(right: 48, bottom: 48);
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(const _Harness());
+      await tester.pumpAndSettle();
+      final dock = find.byKey(const ValueKey('floating-navigation'));
+      final rect = tester.getRect(dock);
+      expect(rect.bottom, 304);
+      expect(rect.right, lessThan(552));
+      expect(tester.getSize(find.byTooltip('Home')).height, 48);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
     'all destinations stay reachable during resizing, scaling and RTL',

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:portal_labs/portal_labs.dart' as portal;
 
@@ -44,6 +46,7 @@ class AttendanceScoreGauge extends StatelessWidget {
                 ),
                 target: target,
                 reduced: reduced || !available,
+                markerColor: available ? colors.primary : null,
                 label: large
                     ? ''
                     : available
@@ -56,6 +59,7 @@ class AttendanceScoreGauge extends StatelessWidget {
                     : (_) => '\u2014',
                 style: portal.ScoreGaugeStyle(
                   trackThickness: 24,
+                  indicatorSize: 0,
                   trackGradientColors: [
                     available ? colors.primary : colors.outlineVariant,
                   ],
@@ -100,12 +104,14 @@ class _GaugeBody extends StatefulWidget {
     super.key,
     required this.target,
     required this.reduced,
+    required this.markerColor,
     required this.label,
     required this.formatter,
     required this.style,
   });
   final double target;
   final bool reduced;
+  final Color? markerColor;
   final String label;
   final String Function(double) formatter;
   final portal.ScoreGaugeStyle style;
@@ -124,16 +130,103 @@ class _GaugeBodyState extends State<_GaugeBody> {
   }
 
   @override
-  Widget build(BuildContext context) => TickerMode(
-    enabled: !widget.reduced,
-    child: portal.ScoreGauge(
-      value: widget.reduced || _revealed ? widget.target : 0,
-      min: 0,
-      max: 100,
-      label: widget.label,
-      calculatingLabel: 'Updating',
-      valueFormatter: widget.formatter,
-      style: widget.style,
-    ),
-  );
+  Widget build(BuildContext context) {
+    final value = widget.reduced || _revealed ? widget.target : 0.0;
+    return TickerMode(
+      enabled: !widget.reduced,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          portal.ScoreGauge(
+            value: value,
+            min: 0,
+            max: 100,
+            label: widget.label,
+            calculatingLabel: 'Updating',
+            valueFormatter: widget.formatter,
+            style: widget.style,
+          ),
+          if (widget.markerColor case final color?)
+            IgnorePointer(
+              child: LayoutBuilder(
+                builder: (context, constraints) =>
+                    TweenAnimationBuilder<double>(
+                      tween: Tween(end: value / 100),
+                      duration: widget.style.animationDuration,
+                      curve: const portal.PortalSpringCurve(
+                        stiffness: 120,
+                        damping: 18,
+                      ),
+                      builder: (context, fraction, _) =>
+                          _marker(constraints.biggest, fraction, color),
+                    ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _marker(Size size, double fraction, Color color) {
+    // Match Portal's arc geometry; its built-in tip is fixed at 12 o'clock.
+    final style = widget.style;
+    final outer = math.min(size.width, size.height) / 2;
+    final scale = outer / 120;
+    final radius =
+        outer -
+        scale *
+            (math.max(
+                  style.tickLength + style.tickGap,
+                  style.trackThickness / 2,
+                ) +
+                style.trackThickness / 2 +
+                style.indicatorGap +
+                9);
+    final angle =
+        (style.startAngleDegrees +
+            style.sweepAngleDegrees * fraction.clamp(0.0, 1.0)) *
+        math.pi /
+        180;
+    return Center(
+      child: Transform.translate(
+        offset: Offset(
+          math.cos(angle) * radius,
+          math.sin(angle) * radius + outer * .18,
+        ),
+        child: Transform.rotate(
+          angle: angle + math.pi / 2,
+          child: CustomPaint(
+            key: const ValueKey('attendance_gauge_marker'),
+            size: Size(22 * scale, 16 * scale),
+            painter: _GaugeTipPainter(color),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GaugeTipPainter extends CustomPainter {
+  const _GaugeTipPainter(this.color);
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final width = size.width;
+    final height = size.height;
+    final tip = Path()
+      ..moveTo(width * .41, height * .11)
+      ..quadraticBezierTo(width * .5, -height * .06, width * .59, height * .11)
+      ..lineTo(width * .96, height * .8)
+      ..quadraticBezierTo(width * 1.05, height, width * .87, height)
+      ..lineTo(width * .13, height)
+      ..quadraticBezierTo(-width * .05, height, width * .04, height * .8)
+      ..close();
+    canvas.drawPath(tip, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(_GaugeTipPainter oldDelegate) =>
+      oldDelegate.color != color;
 }

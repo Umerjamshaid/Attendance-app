@@ -19,6 +19,15 @@ await db.exec(`
   alter table storage.objects enable row level security;
   grant select,insert,delete on storage.objects to authenticated;
   grant all on storage.objects to service_role;
+  create schema realtime;
+  grant usage on schema realtime to authenticated,anon;
+  create table realtime.messages(topic text, extension text, event text, payload jsonb, private boolean);
+  alter table realtime.messages enable row level security;
+  grant select,insert on realtime.messages to authenticated,anon;
+  create function realtime.topic() returns text language sql stable as $$ select current_setting('realtime.topic', true) $$;
+  create function realtime.send(payload jsonb,event text,topic text,private boolean) returns void
+    language sql as $$ insert into realtime.messages values ($3,'broadcast',$2,$1,$4) $$;
+  revoke execute on function realtime.send(jsonb,text,text,boolean) from public;
 `);
 const migrations = (await readdir(new URL('../supabase/migrations/', import.meta.url))).filter((name) => name.endsWith('.sql')).sort();
 const officeMigration = migrations.find((name) => name.endsWith('_multi_office.sql'));
@@ -106,6 +115,36 @@ const finalize = `select public.finalize_check_in('${employee}','${request}',now
 const record = await value(finalize);
 assert.equal((await value(finalize)).id, record.id, 'same request is idempotent');
 assert.equal(await value('select count(*)::int as value from public.check_ins'), 1);
+
+const liveTopic = `office-check-ins:${company}:${admin}`;
+await role('postgres');
+await db.exec('begin');
+const liveRecord = await value(`insert into public.check_ins(organization_id,user_id,employee_code,request_id,captured_at,company_day,device_model)
+  values ('${company}','${employee}','EMP001',gen_random_uuid(),now(),current_date,'Sample') returning id as value`);
+assert.deepEqual((await db.query('select topic,event,payload,private from realtime.messages')).rows, [
+  { topic: liveTopic, event: 'check_in_saved', payload: { check_in_id: liveRecord }, private: true },
+], 'only the active office admin receives one private signal, with no evidence');
+await db.query(`select set_config('realtime.topic',$1,false)`, [liveTopic]);
+await role('authenticated', admin);
+assert.equal(await value('select count(*)::int as value from realtime.messages'), 1);
+await db.exec('savepoint denied_broadcast');
+await denied(`insert into realtime.messages values ('${liveTopic}','broadcast','check_in_saved','{}',true)`);
+await db.exec('rollback to denied_broadcast');
+for (const viewer of [employee, other]) {
+  await role('authenticated', viewer);
+  assert.equal(await value('select count(*)::int as value from realtime.messages'), 0);
+}
+await role('anon');
+assert.equal(await value('select count(*)::int as value from realtime.messages'), 0);
+
+await role('postgres');
+await db.exec(`update public.memberships set role='employee' where user_id='${admin}' and organization_id='${company}';
+  insert into public.check_ins(organization_id,user_id,employee_code,request_id,captured_at,company_day,device_model)
+  values ('${company}','${employee}','EMP001',gen_random_uuid(),now(),current_date,'Sample');`);
+assert.equal(await value('select count(*)::int as value from realtime.messages'), 1, 'demoted admins receive no new events even on an old channel');
+await role('authenticated', admin);
+assert.equal(await value('select count(*)::int as value from realtime.messages'), 0, 'demoted admins cannot subscribe again');
+await db.exec('rollback');
 
 await role('authenticated', employee);
 assert.equal(await value('select count(*)::int as value from public.check_ins'), 1);

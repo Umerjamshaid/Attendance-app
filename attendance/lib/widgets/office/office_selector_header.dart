@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../config/app_icons.dart';
 import '../../config/ui_tokens.dart';
 import '../../models/office_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/office_provider.dart';
+import '../../services/network_status.dart';
 import '../profile_image.dart';
 import 'office_switcher_sheet.dart';
 
@@ -23,6 +25,9 @@ class OfficeSelectorHeader extends StatelessWidget {
       final employee = auth?.currentUser;
       return (employee?.organizationId, employee?.officeName, employee?.role);
     });
+    final offline = context.select(
+      (NetworkStatus? status) => status?.offline ?? false,
+    );
     final office =
         activeOffice ??
         Office(
@@ -39,14 +44,16 @@ class OfficeSelectorHeader extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Semantics(
-            button: supported,
+            button: supported && !offline,
             label: 'Current office: ${office.name}',
             child: Material(
               color: Colors.transparent,
               child: InkWell(
                 key: const ValueKey('office-selector'),
                 borderRadius: BorderRadius.circular(8),
-                onTap: supported ? () => showOfficeSwitcher(context) : null,
+                onTap: supported && !offline
+                    ? () => showOfficeSwitcher(context)
+                    : null,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Row(
@@ -62,9 +69,12 @@ class OfficeSelectorHeader extends StatelessWidget {
                         ),
                       ),
                       if (supported)
-                        const Padding(
-                          padding: EdgeInsets.only(left: 8),
-                          child: Icon(AppIcons.chevronDown, size: 20),
+                        Padding(
+                          padding: const EdgeInsetsDirectional.only(start: 8),
+                          child: Icon(
+                            offline ? AppIcons.lock : AppIcons.chevronDown,
+                            size: 20,
+                          ),
                         ),
                     ],
                   ),
@@ -137,7 +147,7 @@ class OfficeAvatar extends StatelessWidget {
             logo,
             viewer: viewer,
             office: office.id,
-            width: 240,
+            width: profileDecodeWidth(context, size),
             refresh: backend?.refreshOfficeLogo,
           );
     final avatar = ClipOval(

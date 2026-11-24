@@ -371,7 +371,10 @@ class _EmployeeHeading extends StatelessWidget {
                         avatarUrl!,
                         viewer: viewer,
                         office: employee.organizationId,
-                        width: 120,
+                        width: profileDecodeWidth(
+                          context,
+                          officeEmployeeThumbnailSize,
+                        ),
                         refresh: refresh,
                       ),
                       fit: BoxFit.cover,

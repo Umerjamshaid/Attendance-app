@@ -16,6 +16,7 @@ import 'config/app_theme.dart';
 import 'screens/splash/launch_failure_screen.dart';
 import 'services/company_backend.dart';
 import 'services/launch_failure_reporter.dart';
+import 'services/network_status.dart';
 import 'services/profile_image_cache.dart';
 import 'widgets/office/office_scope.dart';
 
@@ -33,9 +34,8 @@ abstract final class AttendanceBootstrap {
       if (reported) return;
       reported = true;
       unawaited(
-        Future<void>.sync(
-          () => reportFailure(reason),
-        ).catchError((Object _) {}),
+        Future<void>.sync(() => reportFailure(reason))
+            .catchError((Object _) {}),
       );
     }
 
@@ -97,6 +97,8 @@ void runAttendanceApp({
   runApp(
     MultiProvider(
       providers: [
+        if (backend?.connectionStatus case final connection?)
+          ChangeNotifierProvider<NetworkStatus>.value(value: connection),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider(backend: backend)),
         ChangeNotifierProvider(

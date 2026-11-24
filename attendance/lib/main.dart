@@ -1,8 +1,11 @@
 import 'package:attendance/bootstrap.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import 'config/backend_config.dart';
 import 'services/preview_company_backend.dart';
+import 'services/network_status.dart';
 import 'services/supabase_company_backend.dart';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:timezone/data/latest.dart' as tzdata;
 
@@ -22,5 +25,6 @@ Future<void> main() => AttendanceBootstrap.run(() async {
   return SupabaseCompanyBackend(
     Supabase.instance.client,
     preferences: preferences,
+    connection: NetworkStatus.forBackend(Uri.parse(BackendConfig.url)),
   );
 });

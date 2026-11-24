@@ -21,7 +21,8 @@ const submit = await capture('../submit-attendance/index.ts');
 interface Scenario {
   duplicateCode?: boolean;
   lookupFailure?: boolean;
-  invitation?: { id: string; employee_code: string; user_id: string };
+  invitation?: { id: string; employee_code: string; user_id: string | null };
+  inviteError?: string;
   uploadStatus?: number;
   uploadDisconnect?: boolean;
   finalizeCode?: string;
@@ -50,7 +51,12 @@ async function run(handler: Handler, scenario: Scenario, input: Record<string, u
     switch (url.pathname) {
       case '/auth/v1/user':
       case '/auth/v1/invite':
-        data = { id: user, aud: 'authenticated', app_metadata: {}, user_metadata: {}, created_at: new Date().toISOString() };
+        if (url.pathname === '/auth/v1/invite' && scenario.inviteError) {
+          status = 429;
+          data = { code: scenario.inviteError, message: 'Test Auth error' };
+        } else {
+          data = { id: user, aud: 'authenticated', app_metadata: {}, user_metadata: {}, created_at: new Date().toISOString() };
+        }
         break;
       case '/rest/v1/memberships':
         if (url.searchParams.has('employee_code')) {
@@ -85,7 +91,11 @@ async function run(handler: Handler, scenario: Scenario, input: Record<string, u
         status = scenario.uploadStatus ?? 200;
         data = status === 200 ? { Key: 'photo', Id: 'photo' } : { code: status === 409 ? 'ResourceAlreadyExists' : 'InvalidRequest', message: 'Test upload rejection' };
     }
-    return new Response(status === 204 ? null : JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+    const headers = new Headers({ 'Content-Type': 'application/json' });
+    if (url.pathname.startsWith('/auth/v1/')) {
+      headers.set('X-Supabase-Api-Version', '2024-01-01');
+    }
+    return new Response(status === 204 ? null : JSON.stringify(data), { status, headers });
   };
   try {
     const response = await handler(new Request('https://function.example.invalid', {
@@ -121,6 +131,26 @@ Deno.test('existing invitation retries bypass the new-member precheck', async ()
   assert.equal(result.response.status, 200);
   assert.ok(!result.calls.some(({ url }) => url.searchParams.has('employee_code') || url.pathname.endsWith('/invite')));
   assert.ok(result.calls.some(({ url }) => url.pathname.endsWith('/complete_employee_invitation')));
+});
+
+Deno.test('only the Auth email limit returns the public invitation limit code', async () => {
+  const limited = await run(manage, { inviteError: 'over_email_send_rate_limit' }, invite);
+  assert.equal(limited.response.status, 429);
+  assert.deepEqual(limited.data, { code: 'invitation_rate_limited' });
+  assert.ok(!limited.calls.some(({ method, url }) =>
+    method === 'PATCH' || url.pathname.endsWith('/complete_employee_invitation')));
+
+  const other = await run(manage, { inviteError: 'over_request_rate_limit' }, invite);
+  assert.equal(other.response.status, 400);
+  assert.deepEqual(other.data, { code: 'invitation_delivery_failed' });
+
+  const retry = await run(manage, {
+    invitation: { id: 'reserved', employee_code: 'EMP001', user_id: null },
+  }, invite);
+  assert.equal(retry.response.status, 200);
+  assert.equal(retry.data.email_sent, true);
+  assert.ok(!retry.calls.some(({ method, url }) =>
+    method === 'POST' && url.pathname.endsWith('/employee_invitations')));
 });
 
 for (const [name, scenario, released] of [
@@ -165,6 +195,7 @@ Deno.test('multi-office clients must provide an authorized office', async () => 
 Deno.test('registered invitees do not receive a failing Auth duplicate invitation', async () => {
   const result = await run(manage, { registeredUser: true }, { ...invite, organization_id: company });
   assert.equal(result.response.status, 200);
+  assert.equal(result.data.email_sent, false);
   assert.ok(result.calls.some(({ url }) => url.pathname.endsWith('/complete_employee_invitation')));
   assert.ok(!result.calls.some(({ url }) => url.pathname.endsWith('/invite')));
 });
