@@ -39,13 +39,23 @@ class ControlledOfficeBackend extends PreviewCompanyBackend {
   Future<Employee?> restoreSession() async =>
       state.signedIn ? employee(state.active) : null;
   @override
-  Future<List<Office>> offices() async =>
-      state.offices ??
-      [
-        const Office(id: 'a', name: 'Office A', role: 'admin'),
-        if (!state.revoked)
-          const Office(id: 'b', name: 'Office B', role: 'employee'),
-      ];
+  Future<List<Office>> offices() async {
+    state.officeCalls++;
+    if (state.officesGate case final gate?) await gate.future;
+    return state.offices ??
+        [
+          const Office(id: 'a', name: 'Office A', role: 'admin'),
+          if (!state.revoked)
+            const Office(id: 'b', name: 'Office B', role: 'employee'),
+        ];
+  }
+
+  @override
+  Future<List<OfficeInvitation>> officeInvitations() async {
+    state.invitationCalls++;
+    return super.officeInvitations();
+  }
+
   @override
   Future<Employee> switchOffice(String officeId) async {
     state.switchCalls++;
@@ -99,12 +109,42 @@ class OfficeTestState {
   String active = 'a';
   bool signedIn = true, revoked = false, failSwitch = false;
   int switchCalls = 0;
-  Completer<void>? switchGate, historyGate;
+  int officeCalls = 0, invitationCalls = 0;
+  Completer<void>? switchGate, historyGate, officesGate;
 }
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  test(
+    'refresh shares in-flight work and fetches invitations concurrently',
+    () async {
+      final backend = ControlledOfficeBackend();
+      final auth = AuthProvider(backend: backend);
+      addTearDown(auth.dispose);
+      await Future<void>.delayed(Duration.zero);
+      final offices = OfficeProvider(auth);
+      addTearDown(offices.dispose);
+      await offices.reload();
+      final officeCalls = backend.state.officeCalls;
+      final invitationCalls = backend.state.invitationCalls;
+
+      await offices.refreshIfStale();
+      expect(backend.state.officeCalls, officeCalls);
+
+      final gate = backend.state.officesGate = Completer<void>();
+      final first = offices.reload();
+      expect(offices.reload(), same(first));
+      await Future<void>.delayed(Duration.zero);
+      expect(backend.state.officeCalls, officeCalls + 1);
+      expect(backend.state.invitationCalls, invitationCalls + 1);
+      expect(offices.offices, hasLength(2));
+      gate.complete();
+      await first;
+      expect(offices.isLoading, isFalse);
+    },
+  );
 
   test(
     'office reload preserves unchanged logos, not removed or replaced ones',

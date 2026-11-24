@@ -48,6 +48,8 @@ class _Server {
   bool rejectCode = false;
   String sessionId = _sessionId;
   bool rejectLogo = false;
+  bool activityAvailable = true;
+  Completer<void>? activityGate;
   String? bannerPath;
   Map<String, dynamic> employee(String org) => {
     'id': 'SAME_CODE',
@@ -75,6 +77,24 @@ class _Server {
   Future<http.Response> handle(http.Request request) async {
     calls.add(request);
     final path = request.url.path;
+    if (path.endsWith('/office_check_in_activity')) {
+      if (!activityAvailable) {
+        return json({'code': 'PGRST202', 'message': 'Function missing'}, 404);
+      }
+      final params = jsonDecode(request.body) as Map;
+      if (params['p_organization'] != active || active != _a) {
+        return json({'code': '42501', 'message': 'office_admin_required'}, 403);
+      }
+      await activityGate?.future;
+      return json([
+        {
+          'id': 'activity-record',
+          'employee_name': 'Sample employee',
+          'received_at': '2026-11-19T04:10:00Z',
+          'office_timezone': 'Asia/Karachi',
+        },
+      ]);
+    }
     if (path.endsWith('/my_offices')) {
       return json([
         for (final id in [_a, _b])
@@ -367,6 +387,117 @@ void main() {
       await assertion;
     },
   );
+  test(
+    'activity coalesces overlapping reads and rejects late office results',
+    () async {
+      final server = _Server();
+      final client = SupabaseClient(
+        'https://office-backend.example.invalid',
+        'test-publishable-key',
+        httpClient: MockClient(server.handle),
+        authOptions: const AuthClientOptions(autoRefreshToken: false),
+      );
+      addTearDown(client.dispose);
+      final root = SupabaseCompanyBackend(client);
+      final old = root.forOffice(
+        await root.signIn('test@example.invalid', 'test-password'),
+      );
+      final before = server.calls.length;
+      final gate = server.activityGate = Completer<void>();
+      final first = old.checkInActivity();
+      final joined = old.checkInActivity();
+      await Future<void>.delayed(Duration.zero);
+      expect(server.calls.length, before + 1);
+      expect(jsonDecode(server.calls.last.body), {'p_organization': _a});
+      gate.complete();
+      final row = (await first).single;
+      expect((await joined).single, same(row));
+      expect(row.id, 'activity-record');
+      expect(row.employeeName, 'Sample employee');
+      expect(row.receivedAt.hour, 9);
+      expect(row.receivedAt.minute, 10);
+
+      server.activityAvailable = false;
+      await expectLater(
+        old.checkInActivity(),
+        throwsA(
+          isA<CompanyException>().having(
+            (error) => error.message,
+            'message',
+            contains('not set up'),
+          ),
+        ),
+      );
+      server.activityAvailable = true;
+      final lateGate = server.activityGate = Completer<void>();
+      final stale = expectLater(
+        old.checkInActivity(),
+        throwsA(isA<CompanyException>()),
+      );
+      await Future<void>.delayed(Duration.zero);
+      final next = root.forOffice(await root.switchOffice(_b));
+      lateGate.complete();
+      await stale;
+      await expectLater(
+        next.checkInActivity(),
+        throwsA(isA<CompanyAccessException>()),
+      );
+      final afterSwitch = server.calls.length;
+      await expectLater(
+        old.checkInActivity(),
+        throwsA(isA<CompanyException>()),
+      );
+      expect(server.calls.length, afterSwitch);
+    },
+  );
+
+  testWidgets('activity times out and can retry before a late reply', (
+    tester,
+  ) async {
+    final server = _Server();
+    final office = (await tester.runAsync(() async {
+      final client = SupabaseClient(
+        'https://office-backend.example.invalid',
+        'test-publishable-key',
+        httpClient: MockClient(server.handle),
+        authOptions: const AuthClientOptions(autoRefreshToken: false),
+      );
+      addTearDown(client.dispose);
+      final root = SupabaseCompanyBackend(client);
+      return root.forOffice(
+        await root.signIn('test@example.invalid', 'test-password'),
+      );
+    }))!;
+    final gate = server.activityGate = Completer<void>();
+    Object? error;
+    unawaited(
+      office.checkInActivity().then<void>(
+        (_) {},
+        onError: (Object failure) {
+          error = failure;
+        },
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 14));
+    expect(error, isNull);
+    await tester.pump(const Duration(seconds: 1));
+    expect(
+      error,
+      isA<CompanyException>().having(
+        (error) => error.message,
+        'message',
+        contains('took too long'),
+      ),
+    );
+
+    server.activityGate = null;
+    final retry = await tester.runAsync(office.checkInActivity);
+    expect(retry!.single.id, 'activity-record');
+    gate.complete();
+    await tester.pump();
+  });
+
   test('office actions send only the field being changed', () async {
     final server = _Server();
     final client = SupabaseClient(

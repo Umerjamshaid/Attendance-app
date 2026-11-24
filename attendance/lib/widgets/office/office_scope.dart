@@ -81,7 +81,9 @@ class _OfficeNavigatorState extends State<_OfficeNavigator> {
 
   @override
   Widget build(BuildContext context) {
-    final switching = context.watch<OfficeProvider?>()?.isSwitching ?? false;
+    final switching = context.select(
+      (OfficeProvider? provider) => provider?.isSwitching ?? false,
+    );
     return Stack(
       children: [
         ExcludeSemantics(

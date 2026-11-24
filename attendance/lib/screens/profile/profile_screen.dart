@@ -1,7 +1,6 @@
 import 'package:attendance/config/ui_tokens.dart';
 import 'package:attendance/config/app_icons.dart';
 import 'package:attendance/config/app_theme.dart';
-import 'package:attendance/config/app_info.dart';
 import 'package:attendance/models/employees_model.dart';
 import 'package:attendance/providers/attendance_history_provider.dart';
 import 'package:attendance/providers/auth_provider.dart';
@@ -10,6 +9,8 @@ import 'package:attendance/screens/profile/appearance_screen.dart';
 import 'package:attendance/screens/profile/privacy_screen.dart';
 import 'package:attendance/screens/profile/profile_details_screen.dart';
 import 'package:attendance/screens/profile/settings_screen.dart';
+import 'package:attendance/screens/profile/settings_sheets.dart';
+import 'package:attendance/widgets/app_toast.dart';
 import 'package:attendance/widgets/user-profile/attendance_stats_card.dart';
 import 'package:attendance/widgets/user-profile/profile_header.dart';
 import 'package:attendance/widgets/user-profile/profile_menu_item.dart';
@@ -35,6 +36,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   static const int _sectionCount = 5;
 
   bool _notificationsEnabled = true;
+  bool _signingOut = false;
 
   // Scroll-driven app bar state. Only the title and divider rebuild.
   final ScrollController _scroll = ScrollController();
@@ -189,23 +191,13 @@ class _ProfileScreenState extends State<ProfileScreen>
         children: [
           ProfileMenuItem(
             icon: AppIcons.help,
-            title: 'Help center',
-            onTap: () => _showMessageDialog(
-              context,
-              title: 'Help',
-              message:
-                  'Contact your company administrator for attendance or account help.',
-            ),
+            title: 'Help Centre',
+            onTap: () => showHelpCentre(context),
           ),
           ProfileMenuItem(
             icon: AppIcons.infoCircle,
             title: 'About app',
-            onTap: () => _showMessageDialog(
-              context,
-              title: 'About app',
-              message:
-                  '${AppInfo.name} is for company check-ins and attendance history.',
-            ),
+            onTap: () => showAboutApp(context),
           ),
           ProfileMenuItem(
             icon: AppIcons.shield,
@@ -227,9 +219,9 @@ class _ProfileScreenState extends State<ProfileScreen>
         children: [
           ProfileMenuItem(
             icon: AppIcons.logout,
-            title: 'Log out',
+            title: _signingOut ? 'Signing out...' : 'Sign out',
             textColor: context.colors.error,
-            onTap: () => _showLogoutConfirmation(context),
+            onTap: _signingOut ? null : () => _signOut(context),
           ),
         ],
       ),
@@ -250,16 +242,18 @@ class _ProfileScreenState extends State<ProfileScreen>
                   children: [
                     for (var i = 0; i < sections.length; i++)
                       _Reveal(animation: _reveals[i], child: sections[i]),
-                    const SafeArea(
+                    SafeArea(
                       top: false,
                       child: Padding(
-                        padding: EdgeInsets.fromLTRB(
+                        padding: const EdgeInsets.fromLTRB(
                           ProfileUi.gutter,
                           28,
                           ProfileUi.gutter,
                           24,
                         ),
-                        child: AppIdentityFooter(),
+                        child: AppIdentityFooter(
+                          onCreditTap: () => showMakerCredit(context),
+                        ),
                       ),
                     ),
                   ],
@@ -330,81 +324,22 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Future<void> _showMessageDialog(
-    BuildContext context, {
-    required String title,
-    required String message,
-  }) {
-    return showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: context.colors.surface,
-        surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(ProfileUi.sheetRadius),
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            fontFamily: ProfileUi.fontFamily,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: context.colors.onSurface,
-          ),
-        ),
-        content: Text(message, style: ProfileUi.small(context)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showLogoutConfirmation(BuildContext context) {
+  Future<void> _signOut(BuildContext context) async {
     final auth = context.read<AuthProvider>();
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: context.colors.surface,
-        surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(ProfileUi.sheetRadius),
-        ),
-        title: Text(
-          'Log out',
-          style: TextStyle(
-            fontFamily: ProfileUi.fontFamily,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: context.colors.onSurface,
-          ),
-        ),
-        content: Text(
-          'Are you sure you want to exit?',
-          style: ProfileUi.small(context),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              HapticFeedback.lightImpact();
-              Navigator.pop(dialogContext);
-              auth.logout();
-            },
-            child: Text(
-              'Log out',
-              style: TextStyle(color: context.colors.error),
-            ),
-          ),
-        ],
-      ),
-    );
+    if (!await confirmSignOut(context) || !mounted) return;
+    setState(() => _signingOut = true);
+    try {
+      await auth.logout();
+    } catch (_) {
+      if (context.mounted) {
+        AppToast.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not sign out. Try again.')),
+          kind: ToastKind.error,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _signingOut = false);
+    }
   }
 }
 

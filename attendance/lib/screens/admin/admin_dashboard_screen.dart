@@ -225,6 +225,7 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildSliverAppBar() {
+    final auth = context.watch<AuthProvider>();
     return SliverAppBar(
       pinned: true,
       automaticallyImplyLeading: false,
@@ -237,7 +238,7 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
         style: ProfileUi.body(context, weight: FontWeight.w600),
       ),
       actions: [
-        if (context.read<AuthProvider>().isPublicBuild)
+        if (auth.isPublicBuild)
           IconButton(
             tooltip: 'Manage employees',
             icon: const Icon(AppIcons.users),
@@ -246,10 +247,10 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 builder: (_) => const EmployeeManagementScreen(),
               ),
             ),
-          )
-        else
+          ),
+        if (auth.currentUser?.isAdmin == true && auth.backend != null)
           IconButton(
-            tooltip: 'Notifications',
+            tooltip: 'Check-in activity',
             icon: const Icon(AppIcons.bell),
             color: context.colors.onSurface,
             onPressed: _openNotifications,

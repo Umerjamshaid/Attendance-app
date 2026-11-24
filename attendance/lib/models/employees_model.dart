@@ -21,6 +21,7 @@ class Employee {
   final String? headline;
   final List<String> chips;
   final bool isActive;
+  final bool isRemoved;
 
   Employee({
     this.authUserId,
@@ -45,6 +46,7 @@ class Employee {
     this.headline,
     this.chips = const [],
     this.isActive = true,
+    this.isRemoved = false,
   });
 
   // ✅ Helper getters
@@ -87,6 +89,7 @@ class Employee {
       headline: map['headline'],
       chips: (map['chips'] as List<dynamic>?)?.cast<String>() ?? const [],
       isActive: map['isActive'] as bool? ?? true,
+      isRemoved: map['isRemoved'] as bool? ?? false,
     );
   }
 
@@ -115,6 +118,7 @@ class Employee {
       'headline': headline,
       'chips': chips,
       'isActive': isActive,
+      'isRemoved': isRemoved,
     };
   }
 
@@ -142,6 +146,8 @@ class Employee {
     double? lastLongitude,
     String? headline,
     List<String>? chips,
+    bool? isActive,
+    bool? isRemoved,
   }) {
     return Employee(
       authUserId: authUserId ?? this.authUserId,
@@ -165,7 +171,8 @@ class Employee {
       lastLongitude: lastLongitude ?? this.lastLongitude,
       headline: headline ?? this.headline,
       chips: chips ?? this.chips,
-      isActive: isActive,
+      isActive: isActive ?? this.isActive,
+      isRemoved: isRemoved ?? this.isRemoved,
     );
   }
 

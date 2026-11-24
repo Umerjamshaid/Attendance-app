@@ -45,6 +45,8 @@ class _Backend extends PreviewCompanyBackend {
   Office? office;
   int reads = 0;
   final writes = <(String, bool)>[];
+  final removals = <String>[];
+  final reinvites = <String>[];
   bool failRead = false;
   @override
   bool get isPreview => false;
@@ -72,6 +74,23 @@ class _Backend extends PreviewCompanyBackend {
             ? Employee.fromMap({...employee.toMap(), 'isActive': active})
             : employee,
     ];
+  }
+
+  @override
+  Future<void> removeOfficeEmployee(String id) async {
+    removals.add(id);
+    roster = [
+      for (final employee in roster)
+        employee.id == id
+            ? employee.copyWith(isActive: false, isRemoved: true)
+            : employee,
+    ];
+  }
+
+  @override
+  Future<String> reinviteRemovedEmployee(String id) async {
+    reinvites.add(id);
+    return 'ABCD EFGH JKLM NPQR';
   }
 }
 
@@ -144,7 +163,7 @@ void main() {
   }
 
   Future<void> openSearch(WidgetTester tester) async {
-    await tester.tap(find.byKey(_searchInput));
+    await tester.tap(find.byTooltip('Search employees'));
     await tester.pumpAndSettle();
   }
 
@@ -176,7 +195,7 @@ void main() {
       const EmployeeManagementScreen(),
       auth: AuthProvider(backend: backend),
     );
-    expect(find.byKey(_searchInput), findsOneWidget);
+    expect(find.byKey(_searchInput), findsNothing);
     expect(tester.testTextInput.isVisible, isFalse);
     expect(find.byType(ListTile), findsNWidgets(2));
     await openSearch(tester);
@@ -196,7 +215,7 @@ void main() {
     await tester.enterText(find.byKey(_searchInput), 'not-found');
     await tester.pump();
     expect(find.text('No employees found'), findsOneWidget);
-    await tester.tap(find.text('Clear filters'));
+    await tester.tap(find.byTooltip('Clear search'));
     await tester.pump();
     expect(
       tester.widget<TextField>(find.byKey(_searchInput)).controller!.text,
@@ -208,7 +227,7 @@ void main() {
   });
 
   testWidgets(
-    'status filters, clearing search and employee confirmation work',
+    'removed employees stay off the current roster and receive a new code',
     (tester) async {
       final backend = _Backend();
       await mount(
@@ -216,38 +235,61 @@ void main() {
         const EmployeeManagementScreen(),
         auth: AuthProvider(backend: backend),
       );
-      await tester.tap(find.text('Inactive'));
+      expect(find.byType(Switch), findsNothing);
+      await tester.tap(find.text('Removed'));
       await tester.pumpAndSettle();
-      expect(find.byType(ListTile), findsOneWidget);
-      expect(find.text('Sam Lee'), findsOneWidget);
+      expect(find.text('No removed employees'), findsOneWidget);
       await openSearch(tester);
-      await tester.enterText(find.byKey(_searchInput), 'alice');
+      await tester.enterText(find.byKey(_searchInput), 'sam');
       await tester.pump();
       expect(find.text('No employees found'), findsOneWidget);
       await tester.tap(find.byTooltip('Clear search'));
       await tester.pumpAndSettle();
       expect(find.byKey(_searchInput), findsOneWidget);
-      expect(find.byTooltip('Clear search'), findsNothing);
+      expect(find.text('No removed employees'), findsOneWidget);
       await tester.testTextInput.receiveAction(TextInputAction.search);
       await tester.pumpAndSettle();
       expect(tester.testTextInput.isVisible, isFalse);
+      await tester.tap(find.byTooltip('Close search'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Current'));
+      await tester.pumpAndSettle();
       expect(find.text('Sam Lee'), findsOneWidget);
-      await tester.tap(find.byType(Switch));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Cancel'));
-      await tester.pumpAndSettle();
-      expect(backend.writes, isEmpty);
-      await tester.tap(find.byType(Switch));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Confirm'));
-      await tester.pumpAndSettle();
-      expect(backend.writes, [('EMP002', true)]);
-      expect(find.text('No employees found'), findsOneWidget);
-      await tester.tap(find.text('Active'));
-      await tester.pumpAndSettle();
-      expect(find.byType(ListTile), findsNWidgets(2));
+      for (final cancel in [true, false]) {
+        await tester.tap(find.text('Sam Lee'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Remove from office'));
+        await tester.pumpAndSettle();
+        expect(
+          find.textContaining('Past check-ins stay on record'),
+          findsOneWidget,
+        );
+        await tester.tap(find.text(cancel ? 'Cancel' : 'Remove from office'));
+        await tester.pumpAndSettle();
+        expect(backend.removals, cancel ? [] : ['EMP002']);
+      }
+      expect(find.text('Sam Lee'), findsNothing);
       expect(backend.reads, 2);
-      await tester.tap(find.text('Invite employee'));
+      await tester.tap(find.text('Removed'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Sam Lee'));
+      await tester.pumpAndSettle();
+      expect(find.text('Restore access'), findsNothing);
+      await tester.tap(find.text('Reinvite'));
+      await tester.pumpAndSettle();
+      expect(find.text('Office code ready'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('reveal_copy_action_button')),
+        findsOneWidget,
+      );
+      expect(find.text('ABCD EFGH JKLM NPQR'), findsNothing);
+      expect(backend.reinvites, ['EMP002']);
+      await tester.tap(find.text('Done'));
+      await tester.pumpAndSettle();
+      expect(find.text('Sam Lee'), findsOneWidget);
+      expect(backend.writes, isEmpty);
+      expect(backend.reads, 2);
+      await tester.tap(find.byTooltip('Invite employee'));
       await tester.pumpAndSettle();
       expect(find.byType(InviteEmployeeScreen), findsOneWidget);
     },
@@ -297,7 +339,7 @@ void main() {
           auth: auth,
           offices: offices,
         );
-        final shortcut = find.text('Roles');
+        final shortcut = find.byTooltip('Roles');
         expect(shortcut, owner ? findsOneWidget : findsNothing);
         if (!owner) return;
         await tester.tap(shortcut);
@@ -310,6 +352,32 @@ void main() {
       },
     );
   }
+
+  testWidgets('paused access can still be restored without a new invitation', (
+    tester,
+  ) async {
+    final backend = _Backend();
+    await mount(
+      tester,
+      const EmployeeManagementScreen(),
+      auth: AuthProvider(backend: backend),
+    );
+    await tester.tap(find.text('Alice Johnson'));
+    await tester.pumpAndSettle();
+    expect(find.text('Remove from office'), findsNothing);
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sam Lee'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Restore access'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Restore access'));
+    await tester.pumpAndSettle();
+    expect(backend.writes, [('EMP002', true)]);
+    expect(backend.reinvites, isEmpty);
+    expect(find.textContaining('Paused'), findsNothing);
+    expect(find.text('Sam Lee'), findsOneWidget);
+  });
 
   testWidgets('employee loading failure still retries the existing fetch', (
     tester,
@@ -439,7 +507,7 @@ void main() {
   });
 
   for (final dark in [false, true]) {
-    testWidgets('integrated screen preview ${dark ? "dark" : "light"}', (
+    testWidgets('employee roster preview ${dark ? "dark" : "light"}', (
       tester,
     ) async {
       final (auth, offices) = await officeSession(_Backend(), owner: true);
@@ -456,6 +524,10 @@ void main() {
           'goldens/employee_search_${dark ? "dark" : "light"}.png',
         ),
       );
+    });
+    testWidgets('profile tag screen preview ${dark ? "dark" : "light"}', (
+      tester,
+    ) async {
       await mount(
         tester,
         ProfileDetailsScreen(user: _alice),
@@ -564,17 +636,8 @@ void main() {
           reducedMotion: true,
         );
         await openSearch(tester);
-        expect(
-          tester
-              .widget<TextField>(find.byKey(_searchInput))
-              .focusNode!
-              .hasFocus,
-          isTrue,
-        );
-        expect(
-          find.widgetWithText(ChoiceChip, 'Inactive').hitTestable(),
-          findsOneWidget,
-        );
+        expect(tester.testTextInput.isVisible, isTrue);
+        expect(find.text('Removed').hitTestable(), findsOneWidget);
         expect(tester.takeException(), isNull);
         await mount(
           tester,

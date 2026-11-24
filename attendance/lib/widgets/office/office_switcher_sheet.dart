@@ -22,7 +22,6 @@ const _officeFont = 'Office Inter';
 
 Future<void> showOfficeSwitcher(BuildContext context) async {
   final offices = context.read<OfficeProvider>();
-  unawaited(offices.reload());
   await showModalBottomSheet<void>(
     context: context,
     useRootNavigator: true,
@@ -69,14 +68,33 @@ class _OfficeSwitcherSheetState extends State<OfficeSwitcherSheet>
   String? _previousActiveId;
   bool _editing = false, _feedbackError = false;
   bool get _moving => _flying != null || _removingId != null;
+  Animation<double>? _entrance;
+  bool _didRefresh = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    if (!_didRefresh && _entrance == null) {
+      _entrance = ModalRoute.of(context)?.animation;
+      if (_entrance == null || _entrance!.isCompleted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _refreshAfterEntrance(AnimationStatus.completed);
+        });
+      } else {
+        _entrance!.addStatusListener(_refreshAfterEntrance);
+      }
+    }
     if (MediaQuery.disableAnimationsOf(context)) {
       if (_center.isAnimating) _center.animateTo(1, duration: Duration.zero);
       if (_return.isAnimating) _return.animateTo(1, duration: Duration.zero);
     }
+  }
+
+  void _refreshAfterEntrance(AnimationStatus status) {
+    if (_didRefresh || status != AnimationStatus.completed) return;
+    _didRefresh = true;
+    _entrance?.removeStatusListener(_refreshAfterEntrance);
+    unawaited(context.read<OfficeProvider>().refreshIfStale());
   }
 
   Future<void> _select(Office office) async {
@@ -218,40 +236,40 @@ class _OfficeSwitcherSheetState extends State<OfficeSwitcherSheet>
     final provider = context.watch<OfficeProvider>();
     final colors = Theme.of(context).colorScheme;
     final busy = _moving || provider.isSwitching;
-    final options = <Widget>[
-      for (final office in provider.offices) _option(context, office, busy),
-      InkWell(
-        key: const ValueKey('office-add'),
-        borderRadius: BorderRadius.circular(8),
-        onTap: busy ? null : _manage,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            children: [
-              Container(
-                width: 104,
-                height: 104,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: colors.surfaceContainerHighest,
-                ),
-                child: const Icon(AppIcons.plus, size: 32),
+    final offices = provider.offices;
+    Widget option(int index) => index < offices.length
+        ? _option(context, offices[index], busy)
+        : InkWell(
+            key: const ValueKey('office-add'),
+            borderRadius: BorderRadius.circular(8),
+            onTap: busy ? null : _manage,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Column(
+                children: [
+                  Container(
+                    width: 104,
+                    height: 104,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: colors.surfaceContainerHighest,
+                    ),
+                    child: const Icon(AppIcons.plus, size: 32),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Add Office',
+                    textAlign: TextAlign.center,
+                    style: AppTypography.body.copyWith(
+                      fontFamily: _officeFont,
+                      fontWeight: FontWeight.w600,
+                      height: 1.25,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              Text(
-                'Add Office',
-                textAlign: TextAlign.center,
-                style: AppTypography.body.copyWith(
-                  fontFamily: _officeFont,
-                  fontWeight: FontWeight.w600,
-                  height: 1.25,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ];
+            ),
+          );
     return PopScope(
       canPop: !busy,
       child: DraggableScrollableSheet(
@@ -259,142 +277,168 @@ class _OfficeSwitcherSheetState extends State<OfficeSwitcherSheet>
         initialChildSize: .72,
         minChildSize: .4,
         maxChildSize: .94,
-        builder: (context, scroll) {
-          final content = ListView(
-            controller: scroll,
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    tooltip: 'Close',
-                    onPressed: busy ? null : () => Navigator.pop(context),
-                    icon: const Icon(AppIcons.x),
-                  ),
-                  TextButton(
-                    key: const ValueKey('office-switcher-edit'),
-                    onPressed: busy
-                        ? null
-                        : () {
-                            unawaited(HapticFeedback.selectionClick());
-                            setState(() {
-                              _editing = !_editing;
-                              _feedback = null;
-                            });
-                          },
-                    child: Text(_editing ? 'Done' : 'Edit'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Switch Office',
-                textAlign: TextAlign.center,
-                style: AppTypography.title.copyWith(
-                  fontFamily: _officeFont,
-                  fontSize: 24,
-                  height: 1.25,
-                ),
-              ),
-              const SizedBox(height: 24),
-              if (_flying != null && MediaQuery.disableAnimationsOf(context))
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Semantics(
-                    liveRegion: true,
-                    label: 'Switching to ${_flying!.name}',
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedBox.square(
-                          dimension: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                        SizedBox(width: 8),
-                        Text('Switching office...'),
-                      ],
+        builder: (context, scroll) => LayoutBuilder(
+          builder: (context, constraints) {
+            final columns = constraints.maxWidth - 40 >= 248 ? 2 : 1;
+            final optionCount = offices.length + 1;
+            final flying = _flying;
+            final flight =
+                flying != null &&
+                _origin != null &&
+                !MediaQuery.disableAnimationsOf(context);
+            final flightAvatar = flight
+                ? RepaintBoundary(
+                    child: OfficeAvatar(
+                      key: const ValueKey('office-flying-avatar'),
+                      office: flying,
+                      fontFamily: _officeFont,
                     ),
-                  ),
-                ),
-              if (provider.isLoading && provider.offices.isEmpty)
-                const Center(child: CircularProgressIndicator()),
-              if (provider.error != null || _feedback != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Semantics(
-                    liveRegion: true,
-                    child: Text(
-                      provider.error ?? _feedback!,
-                      textAlign: TextAlign.center,
-                      style: AppTypography.caption.copyWith(
-                        fontFamily: _officeFont,
-                        color: provider.error != null || _feedbackError
-                            ? colors.error
-                            : context.attendancePresent,
-                      ),
-                    ),
-                  ),
-                ),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final columns = constraints.maxWidth >= 248 ? 2 : 1;
-                  return Column(
-                    children: [
-                      for (
-                        var index = 0;
-                        index < options.length;
-                        index += columns
-                      )
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 24),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                  )
+                : null;
+            final content = CustomScrollView(
+              controller: scroll,
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+                  sliver: SliverMainAxisGroup(
+                    slivers: [
+                      SliverList.list(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              for (
-                                var column = 0;
-                                column < columns;
-                                column++
-                              ) ...[
-                                if (column > 0) const SizedBox(width: 12),
-                                Expanded(
-                                  child: index + column < options.length
-                                      ? options[index + column]
-                                      : const SizedBox.shrink(),
-                                ),
-                              ],
+                              IconButton(
+                                tooltip: 'Close',
+                                onPressed: busy
+                                    ? null
+                                    : () => Navigator.pop(context),
+                                icon: const Icon(AppIcons.x),
+                              ),
+                              TextButton(
+                                key: const ValueKey('office-switcher-edit'),
+                                onPressed: busy
+                                    ? null
+                                    : () {
+                                        unawaited(
+                                          HapticFeedback.selectionClick(),
+                                        );
+                                        setState(() {
+                                          _editing = !_editing;
+                                          _feedback = null;
+                                        });
+                                      },
+                                child: Text(_editing ? 'Done' : 'Edit'),
+                              ),
                             ],
                           ),
-                        ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Switch Office',
+                            textAlign: TextAlign.center,
+                            style: AppTypography.title.copyWith(
+                              fontFamily: _officeFont,
+                              fontSize: 24,
+                              height: 1.25,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          if (_flying != null &&
+                              MediaQuery.disableAnimationsOf(context))
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: Semantics(
+                                liveRegion: true,
+                                label: 'Switching to ${_flying!.name}',
+                                child: const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    SizedBox.square(
+                                      dimension: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                    SizedBox(width: 8),
+                                    Text('Switching office...'),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          if (provider.isLoading && provider.offices.isEmpty)
+                            const Center(child: CircularProgressIndicator()),
+                          if (provider.error != null || _feedback != null)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: Semantics(
+                                liveRegion: true,
+                                child: Text(
+                                  provider.error ?? _feedback!,
+                                  textAlign: TextAlign.center,
+                                  style: AppTypography.caption.copyWith(
+                                    fontFamily: _officeFont,
+                                    color:
+                                        provider.error != null || _feedbackError
+                                        ? colors.error
+                                        : context.attendancePresent,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      SliverList.builder(
+                        itemCount: (optionCount + columns - 1) ~/ columns,
+                        itemBuilder: (context, row) {
+                          final index = row * columns;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 24),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                for (
+                                  var column = 0;
+                                  column < columns;
+                                  column++
+                                ) ...[
+                                  if (column > 0) const SizedBox(width: 12),
+                                  Expanded(
+                                    child: index + column < optionCount
+                                        ? option(index + column)
+                                        : const SizedBox.shrink(),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                      SliverList.list(
+                        children: [
+                          if (provider.canManage ||
+                              provider.hiddenOffices.isNotEmpty)
+                            TextButton.icon(
+                              onPressed: busy ? null : _manage,
+                              icon: const Icon(AppIcons.settings, size: 20),
+                              label: const Text('Manage Offices'),
+                            ),
+                          if (provider.invitations.isNotEmpty)
+                            TextButton(
+                              onPressed: busy ? null : _manage,
+                              child: Text(
+                                '${provider.invitations.length} pending office invitation(s)',
+                              ),
+                            ),
+                        ],
+                      ),
                     ],
-                  );
-                },
-              ),
-              if (provider.canManage || provider.hiddenOffices.isNotEmpty)
-                TextButton.icon(
-                  onPressed: busy ? null : _manage,
-                  icon: const Icon(AppIcons.settings, size: 20),
-                  label: const Text('Manage Offices'),
-                ),
-              if (provider.invitations.isNotEmpty)
-                TextButton(
-                  onPressed: busy ? null : _manage,
-                  child: Text(
-                    '${provider.invitations.length} pending office invitation(s)',
                   ),
                 ),
-            ],
-          );
-          return LayoutBuilder(
-            builder: (context, constraints) => AnimatedBuilder(
+              ],
+            );
+            return AnimatedBuilder(
               animation: Listenable.merge([_center, _return]),
               child: RepaintBoundary(child: content),
               builder: (context, child) {
-                final flying = _flying;
-                final flight =
-                    flying != null &&
-                    _origin != null &&
-                    !MediaQuery.disableAnimationsOf(context);
                 final center = const Cubic(
                   .22,
                   1,
@@ -422,19 +466,19 @@ class _OfficeSwitcherSheetState extends State<OfficeSwitcherSheet>
                         ),
                       ),
                     ),
-                    if (flight)
+                    if (flightAvatar != null)
                       _OfficeFlyingAvatar(
-                        office: flying,
                         origin: _origin!,
                         bounds: constraints.biggest,
                         centerProgress: center,
                         returning: returning,
+                        child: flightAvatar,
                       ),
                     if (flight && (provider.isSwitching || returning < .5))
                       Positioned(
                         left: 24,
                         right: 24,
-                        top: flight ? constraints.maxHeight * .42 + 92 : 112,
+                        top: constraints.maxHeight * .42 + 92,
                         child: IgnorePointer(
                           child: Semantics(
                             liveRegion: true,
@@ -465,9 +509,9 @@ class _OfficeSwitcherSheetState extends State<OfficeSwitcherSheet>
                   ],
                 );
               },
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
@@ -510,7 +554,7 @@ class _OfficeSwitcherSheetState extends State<OfficeSwitcherSheet>
                           child: OfficeAvatar(
                             office: office,
                             fontFamily: _officeFont,
-                            tintLogo: true,
+                            outlineLogo: true,
                           ),
                         ),
                       ),
@@ -550,6 +594,7 @@ class _OfficeSwitcherSheetState extends State<OfficeSwitcherSheet>
 
   @override
   void dispose() {
+    _entrance?.removeStatusListener(_refreshAfterEntrance);
     _center.dispose();
     _return.dispose();
     super.dispose();
@@ -558,13 +603,13 @@ class _OfficeSwitcherSheetState extends State<OfficeSwitcherSheet>
 
 class _OfficeFlyingAvatar extends StatelessWidget {
   const _OfficeFlyingAvatar({
-    required this.office,
+    required this.child,
     required this.origin,
     required this.bounds,
     required this.centerProgress,
     required this.returning,
   });
-  final Office office;
+  final Widget child;
   final Rect origin;
   final Size bounds;
   final double centerProgress, returning;
@@ -599,19 +644,12 @@ class _OfficeFlyingAvatar extends StatelessWidget {
       t,
     )!;
     return Positioned(
-      left: position.dx - size / 2,
-      top: position.dy - size / 2,
-      width: size,
-      height: size,
+      left: position.dx - 52,
+      top: position.dy - 52,
+      width: 104,
+      height: 104,
       child: ExcludeSemantics(
-        child: RepaintBoundary(
-          child: OfficeAvatar(
-            fontFamily: _officeFont,
-            key: const ValueKey('office-flying-avatar'),
-            office: office,
-            size: size,
-          ),
-        ),
+        child: Transform.scale(scale: size / 104, child: child),
       ),
     );
   }

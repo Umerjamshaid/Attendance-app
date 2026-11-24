@@ -7,6 +7,8 @@ import 'auth_provider.dart';
 
 /// Online-only office selection. Server memberships, never local preferences, grant access.
 class OfficeProvider extends ChangeNotifier {
+  static const _snapshotLifetime = Duration(minutes: 1);
+
   OfficeProvider(this.auth) {
     auth.addListener(_authChanged);
     _accountKey = auth.accountScopeKey;
@@ -24,6 +26,8 @@ class OfficeProvider extends ChangeNotifier {
   String? _officeId;
   bool _loading = false, _busy = false, _disposed = false;
   int _generation = 0;
+  Future<void>? _pendingReload;
+  DateTime? _lastLoadedAt;
   String? _error;
   List<Office> get offices => List.unmodifiable(
     _offices.where(
@@ -64,8 +68,9 @@ class OfficeProvider extends ChangeNotifier {
 
   void _authChanged() {
     if (_disposed) return;
-    if (_accountKey != auth.accountScopeKey) {
-      _generation++;
+    final accountChanged = _accountKey != auth.accountScopeKey;
+    if (accountChanged) {
+      _invalidateSnapshot();
       _offices = [];
       _invitations = [];
       _hiddenIds = {};
@@ -78,12 +83,43 @@ class OfficeProvider extends ChangeNotifier {
         _officeId != activeOfficeId || _scopeKey != auth.officeScopeKey;
     _scopeKey = auth.officeScopeKey;
     _officeId = activeOfficeId;
-    if (!_busy && (changed || _offices.isEmpty)) unawaited(reload());
-    notifyListeners();
+    if (!_busy && (accountChanged || changed)) {
+      if (!accountChanged) _invalidateSnapshot();
+      unawaited(reload());
+    }
+    if (accountChanged || changed) notifyListeners();
   }
 
-  Future<void> reload({bool preserveError = false}) async {
-    final generation = ++_generation;
+  void _invalidateSnapshot() {
+    _generation++;
+    _pendingReload = null;
+    _lastLoadedAt = null;
+  }
+
+  /// Keep the current list visible while refreshing an expired snapshot.
+  Future<void> refreshIfStale() {
+    if (_busy) return Future.value();
+    final loadedAt = _lastLoadedAt;
+    if (loadedAt != null &&
+        DateTime.now().difference(loadedAt) < _snapshotLifetime) {
+      return Future.value();
+    }
+    return reload();
+  }
+
+  Future<void> reload({bool preserveError = false}) {
+    if (_disposed) return Future.value();
+    final generation = _generation;
+    return _pendingReload ??=
+        Future<void>.microtask(
+          () => _load(generation, preserveError: preserveError),
+        ).whenComplete(() {
+          if (generation == _generation) _pendingReload = null;
+        });
+  }
+
+  Future<void> _load(int generation, {required bool preserveError}) async {
+    if (_disposed || generation != _generation) return;
     if (!preserveError) _error = null;
     if (auth.currentUser == null || !isSupported) {
       _offices = [];
@@ -106,8 +142,10 @@ class OfficeProvider extends ChangeNotifier {
         _hiddenIds = hidden.toSet();
         _visibilityLoaded = true;
       }
-      final offices = await backend.offices();
-      final invitations = await backend.officeInvitations();
+      final (offices, invitations) = await (
+        backend.offices(),
+        backend.officeInvitations(),
+      ).wait;
       if (_disposed || generation != _generation) return;
       final previous = {for (final office in _offices) office.id: office};
       _offices = offices.map((office) {
@@ -119,13 +157,17 @@ class OfficeProvider extends ChangeNotifier {
             : office;
       }).toList();
       _invitations = invitations;
+      _lastLoadedAt = DateTime.now();
       if (activeOfficeId != null &&
           !offices.any((office) => office.id == activeOfficeId)) {
         unawaited(auth.refreshSession());
       }
     } catch (error) {
       if (_disposed || generation != _generation) return;
-      _error = error.toString();
+      _error = error is ParallelWaitError<Object?, (AsyncError?, AsyncError?)>
+          ? (error.errors.$1 ?? error.errors.$2)?.error.toString() ??
+                'Could not load offices.'
+          : error.toString();
     } finally {
       if (!_disposed && generation == _generation) {
         _loading = false;
@@ -148,6 +190,7 @@ class OfficeProvider extends ChangeNotifier {
       return false;
     } finally {
       if (!_disposed && key == auth.accountScopeKey) {
+        _invalidateSnapshot();
         _busy = false;
         notifyListeners();
         await reload(preserveError: true);

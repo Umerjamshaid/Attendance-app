@@ -7,6 +7,7 @@ abstract final class AppIcons {
   static const arrowRight = TablerIcons.arrowRight;
   static const bell = TablerIcons.bell;
   static const bellRinging = TablerIcons.bellRinging;
+  static const brandGithub = TablerIcons.brandGithub;
   static const brightnessHalf = TablerIcons.brightnessHalf;
   static const camera = TablerIcons.camera;
   static const cameraPlus = TablerIcons.cameraPlus;
@@ -17,6 +18,7 @@ abstract final class AppIcons {
   static const circle = TablerIcons.circle;
   static const circleCheck = TablerIcons.circleCheck;
   static const circleX = TablerIcons.circleX;
+  static const copy = TablerIcons.copy;
   static const clock = TablerIcons.clock;
   static const cloudCheck = TablerIcons.cloudCheck;
   static const currentLocation = TablerIcons.currentLocation;

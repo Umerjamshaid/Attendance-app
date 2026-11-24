@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import '../models/attendance_record_model.dart';
 import '../models/employees_model.dart';
+import '../models/office_check_in_activity.dart';
 import '../models/office_model.dart';
 
 class CompanyException implements Exception {
@@ -108,6 +109,10 @@ abstract class CompanyBackend {
     String? employeeId,
     bool todayOnly = false,
   });
+  Future<List<OfficeCheckInActivity>> checkInActivity() async =>
+      throw const CompanyException(
+        'Check-in activity is not available in this build.',
+      );
   Future<AttendanceRecord> submit({
     required String requestId,
     required String base64Image,
@@ -134,5 +139,9 @@ abstract class CompanyBackend {
     required String department,
   });
   Future<void> setEmployeeActive(String employeeId, bool active);
+  Future<void> removeOfficeEmployee(String employeeId) async =>
+      throw const CompanyException('Employee removal is unavailable.');
+  Future<String> reinviteRemovedEmployee(String employeeId) async =>
+      throw const CompanyException('Re-invites are unavailable.');
   Future<Map<String, dynamic>> evidence(String recordId);
 }

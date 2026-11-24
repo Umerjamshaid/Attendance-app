@@ -38,32 +38,21 @@ It started as an interface project and grew into a working app: authenticated ac
 
 ## Screenshots
 
+Current app screens in presentation frames, with fictional offices and
+employees. Select an image to view it at full size.
+
 <table>
   <tr>
-    <td align="center" width="20%">
-      <img src="attendance/screenshots/Samsung%20Galaxy%20S21%20Ultra%20Screenshot%201.png" alt="Check-in screen"><br>
-      <sub><strong>Check-in</strong></sub>
-    </td>
-    <td align="center" width="20%">
-      <img src="attendance/screenshots/Samsung%20Galaxy%20S21%20Ultra%20Screenshot%202.png" alt="History screen"><br>
-      <sub><strong>History</strong></sub>
-    </td>
-    <td align="center" width="20%">
-      <img src="attendance/screenshots/Samsung%20Galaxy%20S21%20Ultra%20Screenshot%203.png" alt="Administration screen"><br>
-      <sub><strong>Administration</strong></sub>
-    </td>
-    <td align="center" width="20%">
-      <img src="attendance/screenshots/Samsung%20Galaxy%20S21%20Ultra%20Screenshot%204.png" alt="Profile screen"><br>
-      <sub><strong>Profile</strong></sub>
-    </td>
-    <td align="center" width="20%">
-      <img src="attendance/screenshots/Samsung%20Galaxy%20S21%20Ultra%20Screenshot%205.png" alt="Settings screen"><br>
-      <sub><strong>Settings</strong></sub>
-    </td>
+    <td align="center"><a href="attendance/screenshots/current/attendance.png"><img src="attendance/screenshots/current/attendance.png" width="220" alt="Check-in screen with office selection and photo capture"></a><br><strong>Check-in</strong></td>
+    <td align="center"><a href="attendance/screenshots/current/history.png"><img src="attendance/screenshots/current/history.png" width="220" alt="History showing monthly progress, streak, and dated check-ins"></a><br><strong>History</strong></td>
+    <td align="center"><a href="attendance/screenshots/current/admin.png"><img src="attendance/screenshots/current/admin.png" width="220" alt="Admin dashboard with today's totals, attendance window, and activity entry point"></a><br><strong>Admin</strong></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="attendance/screenshots/current/employees.png"><img src="attendance/screenshots/current/employees.png" width="220" alt="Employee roster with Current and Removed tabs, search, and invite controls"></a><br><strong>Employees</strong></td>
+    <td align="center"><a href="attendance/screenshots/current/profile.png"><img src="attendance/screenshots/current/profile.png" width="220" alt="Profile with a banner, tags, and attendance progress"></a><br><strong>Profile</strong></td>
+    <td align="center"><a href="attendance/screenshots/current/settings.png"><img src="attendance/screenshots/current/settings.png" width="220" alt="Graphite Settings with profile, account recovery, and appearance controls"></a><br><strong>Settings</strong></td>
   </tr>
 </table>
-
-<p align="center"><sub>Current Android interface.</sub></p>
 
 ---
 
@@ -100,7 +89,7 @@ It started as an interface project and grew into a working app: authenticated ac
 
 ## Try the demo
 
-You need a Flutter SDK compatible with Dart `^3.11.4`, plus an Android device or emulator.
+Use Flutter 3.47 or newer with Dart 3.13 or newer, plus an Android device or emulator.
 
 ```sh
 git clone https://github.com/Umerjamshaid/Attendance-app.git
@@ -226,5 +215,6 @@ See [design and animation attribution](attendance/docs/third-party-animations.md
 ---
 
 <p align="center">
-  <sub>Built by <a href="https://github.com/Umerjamshaid"><strong>Umer Jamshaid</strong></a></sub>
+  <a href="https://github.com/Umerjamshaid"><img src="attendance/assets/logos/credits.jpeg" width="48" alt="Portrait of Umer Jamshaid"></a><br>
+  <em>Crafted by</em> <strong><a href="https://github.com/Umerjamshaid">Umer Jamshaid</a></strong>
 </p>

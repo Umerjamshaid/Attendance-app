@@ -72,6 +72,14 @@ class AppTheme {
       surfaceContainer: lift(colors.surfaceContainer),
       surfaceContainerHigh: lift(colors.surfaceContainerHigh),
       surfaceContainerHighest: lift(colors.surfaceContainerHighest),
+      // The neutral outline is almost identical to Graphite's lifted rows.
+      outlineVariant: palette == AppPalette.graphite
+          ? Color.lerp(
+              lift(colors.surfaceContainerHighest),
+              colors.onSurface,
+              .24,
+            )
+          : colors.outlineVariant,
     );
   }
 

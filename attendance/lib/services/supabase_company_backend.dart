@@ -10,6 +10,7 @@ import 'package:uuid/uuid.dart';
 import '../config/backend_config.dart';
 import '../models/attendance_record_model.dart';
 import '../models/employees_model.dart';
+import '../models/office_check_in_activity.dart';
 import '../models/office_model.dart';
 import 'company_backend.dart';
 import 'profile_media.dart';
@@ -83,6 +84,7 @@ class SupabaseCompanyBackend extends CompanyBackend {
   AttendancePolicy _policy = const AttendancePolicy();
   bool _hasPolicy = false;
   Future<AttendancePolicy>? _policyRequest;
+  Future<List<OfficeCheckInActivity>>? _activityRequest;
   final _imageRefreshes = <String, Completer<String?>>{};
   final _queuedImagePaths = <String>{};
   Timer? _imageRefreshTimer;
@@ -167,8 +169,11 @@ class SupabaseCompanyBackend extends CompanyBackend {
     }
   });
 
-  Future<dynamic> _rpc(String name, {Map<String, dynamic>? params}) =>
-      client.rpc(name, params: params).timeout(const Duration(seconds: 20));
+  Future<dynamic> _rpc(
+    String name, {
+    Map<String, dynamic>? params,
+    Duration timeout = const Duration(seconds: 20),
+  }) => client.rpc(name, params: params).timeout(timeout);
 
   Future<T> _guard<T>(Future<T> Function() action) async {
     try {
@@ -211,6 +216,8 @@ class SupabaseCompanyBackend extends CompanyBackend {
           'office_required' => 'Update the app and select an office.',
           'duplicate_employee' =>
             'That employee number is already in use in this office.',
+          'employee_not_removed' =>
+            'Only removed employees can be reinvited. Refresh the roster.',
           'office_code_account_required' =>
             'Use email for this employee. They need a verified Attendance account to use an office code.',
           'invalid_office_code' =>
@@ -532,6 +539,53 @@ class SupabaseCompanyBackend extends CompanyBackend {
     }
   });
 
+  @override
+  Future<List<OfficeCheckInActivity>> checkInActivity() => _guard(
+    () => _activityRequest ??= _readCheckInActivity().whenComplete(
+      () => _activityRequest = null,
+    ),
+  );
+
+  Future<List<OfficeCheckInActivity>> _readCheckInActivity() async {
+    final List rows;
+    try {
+      rows =
+          await _rpc(
+                'office_check_in_activity',
+                params: {'p_organization': _office},
+                timeout: const Duration(seconds: 15),
+              )
+              as List;
+    } on TimeoutException {
+      throw const CompanyException(
+        'The check-in feed took too long to load. Try again.',
+      );
+    } on PostgrestException catch (error) {
+      if (error.code == '42501') {
+        throw const CompanyAccessException(
+          'Check-in activity is only available to active office admins.',
+        );
+      }
+      if (error.code == 'PGRST202') {
+        throw const CompanyException(
+          'Check-in activity is not set up on this server yet.',
+        );
+      }
+      rethrow;
+    }
+    return [
+      for (final row in rows.cast<Map<String, dynamic>>())
+        OfficeCheckInActivity(
+          id: row['id'] as String,
+          employeeName: row['employee_name'] as String,
+          receivedAt: tz.TZDateTime.from(
+            DateTime.parse(row['received_at'] as String),
+            tz.getLocation(row['office_timezone'] as String),
+          ),
+        ),
+    ];
+  }
+
   Future<Map<String, dynamic>> _invoke(
     String function,
     Map<String, dynamic> body,
@@ -848,6 +902,26 @@ class SupabaseCompanyBackend extends CompanyBackend {
           'active': active,
         });
       });
+  @override
+  Future<void> removeOfficeEmployee(String employeeId) => _guard(() async {
+    await _rpc(
+      'remove_office_employee',
+      params: {'p_organization': _office, 'p_employee_code': employeeId},
+    );
+  });
+
+  @override
+  Future<String> reinviteRemovedEmployee(String employeeId) => _guard(
+    () async =>
+        await _rpc(
+              'reinvite_removed_employee',
+              params: {
+                'p_organization': _office,
+                'p_employee_code': employeeId,
+              },
+            )
+            as String,
+  );
   @override
   Future<Map<String, dynamic>> evidence(String recordId) =>
       _guard(() => _invoke('attendance-evidence', {'record_id': recordId}));

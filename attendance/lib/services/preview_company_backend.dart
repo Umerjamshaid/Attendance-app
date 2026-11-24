@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import '../models/attendance_record_model.dart';
 import '../models/employees_model.dart';
+import '../models/office_check_in_activity.dart';
 import '../models/office_model.dart';
 import 'company_backend.dart';
 
@@ -13,6 +14,9 @@ class _PreviewOffices {
 class PreviewCompanyBackend extends CompanyBackend {
   PreviewCompanyBackend({this.available = true}) : _offices = _PreviewOffices();
   PreviewCompanyBackend._scoped(this.available, this._offices, this._officeId);
+  static const _role = bool.fromEnvironment('ATTENDANCE_PREVIEW_ADMIN')
+      ? 'admin'
+      : 'employee';
   final bool available;
   final _PreviewOffices _offices;
   String? _officeId;
@@ -27,8 +31,8 @@ class PreviewCompanyBackend extends CompanyBackend {
   @override
   Future<List<Office>> offices() async => available
       ? const [
-          Office(id: 'preview-studio', name: 'Design Studio', role: 'employee'),
-          Office(id: 'preview-hub', name: 'City Hub', role: 'employee'),
+          Office(id: 'preview-studio', name: 'Design Studio', role: _role),
+          Office(id: 'preview-hub', name: 'City Hub', role: _role),
         ]
       : [];
   @override
@@ -68,7 +72,7 @@ class PreviewCompanyBackend extends CompanyBackend {
     id: 'DEMO001',
     name: 'Alex Morgan',
     email: 'alex@example.com',
-    role: 'employee',
+    role: _role,
     department: 'Product',
     time: '',
     headline: 'Building a better workday',
@@ -99,6 +103,25 @@ class PreviewCompanyBackend extends CompanyBackend {
           timestamp: DateTime(now.year, now.month, now.day - i, 9, 5),
           device: 'Sample Android device',
         ),
+    ];
+  }
+
+  @override
+  Future<List<OfficeCheckInActivity>> checkInActivity() async {
+    validateContext();
+    if (!available) throw unavailable;
+    final now = companyNow;
+    return [
+      OfficeCheckInActivity(
+        id: 'sample-alex',
+        employeeName: 'Alex Morgan',
+        receivedAt: now.subtract(const Duration(minutes: 9)),
+      ),
+      OfficeCheckInActivity(
+        id: 'sample-sam',
+        employeeName: 'Sam Rivera',
+        receivedAt: now.subtract(const Duration(minutes: 21)),
+      ),
     ];
   }
 
