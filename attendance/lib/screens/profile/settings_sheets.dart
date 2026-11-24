@@ -138,11 +138,13 @@ class SettingsSheetBody extends StatelessWidget {
     required this.detail,
     required this.leading,
     required this.actions,
+    this.footer,
   });
 
   final String title, detail;
   final Widget leading;
   final List<Widget> actions;
+  final Widget? footer;
 
   @override
   Widget build(BuildContext context) {
@@ -202,6 +204,11 @@ class SettingsSheetBody extends StatelessWidget {
               ),
             ),
           ),
+          if (footer != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+              child: SizedBox(width: double.infinity, child: footer),
+            ),
         ],
       ),
     );

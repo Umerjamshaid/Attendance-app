@@ -70,6 +70,7 @@ dependencies:
   package_info_plus: ^10.2.1
   pub_semver: ^2.2.1
   url_launcher: ^6.3.3
+  gpt_markdown: ^1.4.1
   
 
 dev_dependencies:

@@ -181,14 +181,27 @@ void main() {
     await tester.tap(whatsNew.hitTestable());
     await tester.pumpAndSettle();
     expect(find.text('Version 1.1.0 (Build 6)'), findsOneWidget);
-    expect(find.text('Faster Office Switch'), findsOneWidget);
-    expect(find.text('Clearer Graphite dividers'), findsOneWidget);
-    expect(find.text('New Settings sheets'), findsOneWidget);
-    expect(find.text('Interactive maker credits'), findsOneWidget);
-    expect(find.text('Office invitations'), findsOneWidget);
-    expect(find.text('New app icon'), findsOneWidget);
-    expect(find.text('Color palettes'), findsOneWidget);
-    expect(find.text('Startup recovery'), findsOneWidget);
+    expect(
+      find.text('Faster Office Switch', findRichText: true),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Clearer Graphite dividers', findRichText: true),
+      findsOneWidget,
+    );
+    expect(
+      find.text('New Settings sheets', findRichText: true),
+      findsOneWidget,
+    );
+    for (final title in [
+      'Interactive maker credits',
+      'Office invitations',
+      'New app icon',
+      'Color palettes',
+      'Startup recovery',
+    ]) {
+      expect(find.text(title, findRichText: true), findsOneWidget);
+    }
     expect(tester.takeException(), isNull);
   });
 

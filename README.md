@@ -10,8 +10,8 @@ office's roster, attendance window, and check-in evidence.
 
 ## Screenshots
 
-Rendered from the app with fictional offices and employees. Select an image to
-view it at full size.
+Current app screens in presentation frames, with fictional offices and
+employees. Select an image to view it at full size.
 
 <table>
   <tr>
@@ -96,4 +96,7 @@ switcher, navigation, bottom sheets, and feedback. Attendance keeps its own
 backend and identity system. See the [design and animation attribution](attendance/docs/third-party-animations.md)
 for the source and license notices.
 
-Built by [**Umer Jamshaid**](https://github.com/Umerjamshaid).
+<p align="center">
+  <a href="https://github.com/Umerjamshaid"><img src="attendance/assets/logos/credits.jpeg" width="48" alt="Portrait of Umer Jamshaid"></a><br>
+  <em>Crafted by</em> <strong><a href="https://github.com/Umerjamshaid">Umer Jamshaid</a></strong>
+</p>

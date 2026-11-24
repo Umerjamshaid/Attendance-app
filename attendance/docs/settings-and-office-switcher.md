@@ -37,7 +37,9 @@ the sheet records that build. A fresh install seeds the preference quietly;
 updates from older builds without the preference use OS install/update times
 when available. This check never holds the splash or interrupts password setup.
 
-For new releases, update the notes and highlights in
+Both views render bundled Markdown with `gpt_markdown` and show the installed
+version and build number. The update sheet keeps its dismiss button visible as
+the notes scroll. For new releases, update the Markdown in
 `lib/screens/profile/whats_new_screen.dart` and the public `CHANGELOG.md`.
 
 References reviewed: [Buzz's community switcher](https://github.com/block/buzz/blob/main/mobile/lib/features/channels/channels_page/community_switcher.dart)

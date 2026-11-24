@@ -1,7 +1,8 @@
 # Screenshot gallery
 
-`current/` contains renders of the Flutter UI with fictional data. To refresh
-the root README gallery, run from `attendance/`:
+`current/` contains framed renders of the Flutter UI with fictional data.
+The capture keeps the screen pixels intact and adds the presentation layout
+around them. To refresh the root README gallery, run from `attendance/`:
 
 ```sh
 flutter test --no-pub --update-goldens --dart-define=ATTENDANCE_README_SCREENSHOTS=true tool/capture_site_screens_test.dart

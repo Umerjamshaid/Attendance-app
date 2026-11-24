@@ -11,6 +11,7 @@ import 'package:attendance/widgets/office/office_switcher_sheet.dart';
 import 'package:attendance/widgets/office/office_scope.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -39,7 +40,7 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     Finder sheetText(String text) => find.descendant(
       of: find.byType(BottomSheet),
-      matching: find.text(text),
+      matching: find.text(text, findRichText: true),
     );
 
     await launch('4026');
@@ -49,13 +50,12 @@ void main() {
     await launch('4027');
     expect(sheetText("What's new"), findsOneWidget);
     expect(sheetText('Version 1.1.0 (Build 4027)'), findsOneWidget);
+    expect(find.byType(GptMarkdown), findsOneWidget);
     expect(sheetText('Faster Office Switch'), findsOneWidget);
     expect(sheetText('Interactive maker credits'), findsOneWidget);
     expect(prefs.getString('last_seen_release'), '1.1.0+4026');
     final done = sheetText('Got it');
-    await tester.ensureVisible(done);
-    await tester.pump();
-    await tester.tap(done);
+    await tester.tap(done.hitTestable());
     await _pumpLaunch(tester);
     expect(find.byType(BottomSheet), findsNothing);
     expect(prefs.getString('last_seen_release'), '1.1.0+4027');
