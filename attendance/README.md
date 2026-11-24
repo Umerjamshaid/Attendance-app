@@ -9,7 +9,7 @@ earlier interface previews when they are ready.
 
 ## Run The Demo
 
-From this directory, with a Flutter SDK compatible with Dart `^3.11.4`:
+From this directory, with Flutter 3.47 or newer and Dart 3.13 or newer:
 
 ```sh
 flutter pub get

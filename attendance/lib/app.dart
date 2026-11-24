@@ -9,6 +9,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:pub_semver/pub_semver.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import 'config/app_theme.dart';
 import 'config/app_info.dart';
 import 'screens/login/password_setup_screen.dart';
@@ -64,6 +65,7 @@ class _LaunchGateState extends State<_LaunchGate> {
   bool _timedOut = false;
   bool _released = false;
   bool _checkedRelease = false;
+  bool _checkingRelease = false;
 
   @override
   void initState() {
@@ -96,8 +98,8 @@ class _LaunchGateState extends State<_LaunchGate> {
   }
 
   void _checkReleaseAfterLayout() {
-    if (_checkedRelease) return;
-    _checkedRelease = true;
+    if (_checkedRelease || _checkingRelease) return;
+    _checkingRelease = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) unawaited(_checkRelease());
     });
@@ -115,7 +117,10 @@ class _LaunchGateState extends State<_LaunchGate> {
       );
       final saved = preferences.getString(_seenReleaseKey);
       final previous = saved == null ? null : Version.parse(saved);
-      if (previous != null && current <= previous) return;
+      if (previous != null && current <= previous) {
+        _checkedRelease = true;
+        return;
+      }
 
       // Older Attendance builds have no marker yet. Use OS install metadata
       // to distinguish an in-place update from a new install in that case.
@@ -135,9 +140,14 @@ class _LaunchGateState extends State<_LaunchGate> {
         }
         await showWhatsNewSheet(context, info);
       }
-      await preferences.setString(_seenReleaseKey, current.toString());
+      _checkedRelease = await preferences.setString(
+        _seenReleaseKey,
+        current.toString(),
+      );
     } catch (_) {
       // Optional release notes must never block Home or the native splash.
+    } finally {
+      _checkingRelease = false;
     }
   }
 
@@ -155,7 +165,9 @@ class _LaunchGateState extends State<_LaunchGate> {
     }
     _releaseAfterLayout();
     if (auth.needsPasswordSetup) return const PasswordSetupScreen();
-    if (!themeRestoring && auth.status == AuthStatus.authenticated) {
+    if (!themeRestoring &&
+        auth.status == AuthStatus.authenticated &&
+        ModalRoute.isCurrentOf(context) == true) {
       _checkReleaseAfterLayout();
     }
     return switch (auth.status) {

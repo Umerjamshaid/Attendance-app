@@ -126,9 +126,8 @@ void main() {
             theme: AppTheme.forPalette(palette, brightness),
             builder: (context, child) {
               final app = MediaQuery(
-                data: MediaQuery.of(
-                  context,
-                ).copyWith(size: _phoneSize, disableAnimations: true),
+                data: MediaQuery.of(context)
+                    .copyWith(size: _phoneSize, disableAnimations: true),
                 child: child!,
               );
               return _readmeGallery ? _ScreenshotPanel(file, child: app) : app;
@@ -296,7 +295,7 @@ class _ShowcaseBackend extends PreviewCompanyBackend {
       : roster;
   @override
   DateTime get companyNow =>
-      _readmeGallery ? DateTime.now() : DateTime(2026, 11, 18, 9);
+      _readmeGallery ? DateTime(2026, 11, 24, 9) : DateTime(2026, 11, 18, 9);
 
   @override
   Future<List<AttendanceRecord>> history({
