@@ -11,6 +11,7 @@ import '../../providers/auth_provider.dart';
 import '../../widgets/office/office_selector_header.dart';
 import '../../widgets/error_shake.dart';
 import '../admin/employee_management_screen.dart';
+import '../login/office_code_screen.dart';
 import 'office_roles_screen.dart';
 
 class ManageOfficesScreen extends StatelessWidget {
@@ -216,6 +217,34 @@ class ManageOfficesScreen extends StatelessWidget {
               ),
             Text('Invitations', style: AppTypography.title),
             const SizedBox(height: 12),
+            if (context
+                    .read<AuthProvider>()
+                    .officeBackend
+                    ?.supportsOfficeInviteCodes ==
+                true)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  onPressed: provider.isSwitching
+                      ? null
+                      : () => Navigator.of(context).push<void>(
+                          MaterialPageRoute(
+                            builder: (_) => OfficeCodeScreen(
+                              join: (code, _, _) async {
+                                final joined = await provider.redeemInviteCode(
+                                  code,
+                                );
+                                return joined
+                                    ? null
+                                    : provider.error ??
+                                          'Could not join. Try again.';
+                              },
+                            ),
+                          ),
+                        ),
+                  child: const Text('Join with an office code'),
+                ),
+              ),
             if (provider.invitations.isEmpty)
               const Text(
                 'No pending invitations. Ask an office administrator to invite your sign-in email.',

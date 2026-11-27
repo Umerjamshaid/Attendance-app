@@ -8,12 +8,14 @@ import 'package:attendance/providers/auth_provider.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:timezone/data/latest.dart' as tz;
 
 const _user = '20000000-0000-4000-8000-000000000001';
 const _a = '10000000-0000-4000-8000-000000000001';
 const _b = '10000000-0000-4000-8000-000000000002';
+const _sessionId = '30000000-0000-4000-8000-000000000001';
 
 Future<void> _recover(SupabaseClient client) async {
   final session = client.auth.currentSession!;
@@ -43,6 +45,8 @@ class _Server {
   final avatarPaths = <String, String?>{};
   final calls = <http.Request>[];
   bool rejectPassword = false;
+  bool rejectCode = false;
+  String sessionId = _sessionId;
   bool rejectLogo = false;
   String? bannerPath;
   Map<String, dynamic> employee(String org) => {
@@ -115,12 +119,15 @@ class _Server {
         'user_metadata': {'password_set': true},
       });
     }
-    if (path.endsWith('/token')) {
+    if (path.endsWith('/token') || path.endsWith('/verify')) {
+      if (path.endsWith('/verify') && rejectCode) {
+        return json({'error_code': 'otp_expired', 'msg': 'Test expiry'}, 403);
+      }
       String part(Object value) =>
           base64Url.encode(utf8.encode(jsonEncode(value))).replaceAll('=', '');
       final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       final jwt =
-          '${part({'alg': 'HS256', 'typ': 'JWT'})}.${part({'sub': _user, 'aud': 'authenticated', 'role': 'authenticated', 'exp': now + 3600, 'iat': now})}.test-signature';
+          '${part({'alg': 'HS256', 'typ': 'JWT'})}.${part({'sub': _user, 'aud': 'authenticated', 'role': 'authenticated', 'exp': now + 3600, 'iat': now, 'session_id': sessionId})}.dGVzdA';
       return json({
         'access_token': jwt,
         'refresh_token': 'test-refresh',
@@ -409,11 +416,106 @@ void main() {
       await _recover(client);
       await auth.refreshSession();
       expect(auth.needsPasswordSetup, isTrue);
-      await auth.backend!.setPassword('new-test-password');
-      await auth.refreshSession();
+      server.oldContext = Completer<http.Response>();
+      await auth.finishPasswordSetup('new-test-password');
       expect(auth.needsPasswordSetup, isFalse);
       expect(auth.isAuthenticated, isTrue);
       expect(auth.currentUser?.authUserId, _user);
+      server.oldContext!.complete(server.json(server.employee(_a)));
+    },
+  );
+  test('recovery is restored only for the pending Supabase session', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final server = _Server();
+    SupabaseClient makeClient() => SupabaseClient(
+      'https://office-backend.example.invalid',
+      'test-publishable-key',
+      httpClient: MockClient(server.handle),
+      authOptions: const AuthClientOptions(autoRefreshToken: false),
+    );
+    final client = makeClient();
+    addTearDown(client.dispose);
+    final source = SupabaseCompanyBackend(client, preferences: preferences);
+    final auth = AuthProvider(backend: source);
+    addTearDown(auth.dispose);
+    await source.signIn('test@example.invalid', 'old-test-password');
+    final recoveryEvent = source.authChanges.firstWhere(
+      (_) => source.needsPasswordSetup,
+    );
+    await _recover(client);
+    await recoveryEvent;
+    expect(source.needsPasswordSetup, isTrue);
+
+    final reopened = makeClient();
+    addTearDown(reopened.dispose);
+    await reopened.auth.setInitialSession(
+      jsonEncode(client.auth.currentSession!.toJson()),
+    );
+    final restored = SupabaseCompanyBackend(reopened, preferences: preferences);
+    expect(restored.needsPasswordSetup, isTrue);
+    server.sessionId = '30000000-0000-4000-8000-000000000002';
+    await restored.signIn('test@example.invalid', 'old-test-password');
+    expect(restored.needsPasswordSetup, isFalse);
+
+    await reopened.auth.setInitialSession(
+      jsonEncode(client.auth.currentSession!.toJson()),
+    );
+    expect(restored.needsPasswordSetup, isTrue);
+    await restored.setPassword('new-test-password');
+    expect(
+      SupabaseCompanyBackend(
+        reopened,
+        preferences: preferences,
+      ).needsPasswordSetup,
+      isFalse,
+    );
+  });
+  test(
+    'email codes verify only through the matching Supabase OTP flow',
+    () async {
+      final server = _Server();
+      final client = SupabaseClient(
+        'https://office-backend.example.invalid',
+        'test-publishable-key',
+        httpClient: MockClient(server.handle),
+        authOptions: const AuthClientOptions(autoRefreshToken: false),
+      );
+      addTearDown(client.dispose);
+      final root = SupabaseCompanyBackend(client);
+      final subscription = root.authChanges.listen((_) {});
+      addTearDown(subscription.cancel);
+      server.rejectCode = true;
+      await expectLater(
+        root.verifyEmailCode(
+          'test@example.invalid',
+          '111111',
+          CompanyEmailCode.invitation,
+        ),
+        throwsA(
+          isA<CompanyException>().having(
+            (e) => e.message,
+            'message',
+            contains('no longer usable'),
+          ),
+        ),
+      );
+      expect(client.auth.currentSession, isNull);
+      server.rejectCode = false;
+      await root.verifyEmailCode(
+        'test@example.invalid',
+        '222222',
+        CompanyEmailCode.invitation,
+      );
+      expect((jsonDecode(server.calls.last.body) as Map)['type'], 'invite');
+      await root.verifyEmailCode(
+        'test@example.invalid',
+        '333333',
+        CompanyEmailCode.recovery,
+      );
+      expect((jsonDecode(server.calls.last.body) as Map)['type'], 'recovery');
+      await Future<void>.delayed(Duration.zero);
+      expect(root.needsPasswordSetup, isTrue);
     },
   );
   test(

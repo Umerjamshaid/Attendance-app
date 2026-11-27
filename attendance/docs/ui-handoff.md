@@ -1,7 +1,11 @@
 # Home And History UI Handoff
 
-Updated: 2026-11-09. Current branch: `codex/centered-swipe-navigation`.
+Updated: 2026-11-13. Current branch: `codex/centered-swipe-navigation`.
 Backend review fixes were already saved in `6bdb462` before this UI task.
+
+Latest checkpoint: the security review was stopped by the user and remains
+incomplete. See **Stopped Security Review (2026-11-13)** below. Do not restart
+that workflow automatically when reading this handoff.
 
 ## Explicit User Decisions
 
@@ -355,3 +359,101 @@ The source retains the verified 119 passing tests and clean analyzer result.
 Existing test signing, shared application ID and Gradle/AGP/Kotlin warnings
 remain. Physical-device and iOS testing are still outstanding. The APK is local,
 ignored and not uploaded as a GitHub release asset.
+
+## Stopped Security Review (2026-11-13)
+
+### Current Application Checkpoint
+
+- The latest recorded application changes are the UI/location work and four
+  review fixes documented above. Source `4adbc47` was published to PR #18; the
+  audit inspected repository commit `501051e3c38601b65d2b9a9a0e06de2cb1c82034`
+  on `codex/centered-swipe-navigation`. No merge or push was performed for the
+  audit or this handoff update; current remote PR state was not rechecked.
+- The last recorded public ARM64 release APK, checksum, signing limitations,
+  119 passing tests and clean analyzer result are in the preceding section.
+  Those are earlier verification results, not checks rerun during the audit.
+- No application code, dependencies, private integration files, Git history,
+  backend settings or APKs were changed by the security review. Both ignored
+  private Dart files retained their recorded hashes. Do not delete or stage them.
+
+### User Decision And Stop Point
+
+- The user requested a read-only security review using the security-audit skill,
+  with output under `~/audits/my-project/` outside the repository.
+- A platform notice saying "This content can't be shown" appeared. The exact
+  internal trigger is unknown; it is not a Flutter exception or proof of an app
+  vulnerability. Do not claim that the skill was definitively responsible.
+- The user explicitly requested stopping the audit. Remaining review agents
+  were closed, and run metadata plus the status report were marked incomplete
+  with reason `user_requested_stop`. Do not restart security review agents,
+  validation or testing unless the user explicitly requests resumption.
+
+### Work Completed Before Stopping
+
+- Read the audit guidance and mapped the tracked public Flutter application,
+  Provider/backend boundaries, Supabase Auth, SQL/RLS, Edge Functions, private
+  media storage, retention, native callbacks and release configuration.
+- Completed two focused source-review waves, post-wave coverage checks and a
+  distinct final coverage check. These checks accepted the recorded source
+  coverage; they did not establish that the application is vulnerability-free.
+- Saved 28 coverage units: 10 source-covered, 10 candidate-bearing, six blocked
+  on unavailable SDK/platform/deployment facts, and two explicitly out of scope.
+  The 10 candidate units refer to eight deduplicated source leads, not 10 bugs.
+- Independent candidate review started, but consolidation and final-record
+  verification did not finish. No finalized findings.json or severity ratings
+  were issued. Do not promote partial agent responses to confirmed findings.
+- The ledger's structural/semantic checks passed through the audit skill's
+  unchanged exported validator API on parent-authored report data. The native
+  CLI reader could not run its no-follow file protections on Windows; do not
+  describe that CLI check as passed or as runtime vulnerability validation.
+
+### Unconfirmed Leads Only
+
+These are questions retained for possible future validation, not established
+vulnerabilities or instructions to make fixes automatically:
+
+- Account-cache separation when different companies reuse an employee code.
+- Pending profile/photo/GPS operations across an account change or disposal.
+- Administrator self-reactivation during concurrent deactivation.
+- Orphan-media cleanup overlapping completion of an attendance retry.
+- Compressed image byte limits versus administrator-side decoded image cost.
+- Storage accounting for uploads retained after a rejected check-in.
+- Complete-history loading and repeated administrator dashboard aggregation.
+- Whether invitation responses reveal otherwise confidential account existence.
+
+An additional policy-write timing concern was source-reviewed without finding
+an established boundary failure: ordinary completion of an already-authorized
+in-flight request is not, by itself, a deactivation bypass.
+
+### Boundaries And Saved State
+
+- No target tests, builds, SQL, app/fixture execution, deployed API requests,
+  production-data queries or dependency fetching were performed. The audit's
+  required isolated execution and safe artifact-promotion controls were not
+  available. No live connection-health or production-security claim follows.
+- Ignored private SOAP implementation/entrypoint, credentials, complete Git
+  history, untracked notes/design documents, generated artifacts, third-party
+  implementation internals and live services were outside the reviewed scope.
+  This is not a security approval of the private company version.
+- `~/audits/my-project/REPORT.md` records the incomplete status.
+  `run-metadata.json`, `architecture.md` and `coverage-ledger.json` preserve
+  scope, source reference, source checks, archived review attempts and leads.
+  Keep these local audit files outside public commits; never copy credentials
+  or private implementation contents into the handoff.
+- A future explicitly requested resumption must first read that saved state,
+  compare the current source with the recorded commit, and independently
+  validate or reject leads. Do not treat coverage bookkeeping, old test results
+  or a platform content notice as completed security evidence.
+- This handoff update is documentation-only. No new APK, commit, push, analyzer
+  run or application test run was requested or performed.
+
+## Bunpod-Inspired Splash and Settings Footer
+
+- Settings ends with the Attendance launcher mark, installed version and build,
+  and a "Crafted by Umer Jamshaid" credit with the bundled portrait from
+  `assets/logos/credits.jpeg`. The shared footer reads
+  `PackageInfo.fromPlatform()` and formats the version with `AppInfo`.
+- The Flutter splash shows the larger mark and the same footer text. It respects
+  reduced motion and does not add a startup timer or change session routing.
+  Native launch screens and the Profile tab are unchanged. No Bunpod artwork,
+  source, or fonts were copied.

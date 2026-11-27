@@ -59,6 +59,32 @@ the app installed, including cold starts. A custom scheme is suitable for the
 pilot; verified HTTPS app/universal links require an owned domain before a broad
 commercial release. iOS builds must be verified on macOS.
 
+To enable **Use email code** in the hosted app, apply the contents of
+`supabase/templates/invite.html` and `supabase/templates/recovery.html` to the
+hosted project's **Invite user** and **Reset password** email templates. Retain
+both `{{ .ConfirmationURL }}` and `{{ .Token }}`. `config.toml` applies these
+templates to local development only. See the
+[Supabase email template guide](https://supabase.com/docs/guides/auth/auth-email-templates).
+Do not change the redirect scheme when removing app branding: it is part of
+existing signed-in flows and links already sent.
+
+### Admin-shared office codes
+
+Apply the `office_invite_codes` migration before distributing a client with
+**Office code** invitations. No Edge Function or email-template change is
+required for this method. In **Employees > Invite employee**, choose **Office
+code**, enter the person's verified Attendance email and employee details,
+then reveal and copy the code. Generating another code for the same account
+and office replaces the previous one.
+
+The employee can use **Offices > Join with an office code** while signed in or
+**Use office code** on the sign-in screen with their existing credentials.
+Codes grant employee membership only, are valid for 24 hours, and are tied to
+the invited account. An inviter must still be an active office administrator
+when the code is used. First-time accounts still use email verification and
+password setup; the manually shared code does not replace account verification
+or password recovery.
+
 Functions manually verify user JWTs using Auth before any privileged access.
 `verify_jwt = false` only disables the platform's legacy JWT gateway check; it
 does not disable the handlers' authentication. Keep the server credential inside
@@ -94,10 +120,20 @@ access even with an existing JWT; it does not delete historical check-ins.
 
 Invitations do not contain a generated password. With the app installed, open
 the invitation on that phone and choose a password of at least 12 characters.
-If the invitation was already used or opened before installation, use **Forgot
-password?** on the app's sign-in screen, send a recovery email, and open the
-newest link on the same phone. Never share passwords or recovery links. Visitors
-using **Explore demo** do not need an account or password.
+If an email browser does not open the app, use **Use email code** and select
+**Employee invitation** or **Password reset**, matching the newest email. A
+code and link in the same email are single-use alternatives. If an invitation
+was already used, expired, or opened before installation, use **Forgot
+password?** in the app to request a fresh email. Open a recovery link on the
+same phone that requested it or use its code. Do not share passwords, codes,
+or links. Visitors using **Explore demo** do not need an account or password.
+
+For real-device verification, open an invite with the app closed and a reset
+link with the reset form still open. Restart before saving and confirm it
+returns to **Set password**. Save the password and check that navigation
+advances without reopening the app. Also test an expired link and one-time
+code. If corporate mail scanning consumes links in advance, confirm SMTP/link
+tracking behavior or consider a code-only template for that rollout.
 
 The organization starts in `Asia/Karachi` with the existing 7 AM–1 PM schedule.
 The admin can select Scheduled or Always open in the existing window sheet.
